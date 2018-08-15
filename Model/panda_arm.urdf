@@ -127,7 +127,7 @@
         <inertia ixx="0.05" iyy="0.05" izz="0.05" ixy="0" ixz="0" iyz="0" />
       </inertial>
       <visual>
-        <origin xyz="0 0 0" rpy="0 0 0.78539816339" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
           <mesh filename="../../../Model/meshes/link7.obj"/>
         </geometry>

@@ -127,7 +127,7 @@
         <inertia ixx="0.09" iyy="0.05" izz="0.07" ixy="0" ixz="0" iyz="0" />
       </inertial>
       <visual>
-        <origin xyz="0 0 0" rpy="0 0 0.78539816339" />
+        <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
           <mesh filename="../../../Model/meshes/link7.obj"/>
         </geometry>
@@ -138,7 +138,7 @@
         </geometry>
       </collision> -->
       <visual>
-        <origin xyz="0 0 0.107" rpy="0 0 0" />
+        <origin xyz="0 0 0.107" rpy="0 0 -0.78539816339" />
         <geometry>
           <mesh filename="../../../Model/meshes/hand.obj"/>
         </geometry>
@@ -248,7 +248,7 @@
     <joint name="finger_joint1" type="prismatic">
       <parent link="link7"/>
       <child link="leftfinger"/>
-      <origin xyz="0 0 0.1654" rpy="0 0 0"/>
+      <origin xyz="0 0 0.1654" rpy="0 0 -0.78539816339"/>
       <axis xyz="0 1 0"/>
       <calibration rising="0.02" />
       <limit effort="20" lower="0.0" upper="0.04" velocity="0.2"/>
@@ -256,7 +256,7 @@
     <joint name="finger_joint2" type="prismatic">
       <parent link="link7"/>
       <child link="rightfinger"/>
-      <origin xyz="0 0 0.1654" rpy="0 0 0"/>
+      <origin xyz="0 0 0.1654" rpy="0 0 -0.78539816339"/>
       <axis xyz="0 1 0"/>
       <calibration rising="-0.02" />
       <limit effort="20" lower="0.0" upper="0.04" velocity="0.2"/>

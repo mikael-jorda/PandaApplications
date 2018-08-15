@@ -23,22 +23,70 @@ const string robot_name = "PANDA";
 
 // redis keys:
 // - read:
-const std::string JOINT_ANGLES_KEY  = "sai2::PandaApplication::sensors::q";
-const std::string JOINT_VELOCITIES_KEY = "sai2::PandaApplication::sensors::dq";
+std::string JOINT_ANGLES_KEY;
+std::string JOINT_VELOCITIES_KEY;
+std::string JOINT_TORQUES_SENSED_KEY;
 // - write
-const std::string TORQUES_COMMANDED_KEY  = "sai2::PandaApplication::actuators::fgc";
+std::string JOINT_TORQUES_COMMANDED_KEY;
+
+// - model
+std::string MASSMATRIX_KEY;
+std::string CORIOLIS_KEY;
+std::string ROBOT_GRAVITY_KEY;
 
 // - gripper
-const std::string GRIPPER_MODE_KEY  = "sai2::PandaApplication::gripper::mode"; // m for move and g for graps
-const std::string GRIPPER_MAX_WIDTH_KEY  = "sai2::PandaApplication::gripper::max_width";
-const std::string GRIPPER_CURRENT_WIDTH_KEY  = "sai2::PandaApplication::gripper::current_width";
-const std::string GRIPPER_DESIRED_WIDTH_KEY  = "sai2::PandaApplication::gripper::desired_width";
-const std::string GRIPPER_DESIRED_SPEED_KEY  = "sai2::PandaApplication::gripper::desired_speed";
-const std::string GRIPPER_DESIRED_FORCE_KEY  = "sai2::PandaApplication::gripper::desired_force";
+std::string GRIPPER_MODE_KEY; // m for move and g for graps
+std::string GRIPPER_MAX_WIDTH_KEY;
+std::string GRIPPER_CURRENT_WIDTH_KEY;
+std::string GRIPPER_DESIRED_WIDTH_KEY;
+std::string GRIPPER_DESIRED_SPEED_KEY;
+std::string GRIPPER_DESIRED_FORCE_KEY;
+
+// gains
+const string KP_KEY = "sai2::PandaApplication::controller:kp_joint";
+const string KV_KEY = "sai2::PandaApplication::controller:kv_joint";
 
 unsigned long long controller_counter = 0;
 
+const bool flag_simulation = false;
+// const bool flag_simulation = true;
+
+const bool inertia_regularization = true;
+
 int main() {
+
+	if(flag_simulation)
+	{
+		JOINT_ANGLES_KEY  = "sai2::PandaApplication::sensors::q";
+		JOINT_VELOCITIES_KEY = "sai2::PandaApplication::sensors::dq";
+		JOINT_TORQUES_COMMANDED_KEY  = "sai2::PandaApplication::actuators::fgc";
+
+		GRIPPER_MODE_KEY  = "sai2::PandaApplication::gripper::mode"; // m for move and g for graps
+		GRIPPER_MAX_WIDTH_KEY  = "sai2::PandaApplication::gripper::max_width";
+		GRIPPER_CURRENT_WIDTH_KEY  = "sai2::PandaApplication::gripper::current_width";
+		GRIPPER_DESIRED_WIDTH_KEY  = "sai2::PandaApplication::gripper::desired_width";
+		GRIPPER_DESIRED_SPEED_KEY  = "sai2::PandaApplication::gripper::desired_speed";
+		GRIPPER_DESIRED_FORCE_KEY  = "sai2::PandaApplication::gripper::desired_force";		
+	}
+	else
+	{
+		JOINT_TORQUES_COMMANDED_KEY = "sai2::FrankaPanda::actuators::fgc";
+
+		JOINT_ANGLES_KEY  = "sai2::FrankaPanda::sensors::q";
+		JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::sensors::dq";
+		JOINT_TORQUES_SENSED_KEY = "sai2::FrankaPanda::sensors::torques";
+		MASSMATRIX_KEY = "sai2::FrankaPanda::sensors::model::massmatrix";
+		CORIOLIS_KEY = "sai2::FrankaPanda::sensors::model::coriolis";
+		ROBOT_GRAVITY_KEY = "sai2::FrankaPanda::sensors::model::robot_gravity";		
+
+		GRIPPER_MODE_KEY  = "sai2::FrankaPanda::gripper::mode"; // m for move and g for graps
+		GRIPPER_MAX_WIDTH_KEY  = "sai2::FrankaPanda::gripper::max_width";
+		GRIPPER_CURRENT_WIDTH_KEY  = "sai2::FrankaPanda::gripper::current_width";
+		GRIPPER_DESIRED_WIDTH_KEY  = "sai2::FrankaPanda::gripper::desired_width";
+		GRIPPER_DESIRED_SPEED_KEY  = "sai2::FrankaPanda::gripper::desired_speed";
+		GRIPPER_DESIRED_FORCE_KEY  = "sai2::FrankaPanda::gripper::desired_force";
+	}
+
 	// start redis client
 	auto redis_client = RedisClient();
 	redis_client.connect();
@@ -59,6 +107,10 @@ int main() {
 
 	MatrixXd N_prec = MatrixXd::Identity(robot->dof(), robot->dof());
 	VectorXd joint_task_torques = VectorXd::Zero(robot->dof());
+	joint_task->_kp = 100.0;
+	joint_task->_kv = 15.0;
+	redis_client.set(KP_KEY, to_string(joint_task->_kp));
+	redis_client.set(KV_KEY, to_string(joint_task->_kv));
 
 	VectorXd command_torques = VectorXd::Zero(robot->dof());
 
@@ -79,17 +131,36 @@ int main() {
 		robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
 
 		// update model
-		robot->updateModel();
+		if(flag_simulation)
+		{
+			robot->updateModel();
+		}
+		else
+		{
+			joint_task->_kp = stod(redis_client.get(KP_KEY));
+			joint_task->_kv = stod(redis_client.get(KV_KEY));
+			robot->updateKinematics();
+			robot->_M = redis_client.getEigenMatrixJSON(MASSMATRIX_KEY);
+			if(inertia_regularization)
+			{
+				robot->_M(4,4) += 0.07;
+				robot->_M(5,5) += 0.07;
+				robot->_M(6,6) += 0.07;
+			}
+			// cout << robot->_M << endl;
+			// robot->_M = Eigen::MatrixXd::Identity(robot->dof(), robot->dof());
+			robot->_M_inv = robot->_M.inverse();
+		}
 		joint_task->updateTaskModel(N_prec);
 
 		// compute torques
-		// joint_task->_desired_position(2) = initial_q(2) + 10/180.0*M_PI * sin(2*M_PI*0.1*time);
+		joint_task->_desired_position(2) = initial_q(2) + 25/180.0*M_PI * sin(2*M_PI*0.3*time);
 		joint_task->computeTorques(joint_task_torques);
 
 		command_torques = joint_task_torques;
 
 		// send to redis
-		redis_client.setEigenMatrixJSON(TORQUES_COMMANDED_KEY, command_torques);
+		redis_client.setEigenMatrixJSON(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 
 		controller_counter++;
 

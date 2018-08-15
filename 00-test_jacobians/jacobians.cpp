@@ -53,6 +53,7 @@ int main() {
 	joint_configurations.push_back(q_test);
 
 	string ee_link = "link7";
+	// Vector3d ee_point = Vector3d::Zero();
 	Vector3d ee_point = Vector3d(0.02, -0.04, 0.1);
 
 
