@@ -82,3 +82,4 @@ set (PANDA_APPLICATIONS_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 
 add_subdirectory(00-test_jacobians)
 add_subdirectory(01-joint_hold_pos)
+add_subdirectory(02-open_loop_force_control)
