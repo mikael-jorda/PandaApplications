@@ -28,18 +28,35 @@
 	</static_object>
 
 	<static_object name="Obstacle">
-		<origin xyz="0.1 0.15 0.6" rpy="0 0 0" />
+		<origin xyz="0.05 0.15 0.6" rpy="0 0 0" />
 		<collision>
 	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
 	        <geometry>
-	            <!-- <box size="0.05 0.05 0.3" /> -->
 	            <cylinder radius="0.02" length="0.4" />
 	        </geometry>
 	    </collision>
 	    <visual>
 	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
 	        <geometry>
-	            <!-- <box size="0.05 0.05 0.3" /> -->
+	            <cylinder radius="0.02" length="0.4" />
+	        </geometry>
+	        <material name="material_gray">
+		        <color rgba="0.8 0.4 0.5 1.0" />
+	        </material>
+	    </visual>
+	</static_object>
+
+	<static_object name="Obstacle_bis">
+		<origin xyz="0.1 0.15 0.4" rpy="0 -1.57 0" />
+		<collision>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <cylinder radius="0.02" length="0.4" />
+	        </geometry>
+	    </collision>
+	    <visual>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
 	            <cylinder radius="0.02" length="0.4" />
 	        </geometry>
 	        <material name="material_gray">

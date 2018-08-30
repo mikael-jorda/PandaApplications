@@ -46,11 +46,11 @@
           <mesh filename="../../../Model/meshes/link2.obj"/>
         </geometry>
       </visual>
-      <!-- <collision>
+      <collision>
         <geometry>
           <mesh filename="../../../Model/meshes/link2.obj"/>
         </geometry>
-      </collision> -->
+      </collision>
     </link>
     <link name="link3">
       <inertial>
@@ -97,7 +97,7 @@
           <mesh filename="../../../Model/meshes/link5.obj"/>
         </geometry>
       </visual>
-      <visual>
+<!--       <visual>
         <origin xyz="0.0 0.0 -0.3" rpy="-0.2 0.0 0.0" />
         <geometry>
           <cylinder radius="0.05" length="0.4" />
@@ -105,18 +105,18 @@
         <material name="material_gray">
           <color rgba="0.3 0.8 0.4 0.1" />
         </material>
-      </visual>
-      <collision>
+      </visual> -->
+<!--       <collision>
         <origin xyz="0.0 0.0 -0.3" rpy="-0.2 0.0 0.0" />
         <geometry>
           <cylinder radius="0.05" length="0.4" />
         </geometry>
-      </collision>
-<!--       <collision>
+      </collision> -->
+      <collision>
         <geometry>
           <mesh filename="../../../Model/meshes/link5.obj"/>
         </geometry>
-      </collision> -->
+      </collision>
     </link>
     <link name="link6">
       <inertial>

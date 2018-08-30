@@ -33,6 +33,7 @@ std::string JOINT_ANGLES_KEY  = "sai2::PandaApplication::sensors::q";
 std::string JOINT_VELOCITIES_KEY = "sai2::PandaApplication::sensors::dq";
 // - read
 const std::string TORQUES_COMMANDED_KEY  = "sai2::PandaApplication::actuators::fgc";
+const std::string DIRSTUBANCE_KEY  = "sai2::PandaApplication::simulation::disturbance";
 
 // - gripper
 const std::string GRIPPER_MODE_KEY  = "sai2::PandaApplication::gripper::mode"; // m for move and g for graps
@@ -261,8 +262,22 @@ void simulation_dummy(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* s
 //------------------------------------------------------------------------------
 void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
-	VectorXd command_torques = VectorXd::Zero(robot->dof());
+	int dof = robot->dof();
+	VectorXd command_torques = VectorXd::Zero(dof);
 	redis_client.setEigenMatrixJSON(TORQUES_COMMANDED_KEY, command_torques.head<7>());
+
+	VectorXd tau_dist = VectorXd::Zero(dof);
+	string disturbance_flag = "0";
+	string dist_link = "link4";
+	Vector3d dist_pos_in_link = Vector3d::Zero();
+	MatrixXd J_dist = MatrixXd::Zero(3,dof);
+	robot->Jv(J_dist, dist_link, dist_pos_in_link);
+
+	Vector3d dist_force = Vector3d(0.0, 10.0, 0.0);
+
+	tau_dist = J_dist.transpose() * dist_force;
+	redis_client.set(DIRSTUBANCE_KEY, disturbance_flag);
+
 
 	double kp_gripper = 50.0;
 	double kv_gripper = 14.0;
@@ -292,12 +307,10 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	bool fTimerDidSleep = true;
 	double start_time = timer.elapsedTime(); //secs
 	double last_time = start_time;
-	double current_time = 0;
 
 
 	while (fSimulationRunning) {
 		fTimerDidSleep = timer.waitForNextLoop();
-		current_time = timer.elapsedTime() - start_time;
 
 		// read arm torques from redis
 		command_torques.head<7>() = redis_client.getEigenMatrixJSON(TORQUES_COMMANDED_KEY);
@@ -354,7 +367,16 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		command_torques(8) = gripper_constraint_force - gripper_behavior_force;
 
 		// set torques to simulation
-		sim->setJointTorques(robot_name, command_torques);
+		disturbance_flag = redis_client.get(DIRSTUBANCE_KEY);
+		if(disturbance_flag == "1")
+		{
+			sim->setJointTorques(robot_name, command_torques + tau_dist);
+		}
+		else
+		{
+			sim->setJointTorques(robot_name, command_torques);
+		}
+
 
 		// integrate forward
 		double curr_time = timer.elapsedTime();
@@ -377,7 +399,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEY, robot->_q.head<7>());
 		redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEY, robot->_dq.head<7>());
 		redis_client.set(GRIPPER_CURRENT_WIDTH_KEY, to_string(gripper_width));
-		redis_client.set(TIMESTAMP_KEY, to_string(current_time));
+		redis_client.set(TIMESTAMP_KEY, to_string(curr_time));
 
 		//update last time
 		last_time = curr_time;

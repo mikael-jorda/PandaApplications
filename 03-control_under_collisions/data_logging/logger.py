@@ -63,16 +63,23 @@ print('Start Logging Data ... \n')
 while(runloop):
 	t += logger_period
 
-	timestamp = json.loads(r_server.get(SIM_TIMESTAMP_KEY))
-	r_vel = json.loads(r_server.get(VEL_OBSERVER_LOGGING_KEY))
-	r_mom = json.loads(r_server.get(MOM_OBSERVER_LOGGING_KEY))
-	tau_comp = json.loads(r_server.get(CONTACT_COMPENSATION_TORQUES_KEY))
-	tau_cmd = json.loads(r_server.get(COMMAND_TORQUES_LOGGING_KEY))
-	x_des = json.loads(r_server.get(DESIRED_POS_KEY))
-	x_curr = json.loads(r_server.get(CURRENT_POS_KEY))
+	# r_vel = json.loads(r_server.get(VEL_OBSERVER_LOGGING_KEY))
+	# r_mom = json.loads(r_server.get(MOM_OBSERVER_LOGGING_KEY))
+	# tau_comp = json.loads(r_server.get(CONTACT_COMPENSATION_TORQUES_KEY))
+	# tau_cmd = json.loads(r_server.get(COMMAND_TORQUES_LOGGING_KEY))
+	# x_des = json.loads(r_server.get(DESIRED_POS_KEY))
+	# x_curr = json.loads(r_server.get(CURRENT_POS_KEY))
+
+	sim_time = json.loads(r_server.get(SIM_TIMESTAMP_KEY).decode("utf-8"))
+	r_vel = json.loads(r_server.get(VEL_OBSERVER_LOGGING_KEY).decode("utf-8"))
+	r_mom = json.loads(r_server.get(MOM_OBSERVER_LOGGING_KEY).decode("utf-8"))
+	tau_comp = json.loads(r_server.get(CONTACT_COMPENSATION_TORQUES_KEY).decode("utf-8"))
+	tau_cmd = json.loads(r_server.get(COMMAND_TORQUES_LOGGING_KEY).decode("utf-8"))
+	x_des = json.loads(r_server.get(DESIRED_POS_KEY).decode("utf-8"))
+	x_curr = json.loads(r_server.get(CURRENT_POS_KEY).decode("utf-8"))
 
 	line = \
-	str(timestamp) + '\t' + \
+	str(sim_time) + '\t' + \
 	" ".join([str(x) for x in r_vel]) + '\t' + \
 	" ".join([str(x) for x in r_mom]) + '\t' + \
 	" ".join([str(x) for x in tau_comp]) + '\t' +\

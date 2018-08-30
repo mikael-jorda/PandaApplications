@@ -7,6 +7,7 @@
 #include "timer/LoopTimer.h"
 #include "tasks/JointTask.h"
 #include "tasks/PosOriTask.h"
+#include "tasks/PositionTask.h"
 
 #include <iostream>
 #include <string>
@@ -135,25 +136,42 @@ int main() {
 
 	joint_task->_max_velocity = 15.0 * M_PI/180.0;
 
-	// posori task
+	// // posori task
+	// const string link_name = "link7";
+	// const Eigen::Vector3d pos_in_link = Vector3d(0,0,0.2);
+	// auto posori_task = new Sai2Primitives::PosOriTask(robot, link_name, pos_in_link);
+
+	// VectorXd posori_task_torques = VectorXd::Zero(dof);
+
+	// posori_task->_max_velocity = 0.05;
+
+	// posori_task->_goal_position(1) += 0.15;
+
+	// posori_task->_kp_pos = 100.0;
+	// posori_task->_kv_pos = 17.0;
+	// posori_task->_kp_ori = 200.0;
+	// posori_task->_kv_ori = 23.0;
+	// redis_client.set(KP_POS_KEY, to_string(posori_task->_kp_pos));
+	// redis_client.set(KV_POS_KEY, to_string(posori_task->_kv_pos));
+	// redis_client.set(KP_ORI_KEY, to_string(posori_task->_kp_ori));
+	// redis_client.set(KV_ORI_KEY, to_string(posori_task->_kv_ori));
+
+	// pos task
 	const string link_name = "link7";
 	const Eigen::Vector3d pos_in_link = Vector3d(0,0,0.2);
-	auto posori_task = new Sai2Primitives::PosOriTask(robot, link_name, pos_in_link);
+	auto pos_task = new Sai2Primitives::PositionTask(robot, link_name, pos_in_link);
 
-	VectorXd posori_task_torques = VectorXd::Zero(dof);
+	VectorXd pos_task_torques = VectorXd::Zero(dof);
 
-	posori_task->_max_velocity = 0.05;
+	pos_task->_max_velocity = 0.05;
 
-	posori_task->_goal_position(1) += 0.15;
+	// pos_task->_goal_position(1) += 0.15;
 
-	posori_task->_kp_pos = 100.0;
-	posori_task->_kv_pos = 17.0;
-	posori_task->_kp_ori = 200.0;
-	posori_task->_kv_ori = 23.0;
-	redis_client.set(KP_POS_KEY, to_string(posori_task->_kp_pos));
-	redis_client.set(KV_POS_KEY, to_string(posori_task->_kv_pos));
-	redis_client.set(KP_ORI_KEY, to_string(posori_task->_kp_ori));
-	redis_client.set(KV_ORI_KEY, to_string(posori_task->_kv_ori));
+	pos_task->_kp = 100.0;
+	pos_task->_kv = 17.0;
+	// pos_task->_ki = 75.0;
+	redis_client.set(KP_POS_KEY, to_string(pos_task->_kp));
+	redis_client.set(KV_POS_KEY, to_string(pos_task->_kv));
 
 	// prepare observers
 	VectorXd gravity(dof), coriolis(dof);
@@ -202,10 +220,8 @@ int main() {
 		{
 			joint_task->_kp = stod(redis_client.get(KP_JOINT_KEY));
 			joint_task->_kv = stod(redis_client.get(KV_JOINT_KEY));
-			posori_task->_kp_pos = stod(redis_client.get(KP_POS_KEY));
-			posori_task->_kv_pos = stod(redis_client.get(KV_POS_KEY));
-			posori_task->_kp_ori = stod(redis_client.get(KP_ORI_KEY));
-			posori_task->_kv_ori = stod(redis_client.get(KV_ORI_KEY));
+			pos_task->_kp = stod(redis_client.get(KP_POS_KEY));
+			pos_task->_kv = stod(redis_client.get(KV_POS_KEY));
 			robot->updateKinematics();
 			robot->_M = redis_client.getEigenMatrixJSON(MASSMATRIX_KEY);
 			if(inertia_regularization)
@@ -225,8 +241,8 @@ int main() {
 		{
 			// update tasks model
 			N_prec.setIdentity();
-			posori_task->updateTaskModel(N_prec);
-			N_prec = posori_task->_N;
+			pos_task->updateTaskModel(N_prec);
+			N_prec = pos_task->_N;
 			joint_task->updateTaskModel(N_prec);
 
 			// compute velocity based observer
@@ -245,17 +261,18 @@ int main() {
 			}
 
 			// compute torques
-			posori_task->computeTorques(posori_task_torques);
+			pos_task->computeTorques(pos_task_torques);
 			joint_task->computeTorques(joint_task_torques);
 
 			// contact_compensation_torques.setZero();
-			contact_compensation_torques = posori_task->_projected_jacobian.transpose() * posori_task->_Jbar.transpose() * r_vel;
+			contact_compensation_torques = pos_task->_projected_jacobian.transpose() * pos_task->_Jbar.transpose() * r_vel;
 
-			command_torques = posori_task_torques + joint_task_torques + coriolis - contact_compensation_torques;
+			// command_torques = pos_task_torques + joint_task_torques + coriolis - contact_compensation_torques;
+			command_torques = pos_task_torques + joint_task_torques + coriolis;
 
-			if(controller_counter == 4000)
+			if(controller_counter == 5000)
 			{
-				posori_task->_goal_position(1) -= 0.2;
+				// pos_task->_goal_position(1) -= 0.15;
 			}
 
 		}
@@ -273,13 +290,13 @@ int main() {
 		redis_client.setEigenMatrixJSON(MOM_OBSERVER_LOGGING_KEY, r_mom);
 		redis_client.setEigenMatrixJSON(CONTACT_COMPENSATION_TORQUES_KEY, contact_compensation_torques);
 		redis_client.setEigenMatrixJSON(COMMAND_TORQUES_LOGGING_KEY, command_torques);
-		redis_client.setEigenMatrixJSON(DESIRED_POS_KEY, posori_task->_desired_position);
-		redis_client.setEigenMatrixJSON(CURRENT_POS_KEY, posori_task->_current_position);
+		redis_client.setEigenMatrixJSON(DESIRED_POS_KEY, pos_task->_desired_position);
+		redis_client.setEigenMatrixJSON(CURRENT_POS_KEY, pos_task->_current_position);
 
 		if(controller_counter % 500 == 0)
 		{
 			cout << "velocity based observer :\n" << r_vel.transpose() << endl;
-			cout << "momentum based observer :\n" << r_mom.transpose() << endl;
+			// cout << "momentum based observer :\n" << r_mom.transpose() << endl;
 			cout << endl;
 		}
 
