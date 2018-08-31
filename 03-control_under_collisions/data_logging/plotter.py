@@ -13,13 +13,13 @@ if len(sys.argv) < 2:
 
 file = np.loadtxt(sys.argv[1] ,skiprows=1)
 
-time = file[:,0]
-r_vel = file[:,1:8]
-r_mom = file[:,8:15]
-tau_comp = file[:,15:22]
-tau_cmd = file[:,22:29]
-x_curr = file[:,30:33]
-x_des = file[:,33:36]
+time = file[1::,0]
+r_vel = file[1::,1:8]
+r_mom = file[1::,8:15]
+tau_comp = file[1::,15:22]
+tau_cmd = file[1::,22:29]
+x_curr = file[1::,29:32]
+x_des = file[1::,32:35]
 
 plt.figure(1, figsize=(7,8))
 plt.subplot(211)
