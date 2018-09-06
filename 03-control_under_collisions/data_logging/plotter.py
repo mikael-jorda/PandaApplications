@@ -21,22 +21,35 @@ tau_cmd = file[1::,22:29]
 x_curr = file[1::,29:32]
 x_des = file[1::,32:35]
 
-plt.figure(1, figsize=(7,8))
-plt.subplot(211)
-plt.plot(time,r_vel)
-plt.title("velocity based observer")
-plt.subplot(212)
-plt.plot(time,tau_comp)
-plt.title("contact comensation torques")
+time = np.arange(np.shape(r_vel)[0])
+time = time/100
 
-plt.figure(2, figsize=(5,4))
-plt.plot(time,x_curr)
-plt.plot(time,x_des)
+print(np.sqrt(np.mean((x_des-x_curr).dot((x_des - x_curr).T))))
+
+# plt.figure(1, figsize=(7,8))
+# plt.subplot(211)
+# plt.plot(time,r_vel)
+# plt.title("velocity based observer")
+# plt.subplot(212)
+# plt.plot(time,tau_comp)
+# plt.title("contact comensation torques")
+
+plt.figure(2, figsize=(5,3))
 plt.title("x vs xd")
+plt.subplot(311)
+plt.plot(time,x_des[:,0]-x_curr[:,0], c='r')
+plt.axis([0,time[-1], -0.007, 0.007])
+plt.subplot(312)
+plt.plot(time,x_des[:,1]-x_curr[:,1], c='g')
+plt.axis([0,time[-1], -0.007, 0.007])
+plt.subplot(313)
+plt.plot(time,x_des[:,2]-x_curr[:,2], c='b')
+plt.axis([0,time[-1], -0.005, 0.005])
 
-plt.figure(3, figsize=(5,4))
-plt.plot(time, tau_cmd)
-plt.title("Torques commanded")
+
+# plt.figure(3, figsize=(5,4))
+# plt.plot(time, tau_cmd)
+# plt.title("Torques commanded")
 
 plt.show()
 
