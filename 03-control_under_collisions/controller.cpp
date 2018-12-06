@@ -134,8 +134,6 @@ int main() {
 	redis_client.set(KP_JOINT_KEY, to_string(joint_task->_kp));
 	redis_client.set(KV_JOINT_KEY, to_string(joint_task->_kv));
 
-	joint_task->_max_velocity = 15.0 * M_PI/180.0;
-
 	// // posori task
 	// const string link_name = "link7";
 	// const Eigen::Vector3d pos_in_link = Vector3d(0,0,0.2);
@@ -143,9 +141,7 @@ int main() {
 
 	// VectorXd posori_task_torques = VectorXd::Zero(dof);
 
-	// posori_task->_max_velocity = 0.05;
-
-	// posori_task->_goal_position(1) += 0.15;
+	// posori_task->_desired_position(1) += 0.15;
 
 	// posori_task->_kp_pos = 100.0;
 	// posori_task->_kv_pos = 17.0;
@@ -163,9 +159,7 @@ int main() {
 
 	VectorXd pos_task_torques = VectorXd::Zero(dof);
 
-	pos_task->_max_velocity = 0.05;
-
-	// pos_task->_goal_position(1) += 0.15;
+	// pos_task->_desired_position(1) += 0.15;
 
 	pos_task->_kp = 100.0;
 	pos_task->_kv = 17.0;
@@ -272,7 +266,7 @@ int main() {
 
 			if(controller_counter == 5000)
 			{
-				// pos_task->_goal_position(1) -= 0.15;
+				// pos_task->_desired_position(1) -= 0.15;
 			}
 
 		}

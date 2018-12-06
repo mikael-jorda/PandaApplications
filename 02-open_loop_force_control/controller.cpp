@@ -129,11 +129,10 @@ int main() {
 
 	VectorXd command_torques = VectorXd::Zero(robot->dof());
 
-	joint_task->_max_velocity = 15.0 * M_PI/180.0;
 	Eigen::VectorXd goal_position(robot->dof());
 	goal_position << 0, 30, 0, -90, 0, 120, 0;
 	goal_position *= M_PI/180.0;
-	joint_task->_goal_position = goal_position;
+	joint_task->_desired_position = goal_position;
 
 	// posori controller
 	const string link_name = "link7";
@@ -202,16 +201,15 @@ int main() {
 
 		command_torques = joint_task_torques;
 
-		if((joint_task->_goal_position - joint_task->_desired_position).norm() < 1e-5)
+		if((joint_task->_desired_position - joint_task->_current_position).norm() < 1e-5)
 		{
 			joint_task->_kp = 0.0;
 			joint_task->_kv = 5.0;
 			redis_client.set(KP_JOINT_KEY, to_string(joint_task->_kp));
 			redis_client.set(KV_JOINT_KEY, to_string(joint_task->_kv));
 			posori_task->reInitializeTask();
-			posori_task->_max_velocity = 0.05;
-			posori_task->_goal_position += Vector3d(0,0,-0.21);
-			// posori_task->_goal_position += Vector3d(0,0,-0.1);
+			posori_task->_desired_position += Vector3d(0,0,-0.21);
+			// posori_task->_desired_position += Vector3d(0,0,-0.1);
 			state = MOVE_TO_CONTACT;
 		}
 	}
@@ -230,7 +228,7 @@ int main() {
 
 		command_torques = posori_task_torques + joint_task_torques;
 
-		if( (posori_task->_goal_position - posori_task->_desired_position).norm() < 1e-5 )
+		if( (posori_task->_desired_position - posori_task->_current_position).norm() < 1e-5 )
 		{
 			cout << "open loop force control start" << endl;
 			posori_task->setForceAxis(Vector3d(0,0,1));

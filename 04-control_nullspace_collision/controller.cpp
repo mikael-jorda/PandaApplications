@@ -136,12 +136,10 @@ int main() {
 	// redis_client.set(KP_JOINT_KEY, to_string(joint_task->_kp));
 	// redis_client.set(KV_JOINT_KEY, to_string(joint_task->_kv));
 
-	joint_task->_max_velocity = 45.0 * M_PI/180.0;
-
 	VectorXd q_init_desired = VectorXd::Zero(dof);
 	q_init_desired << 0, -45, 0, -125, 0, 130, 0;
 	q_init_desired *= M_PI/180;
-	joint_task->_goal_position = q_init_desired;
+	joint_task->_desired_position = q_init_desired;
 
 	// pos task
 	const string link_name = "link7";
@@ -149,8 +147,6 @@ int main() {
 	auto pos_task = new Sai2Primitives::PositionTask(robot, link_name, pos_in_link);
 
 	VectorXd pos_task_torques = VectorXd::Zero(dof);
-
-	pos_task->_max_velocity = 0.05;
 
 
 	pos_task->_kp = 200.0;
@@ -166,8 +162,8 @@ int main() {
 
 	MatrixXd K0 = 50*MatrixXd::Identity(dof,dof);
 	bool first_iteration = true;
-	double contact_detection_treshold = 1;
-	double link_detection_treshold = 0.1;
+	double contact_detection_treshold = 3;
+	double link_detection_treshold = 0.5;
 	int link_in_contact = -1;
 	VectorXd r_filtered = VectorXd::Zero(dof);
 	bool in_contact = false;
@@ -276,14 +272,14 @@ int main() {
 
 			command_torques = joint_task_torques + coriolis;
 
-			if((joint_task->_current_position - joint_task->_goal_position).norm() < 1e-3)
+			if((joint_task->_current_position - joint_task->_desired_position).norm() < 1e-3)
 			{
 				// joint_task->_kp = stod(redis_client.get(KP_JOINT_KEY));
 				joint_task->_kp = 10;
 				joint_task->_kv = 2*sqrt(joint_task->_kp);
 
 				pos_task->reInitializeTask();
-				pos_task->_goal_position(1) += 0.20;
+				pos_task->_desired_position(1) += 0.20;
 				state_init_counter = controller_counter;
 				state = HOLD_CARTESIAN_POS;
 			}
@@ -292,25 +288,29 @@ int main() {
 		else if(state == HOLD_CARTESIAN_POS)
 		{
 			// update tasks model
-			N_prec.setIdentity();
-			pos_task->updateTaskModel(N_prec);
-			N_prec = pos_task->_N;
-
-			if(in_contact)
+			if(controller_counter % 20 == 0)
 			{
-				robot->operationalSpaceMatrices(Lambda_contact, Jbar_contact_np, N_contact, J_contact, N_prec);
-				J_contact = J_contact * N_prec;
-				robot->operationalSpaceMatrices(Lambda_contact, Jbar_contact, N_contact, J_contact, N_prec);
-				N_prec = pos_task->_N * N_contact;
-			}
+				N_prec.setIdentity();
+				pos_task->updateTaskModel(N_prec);
+				N_prec = pos_task->_N;
 
-			joint_task->updateTaskModel(N_prec);
+				if(in_contact)
+				{
+					robot->operationalSpaceMatrices(Lambda_contact, Jbar_contact_np, N_contact, J_contact, N_prec);
+					J_contact = J_contact * N_prec;
+					robot->operationalSpaceMatrices(Lambda_contact, Jbar_contact, N_contact, J_contact, N_prec);
+					// N_prec = pos_task->_N * N_contact;
+				}
+
+				joint_task->updateTaskModel(N_prec);
+			}
 
 			// compute velocity based observer
 			if(!first_iteration)
 			{
 				integral_vel += robot->_M_inv * (command_torques - coriolis + r_vel) * dt;
 				r_vel = K0 * (robot->_dq - integral_vel);
+				r_vel(dof-1) = 0;
 			}
 
 			// process velocity observer
@@ -372,7 +372,7 @@ int main() {
 			contact_compensation_torques.setZero();
 			if(in_contact)
 			{
-				double target_contact_force = 2;
+				double target_contact_force = 5;
 				// double contact_force_estimate = (double)(Jbar_contact.transpose() * r_filtered)(0);
 				// if(contact_force_estimate < target_contact_force)
 				// {
@@ -383,7 +383,7 @@ int main() {
 					// target_contact_force = 0;
 				// }
 				contact_compensation_torques += pos_task->_projected_jacobian.transpose() * pos_task->_Jbar.transpose() * r_filtered;
-				contact_compensation_torques += target_contact_force*J_contact.transpose() + 15*J_contact.transpose()*J_contact*robot->_dq;
+				contact_compensation_torques += target_contact_force*J_contact.transpose() + 5*J_contact.transpose()*J_contact*robot->_dq;
 			}
 
 			command_torques = pos_task_torques + joint_task_torques + coriolis - contact_compensation_torques;
@@ -391,7 +391,7 @@ int main() {
 
 			if(controller_counter - state_init_counter == 10000)
 			{
-				pos_task->_goal_position(1) -= 0.25;
+				pos_task->_desired_position(1) -= 0.25;
 			}
 
 			if(first_iteration)
@@ -421,7 +421,7 @@ int main() {
 		if(controller_counter % 50 == 0)
 		{
 			// cout << r_filtered.transpose() * (command_torques + contact_compensation_torques) << endl;
-			cout << Jbar_contact.transpose() * r_filtered << endl;
+			// cout << Jbar_contact.transpose() * r_filtered << endl;
 			// cout << J_contact * robot->_dq << endl;
 			// cout << "velocity based observer :\n" << r_vel.transpose() << endl;
 			// cout << "processed observer :\n" << r_filtered.transpose() << endl;
