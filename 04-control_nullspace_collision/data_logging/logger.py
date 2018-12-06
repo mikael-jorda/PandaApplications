@@ -49,13 +49,13 @@ DESIRED_POS_KEY = "sai2::PandaApplication::controller::logging::desired_position
 CURRENT_POS_KEY = "sai2::PandaApplication::controller::logging::current_position";
 CONTACT_FORCE_KEY = "sai2::PandaApplication::simulation::current_contact_force";
 
-r_server.set(VEL_OBSERVER_LOGGING_KEY, json.dumps([0,0,0,0,0,0,0]))
-r_server.set(PROCESSED_OBSERVER_KEY, json.dumps([0,0,0,0,0,0,0]))
-r_server.set(CONTACT_COMPENSATION_TORQUES_KEY, json.dumps([0,0,0,0,0,0,0]))
-r_server.set(COMMAND_TORQUES_LOGGING_KEY, json.dumps([0,0,0,0,0,0,0]))
-r_server.set(DESIRED_POS_KEY, json.dumps([0,0,0]))
-r_server.set(CURRENT_POS_KEY, json.dumps([0,0,0]))
-r_server.set(CONTACT_FORCE_KEY, json.dumps([0,0,0]))
+# r_server.set(VEL_OBSERVER_LOGGING_KEY, json.dumps([0,0,0,0,0,0,0]))
+# r_server.set(PROCESSED_OBSERVER_KEY, json.dumps([0,0,0,0,0,0,0]))
+# r_server.set(CONTACT_COMPENSATION_TORQUES_KEY, json.dumps([0,0,0,0,0,0,0]))
+# r_server.set(COMMAND_TORQUES_LOGGING_KEY, json.dumps([0,0,0,0,0,0,0]))
+# r_server.set(DESIRED_POS_KEY, json.dumps([0,0,0]))
+# r_server.set(CURRENT_POS_KEY, json.dumps([0,0,0]))
+# r_server.set(CONTACT_FORCE_KEY, json.dumps([0,0,0]))
 
 # data logging frequency
 logger_frequency = 1000.0  # Hz
@@ -68,12 +68,6 @@ print('Start Logging Data ... \n')
 while(runloop):
 	t += logger_period
 
-	# r_vel = json.loads(r_server.get(VEL_OBSERVER_LOGGING_KEY))
-	# r_mom = json.loads(r_server.get(MOM_OBSERVER_LOGGING_KEY))
-	# tau_comp = json.loads(r_server.get(CONTACT_COMPENSATION_TORQUES_KEY))
-	# tau_cmd = json.loads(r_server.get(COMMAND_TORQUES_LOGGING_KEY))
-	# x_des = json.loads(r_server.get(DESIRED_POS_KEY))
-	# x_curr = json.loads(r_server.get(CURRENT_POS_KEY))
 
 	sim_time = json.loads(r_server.get(SIM_TIMESTAMP_KEY).decode("utf-8"))
 	r_vel = json.loads(r_server.get(VEL_OBSERVER_LOGGING_KEY).decode("utf-8"))
