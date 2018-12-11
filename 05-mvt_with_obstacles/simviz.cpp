@@ -21,8 +21,8 @@ void sighandler(int){fSimulationRunning = false;}
 using namespace std;
 using namespace Eigen;
 
-const string world_file = "../resources/00-test_jacobians/world.urdf";
-const string robot_file = "../resources/00-test_jacobians/panda_arm_hand.urdf";
+const string world_file = "../resources/05-mvt_with_obstacles/world.urdf";
+const string robot_file = "../resources/05-mvt_with_obstacles/panda_arm_hand.urdf";
 const string robot_name = "PANDA";
 const string camera_name = "camera_fixed";
 
@@ -33,6 +33,7 @@ std::string JOINT_ANGLES_KEY  = "sai2::PandaApplication::sensors::q";
 std::string JOINT_VELOCITIES_KEY = "sai2::PandaApplication::sensors::dq";
 
 const string JACOBIAN_KEY = "sai2::PandaApplication::simulation::contact_jacobian";
+const string CONTACT_FORCE_KEY = "sai2::PandaApplication::simulation::current_contact_force";
 
 // - read
 const std::string TORQUES_COMMANDED_KEY  = "sai2::PandaApplication::actuators::fgc";
@@ -45,9 +46,6 @@ const std::string GRIPPER_CURRENT_WIDTH_KEY  = "sai2::PandaApplication::gripper:
 const std::string GRIPPER_DESIRED_WIDTH_KEY  = "sai2::PandaApplication::gripper::desired_width";
 const std::string GRIPPER_DESIRED_SPEED_KEY  = "sai2::PandaApplication::gripper::desired_speed";
 const std::string GRIPPER_DESIRED_FORCE_KEY  = "sai2::PandaApplication::gripper::desired_force";
-
-
-const string CYLINDER_KEY = "tmp::cylinder";
 
 
 RedisClient redis_client;
@@ -108,18 +106,6 @@ int main() {
 	sim->getJointPositions(robot_name, robot->_q);
 	sim->getJointVelocities(robot_name, robot->_dq);
 	robot->updateKinematics();
-
-	MatrixXd cylinder_points = redis_client.getEigenMatrixJSON(CYLINDER_KEY);
-
-	string contact_link = "link5";
-	int n_points = cylinder_points.row(0).size();
-	vector<chai3d::cShapeSphere*> graphic_particles;
-	for(int i=0; i < n_points; i++)
-	{
-		graphic_particles.push_back(new chai3d::cShapeSphere(0.01));
-		graphic_particles[i]->m_material->setColorf(1.0,0.0,0.0);
-		graphics->_world->addChild(graphic_particles[i]);
-	}
 
 	/*------- Set up visualization -------*/
 	// set up error callback
@@ -184,18 +170,6 @@ int main() {
 			robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
 			robot->updateKinematics();
 		}
-
-		Eigen::Vector3d link_origin = Eigen::Vector3d::Zero();
-		Eigen::Matrix3d Rlink = Eigen::Matrix3d::Identity();
-		robot->position(link_origin, contact_link, Eigen::Vector3d::Zero(3));
-		robot->rotation(Rlink, contact_link);
-    	for(int i=0; i< n_points; i++)
-    	{
-    		Eigen::Vector3d tmp = cylinder_points.col(i);
-			// graphic_particles[i]->setLocalPos(link_origin);
-			graphic_particles[i]->setLocalPos(link_origin + Rlink*tmp);
-			// graphic_particles[i]->setLocalPos(Rlink*Vector3d(0, 0.07, 0) + link_origin + Rlink*tmp);
-    	}
 
 		// update graphics. this automatically waits for the correct amount of time
 		int width, height;
@@ -303,7 +277,10 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	MatrixXd J_dist = MatrixXd::Zero(3,dof);
 	robot->Jv(J_dist, dist_link, dist_pos_in_link);
 
-	Vector3d dist_force = Vector3d(0.0, 10.0, 0.0);
+	Vector3d current_contact_force = Vector3d::Zero();
+	VectorXd damping_torques = VectorXd::Zero(dof);
+
+	Vector3d dist_force = Vector3d(0.0, -10.0, 0.0);
 
 	tau_dist = J_dist.transpose() * dist_force;
 	redis_client.set(DIRSTUBANCE_KEY, disturbance_flag);
@@ -332,7 +309,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	// contact info
 	vector<Vector3d> contact_points;
 	vector<Vector3d> contact_forces;
-	string link_name = "link5";
+	string link_name = "link4";
 	// contact jacobian in the direction of the normal force
 	Vector3d link_position = Vector3d::Zero();
 	Vector3d local_position = Vector3d::Zero();
@@ -405,6 +382,8 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
 		command_torques(7) = gripper_constraint_force + gripper_behavior_force;
 		command_torques(8) = gripper_constraint_force - gripper_behavior_force;
+		// damping_torques = -15*robot->_M*robot->_dq;
+		// command_torques += damping_torques;
 
 		// set torques to simulation
 		disturbance_flag = redis_client.get(DIRSTUBANCE_KEY);
@@ -434,8 +413,11 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
 		// read and display contact info on link 5
 		sim->getContactList(contact_points, contact_forces, robot_name, link_name);
+		current_contact_force.setZero();
 		if(! contact_points.empty())
 		{
+			current_contact_force = contact_forces[0];
+
 			robot->rotation(R_contact, link_name);
 			robot->position(link_position, link_name, Vector3d::Zero());
 			local_position = R_contact.transpose()*(contact_points[0] - link_position);
@@ -448,12 +430,28 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 			J_contact_normal.setZero();
 		}
 
+		if(simulation_counter % 1000 == 0)
+		{
+			double J_norm = 1;
+			if(J_contact_normal.norm() > 1e-3)
+			{
+				J_norm = J_contact_normal.norm();
+			}
+			sim->showContactInfo();
+			// cout << "J contact normal : \n" << J_contact_normal << endl;
+			// cout << "J contact normalized : \n" << J_contact_normal/J_norm << endl;
+		}
+
+		// cout << "joint 7 : " << robot->_q(7) << endl;
+		// cout << "joint 8 : " << robot->_q(8) << endl;
+
 		// write new robot state to redis
 		redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEY, robot->_q.head<7>());
 		redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEY, robot->_dq.head<7>());
 		redis_client.set(GRIPPER_CURRENT_WIDTH_KEY, to_string(gripper_width));
 		redis_client.set(TIMESTAMP_KEY, to_string(curr_time));
 		redis_client.setEigenMatrixJSON(JACOBIAN_KEY, J_contact_normal.block<1,7>(0,0));
+		redis_client.setEigenMatrixJSON(CONTACT_FORCE_KEY, current_contact_force);
 
 		//update last time
 		last_time = curr_time;

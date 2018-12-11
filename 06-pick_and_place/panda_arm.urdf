@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='utf-8'?>
-<robot name="panda_hand">
+<robot name="panda">
 
     <link name="link0">
       <inertial>
@@ -29,15 +29,6 @@
           <mesh filename="../../../Model/meshes/link1.obj"/>
         </geometry>
       </visual>
-      <visual>
-        <origin xyz="0.0 -0.0 -0.2" rpy="0.25 0.0 0.0" />
-        <geometry>
-          <cylinder radius="0.06" length="0.25" />
-        </geometry>
-        <material name="material_gray">
-          <color rgba="0.3 0.8 0.4 0.1" />
-        </material>
-      </visual>
       <!-- <collision>
         <geometry>
           <mesh filename="../../../Model/meshes/link1.obj"/>
@@ -55,16 +46,7 @@
           <mesh filename="../../../Model/meshes/link2.obj"/>
         </geometry>
       </visual>
-      <visual>
-        <origin xyz="-0.0 0.05 0.07" rpy="1.85 0.0 0.0" />
-        <geometry>
-          <cylinder radius="0.06" length="0.25" />
-        </geometry>
-        <material name="material_gray">
-          <color rgba="0.3 0.8 0.4 0.1" />
-        </material>
-      </visual>
-<!--       <collision>
+      <!-- <collision>
         <geometry>
           <mesh filename="../../../Model/meshes/link2.obj"/>
         </geometry>
@@ -80,15 +62,6 @@
         <geometry>
           <mesh filename="../../../Model/meshes/link3.obj"/>
         </geometry>
-      </visual>
-      <visual>
-        <origin xyz="-0.0 0.0 -0.15" rpy="0.0 0.0 0.0" />
-        <geometry>
-          <cylinder radius="0.06" length="0.25" />
-        </geometry>
-        <material name="material_gray">
-          <color rgba="0.3 0.8 0.4 0.1" />
-        </material>
       </visual>
       <!-- <collision>
         <geometry>
@@ -107,16 +80,7 @@
           <mesh filename="../../../Model/meshes/link4.obj"/>
         </geometry>
       </visual>
-<!--       <visual>
-        <origin xyz="0.0 -0.0 0.1" rpy="1.1 0.0 1.0" />
-        <geometry>
-          <cylinder radius="0.06" length="0.3" />
-        </geometry>
-        <material name="material_gray">
-          <color rgba="0.3 0.8 0.4 0.1" />
-        </material>
-      </visual> -->
-<!--       <collision>
+      <!-- <collision>
         <geometry>
           <mesh filename="../../../Model/meshes/link4.obj"/>
         </geometry>
@@ -133,26 +97,11 @@
           <mesh filename="../../../Model/meshes/link5.obj"/>
         </geometry>
       </visual>
-      <visual>
-        <origin xyz="0.0 -0.0 -0.26" rpy="-0.25 0.0 0.0" />
-        <geometry>
-          <cylinder radius="0.06" length="0.3" />
-        </geometry>
-        <material name="material_gray">
-          <color rgba="0.3 0.8 0.4 0.1" />
-        </material>
-      </visual>
-<!--       <collision>
-        <origin xyz="0.0 0.0 -0.3" rpy="-0.2 0.0 0.0" />
-        <geometry>
-          <cylinder radius="0.05" length="0.4" />
-        </geometry>
-      </collision> -->
-      <collision>
+      <!-- <collision>
         <geometry>
           <mesh filename="../../../Model/meshes/link5.obj"/>
         </geometry>
-      </collision>
+      </collision> -->
     </link>
     <link name="link6">
       <inertial>
@@ -173,9 +122,9 @@
     </link>
     <link name="link7">
       <inertial>
-        <origin xyz="0 0 0.17" rpy="0 -0 0" />
-        <mass value="1.8" />
-        <inertia ixx="0.09" iyy="0.05" izz="0.07" ixy="0" ixz="0" iyz="0" />
+        <origin xyz="0 0 0.08" rpy="0 -0 0" />
+        <mass value="0.5" />
+        <inertia ixx="0.05" iyy="0.05" izz="0.05" ixy="0" ixz="0" iyz="0" />
       </inertial>
       <visual>
         <origin xyz="0 0 0" rpy="0 0 0" />
@@ -188,54 +137,6 @@
           <mesh filename="../../../Model/meshes/link7.obj"/>
         </geometry>
       </collision> -->
-      <visual>
-        <origin xyz="0 0 0.107" rpy="0 0 -0.78539816339" />
-        <geometry>
-          <mesh filename="../../../Model/meshes/hand.obj"/>
-        </geometry>
-      </visual>
-<!--       <collision>
-        <origin xyz="0 0 0.107" rpy="0 0 0" />
-        <geometry>
-          <mesh filename="../../../Model/meshes/hand.obj"/>
-        </geometry>
-      </collision> -->
-    </link>
-    <link name="leftfinger">
-      <inertial>
-        <origin xyz="0 0 0.05" rpy="0 -0 0" />
-        <mass value="0.1" />
-        <inertia ixx="0.01" iyy="0.01" izz="0.005" ixy="0" ixz="0" iyz="0" />
-      </inertial>
-      <visual>
-        <geometry>
-          <mesh filename="../../../Model/meshes/finger.obj"/>
-        </geometry>
-      </visual>
-      <collision>
-        <geometry>
-          <mesh filename="../../../Model/meshes/finger.obj"/>
-        </geometry>
-      </collision>
-    </link>
-    <link name="rightfinger">
-      <inertial>
-        <origin xyz="0 0 0.05" rpy="0 -0 0" />
-        <mass value="0.1" />
-        <inertia ixx="0.01" iyy="0.01" izz="0.005" ixy="0" ixz="0" iyz="0" />
-      </inertial>
-      <visual>
-        <origin xyz="0 0 0" rpy="0 0 3.14159265359"/>
-        <geometry>
-          <mesh filename="../../../Model/meshes/finger.obj"/>
-        </geometry>
-      </visual>
-      <collision>
-        <origin xyz="0 0 0" rpy="0 0 3.14159265359"/>
-        <geometry>
-          <mesh filename="../../../Model/meshes/finger.obj"/>
-        </geometry>
-      </collision>
     </link>
     <joint name="joint1" type="revolute">
       <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
@@ -285,7 +186,7 @@
       <parent link="link5"/>
       <child link="link6"/>
       <axis xyz="0 0 1"/>
-      <calibration falling="130.0" />
+      <calibration falling="80.0" />
       <limit effort="12" lower="-0.0175" upper="3.7525" velocity="2.6100"/>
     </joint>
     <joint name="joint7" type="revolute">
@@ -295,23 +196,6 @@
       <child link="link7"/>
       <axis xyz="0 0 1"/>
       <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
-    </joint>
-    <joint name="finger_joint1" type="prismatic">
-      <parent link="link7"/>
-      <child link="leftfinger"/>
-      <origin xyz="0 0 0.1654" rpy="0 0 -0.78539816339"/>
-      <axis xyz="0 1 0"/>
-      <calibration rising="0.02" />
-      <limit effort="20" lower="0.0" upper="0.04" velocity="0.2"/>
-    </joint>
-    <joint name="finger_joint2" type="prismatic">
-      <parent link="link7"/>
-      <child link="rightfinger"/>
-      <origin xyz="0 0 0.1654" rpy="0 0 -0.78539816339"/>
-      <axis xyz="0 1 0"/>
-      <calibration rising="-0.02" />
-      <limit effort="20" lower="0.0" upper="0.04" velocity="0.2"/>
-      <mimic joint="finger_joint1" />
     </joint>
 <!--     <link name="link8"/>
     <joint name="joint8" type="fixed">
