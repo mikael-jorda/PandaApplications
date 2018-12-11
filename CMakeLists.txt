@@ -1,8 +1,8 @@
 cmake_minimum_required (VERSION 2.8.12)
 project (PandaApplications)
 SET(CMAKE_CXX_FLAGS "-std=c++11")
-SET(CMAKE_BUILD_TYPE "Debug")
-# SET(CMAKE_BUILD_TYPE "Release")
+# SET(CMAKE_BUILD_TYPE "Debug")
+SET(CMAKE_BUILD_TYPE "Release")
 
 # set common source
 set (PANDA_APPLICATIONS_COMMON_SOURCE
@@ -83,6 +83,8 @@ set (PANDA_APPLICATIONS_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 
 add_subdirectory(00-test_jacobians)
 add_subdirectory(01-joint_hold_pos)
+add_subdirectory(01bis-cartesian_hold_position)
 add_subdirectory(02-open_loop_force_control)
 add_subdirectory(03-control_under_collisions)
 add_subdirectory(04-control_nullspace_collision)
+add_subdirectory(05-mvt_with_obstacles)
