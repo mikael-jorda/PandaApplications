@@ -160,11 +160,11 @@
           <mesh filename="../../../Model/meshes/visual/finger.obj"/>
         </geometry>
       </visual>
-<!--       <collision>
+      <collision>
         <geometry>
           <mesh filename="../../../Model/meshes/collision/finger.obj"/>
         </geometry>
-      </collision> -->
+      </collision>
     </link>
     <link name="rightfinger">
       <inertial>
@@ -178,12 +178,12 @@
           <mesh filename="../../../Model/meshes/visual/finger.obj"/>
         </geometry>
       </visual>
-<!--       <collision>
+      <collision>
         <origin xyz="0 0 0" rpy="0 0 3.14159265359" />
         <geometry>
           <mesh filename="../../../Model/meshes/collision/finger.obj"/>
         </geometry>
-      </collision> -->
+      </collision>
     </link>
     <joint name="joint1" type="revolute">
       <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
@@ -199,7 +199,7 @@
       <parent link="link1"/>
       <child link="link2"/>
       <axis xyz="0 0 1"/>
-      <calibration falling="15.0" />
+      <calibration falling="30.0" />
       <limit effort="87" lower="-1.7628" upper="1.7628" velocity="2.1750"/>
     </joint>
     <joint name="joint3" type="revolute">
@@ -216,7 +216,7 @@
       <parent link="link3"/>
       <child link="link4"/>
       <axis xyz="0 0 1"/>
-      <calibration falling="-95.0" />
+      <calibration falling="-90.0" />
       <limit effort="87" lower="-3.0718" upper="-0.0698" velocity="2.1750"/>
     </joint>
     <joint name="joint5" type="revolute">
@@ -233,7 +233,7 @@
       <parent link="link5"/>
       <child link="link6"/>
       <axis xyz="0 0 1"/>
-      <calibration falling="125.0" />
+      <calibration falling="120.0" />
       <limit effort="12" lower="-0.0175" upper="3.7525" velocity="2.6100"/>
     </joint>
     <joint name="joint7" type="revolute">

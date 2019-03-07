@@ -9,12 +9,12 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/link0.obj"/>
+          <mesh filename="../../../Model/meshes/visual/link0.obj"/>
         </geometry>
       </visual>
 <!--       <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/link0.obj"/>
+          <mesh filename="../../../Model/meshes/collision/link0.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -26,12 +26,12 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/link1.obj"/>
+          <mesh filename="../../../Model/meshes/visual/link1.obj"/>
         </geometry>
       </visual>
       <!-- <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/link1.obj"/>
+          <mesh filename="../../../Model/meshes/collision/link1.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -43,12 +43,12 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/link2.obj"/>
+          <mesh filename="../../../Model/meshes/visual/link2.obj"/>
         </geometry>
       </visual>
       <!-- <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/link2.obj"/>
+          <mesh filename="../../../Model/meshes/collision/link2.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -60,12 +60,12 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/link3.obj"/>
+          <mesh filename="../../../Model/meshes/visual/link3.obj"/>
         </geometry>
       </visual>
       <!-- <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/link3.obj"/>
+          <mesh filename="../../../Model/meshes/collision/link3.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -77,12 +77,12 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/link4.obj"/>
+          <mesh filename="../../../Model/meshes/visual/link4.obj"/>
         </geometry>
       </visual>
-      <!-- <collision>
+<!--       <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/link4.obj"/>
+          <mesh filename="../../../Model/meshes/collision/link4.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -94,12 +94,12 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/link5.obj"/>
+          <mesh filename="../../../Model/meshes/visual/link5.obj"/>
         </geometry>
       </visual>
-      <!-- <collision>
+<!--       <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/link5.obj"/>
+          <mesh filename="../../../Model/meshes/collision/link5.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -111,30 +111,29 @@
       </inertial>
       <visual>
         <geometry>
-          <mesh filename="../../../Model/meshes/link6.obj"/>
+          <mesh filename="../../../Model/meshes/visual/link6.obj"/>
         </geometry>
       </visual>
       <!-- <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/link6.obj"/>
+          <mesh filename="../../../Model/meshes/collision/link6.obj"/>
         </geometry>
       </collision> -->
     </link>
     <link name="link7">
       <inertial>
-        <origin xyz="0 0 0.08" rpy="0 -0 0" />
-        <mass value="0.5" />
-        <inertia ixx="0.05" iyy="0.05" izz="0.05" ixy="0" ixz="0" iyz="0" />
+        <origin xyz="0 0 0.17" rpy="0 -0 0" />
+        <mass value="1.8" />
+        <inertia ixx="0.09" iyy="0.05" izz="0.07" ixy="0" ixz="0" iyz="0" />
       </inertial>
       <visual>
-        <origin xyz="0 0 0" rpy="0 0 0" />
         <geometry>
-          <mesh filename="../../../Model/meshes/link7.obj"/>
+          <mesh filename="../../../Model/meshes/visual/link7.obj"/>
         </geometry>
       </visual>
       <!-- <collision>
         <geometry>
-          <mesh filename="../../../Model/meshes/link7.obj"/>
+          <mesh filename="../../../Model/meshes/collision/link7.obj"/>
         </geometry>
       </collision> -->
     </link>
@@ -197,12 +196,4 @@
       <axis xyz="0 0 1"/>
       <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
     </joint>
-<!--     <link name="link8"/>
-    <joint name="joint8" type="fixed">
-      <origin rpy="0 0 0" xyz="0 0 0.107"/>
-      <parent link="link7"/>
-      <child link="link8"/>
-      <axis xyz="0 0 0"/>
-    </joint> -->
-  <!-- </xacro:macro> -->
 </robot>

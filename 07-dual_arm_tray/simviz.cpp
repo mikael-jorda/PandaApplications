@@ -21,10 +21,10 @@ void sighandler(int){fSimulationRunning = false;}
 using namespace std;
 using namespace Eigen;
 
-const string world_file = "../resources/07-dual_arm_tray/world.urdf";
+const string world_file = "./resources/world.urdf";
 const vector<string> robot_files = {
-	"../resources/07-dual_arm_tray/panda_arm_hand.urdf",
-	"../resources/07-dual_arm_tray/panda_arm_hand.urdf",
+	"./resources/panda_arm_hand.urdf",
+	"./resources/panda_arm_hand.urdf",
 };
 const vector<string> robot_names = {
 	"PANDA1",

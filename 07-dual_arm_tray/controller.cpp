@@ -20,8 +20,8 @@ using namespace std;
 using namespace Eigen;
 
 const vector<string> robot_files = {
-	"../resources/07-dual_arm_tray/panda_arm.urdf",
-	"../resources/07-dual_arm_tray/panda_arm.urdf",
+	"./resources/panda_arm.urdf",
+	"./resources/panda_arm.urdf",
 };
 const vector<string> robot_names = {
 	"PANDA1",
@@ -150,9 +150,9 @@ int main() {
 		posori_tasks[i]->_kp_ori = 400.0;
 		posori_tasks[i]->_kv_ori = 40.0;		
 
-		posori_tasks[i]->_use_velocity_saturation_flag = true;
-		posori_tasks[i]->_linear_saturation_velocity = 50*Vector3d::Ones();
-		posori_tasks[i]->_angular_saturation_velocity = 30.0/180.0*M_PI*Vector3d::Ones();
+		// posori_tasks[i]->_use_velocity_saturation_flag = false;
+		// posori_tasks[i]->_linear_saturation_velocity = 50;
+		// posori_tasks[i]->_angular_saturation_velocity = 30.0/180.0;
 
 	}
 

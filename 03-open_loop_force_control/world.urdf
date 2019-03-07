@@ -16,13 +16,13 @@
 		<collision>
 	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
 	        <geometry>
-	            <box size="1.0 10.0 0.1" />
+	            <box size="10.0 10.0 0.1" />
 	        </geometry>
 	    </collision>
 	    <visual>
 	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
 	        <geometry>
-	            <box size="1.0 10.0 0.1" />
+	            <box size="10.0 10.0 0.1" />
 	        </geometry>
 	        <material name="material_gray">
 		        <color rgba="0.5 0.3 0.3 1.0" />
@@ -53,7 +53,7 @@
 	<camera name="camera_fixed">
 		<position xyz="2.0 0.0 0.5" />
 		<vertical xyz="0.0 0.0 1.0" />
-		<lookat xyz="0.0 0.0 0.0" />
+		<lookat xyz="0.0 0.0 0.2" />
 	</camera>
 
 	<!-- TODO: support stereo specification -->

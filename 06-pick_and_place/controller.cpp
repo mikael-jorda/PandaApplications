@@ -20,8 +20,8 @@ using namespace std;
 using namespace Eigen;
 
 const vector<string> robot_files = {
-	"../resources/06-pick_and_place/panda_arm.urdf",
-	"../resources/06-pick_and_place/panda_arm.urdf",
+	"./resources/panda_arm.urdf",
+	"./resources/panda_arm.urdf",
 };
 const vector<string> robot_names = {
 	"PANDA1",
@@ -113,6 +113,8 @@ int main() {
 	for(int i=0 ; i<n_robots ; i++)
 	{
 		robots.push_back(new Sai2Model::Sai2Model(robot_files[i], false));
+		robots[i]->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEYS[i]);
+		robots[i]->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEYS[i]);
 		robots[i]->updateModel();
 	}
 
@@ -150,6 +152,7 @@ int main() {
 		Eigen::Vector3d pos_in_link = Vector3d(0.0,0.0,0.2);
 		posori_tasks.push_back(new Sai2Primitives::PosOriTask(robots[i], link_name, pos_in_link));
 		posori_task_torques.push_back(VectorXd::Zero(dof[i]));
+		posori_tasks[i]->_use_interpolation_flag = false;
 
 		posori_tasks[i]->_kp_pos = 200.0;
 		posori_tasks[i]->_kv_pos = 25.0;
@@ -157,8 +160,8 @@ int main() {
 		posori_tasks[i]->_kv_ori = 40.0;		
 
 		posori_tasks[i]->_use_velocity_saturation_flag = true;
-		posori_tasks[i]->_linear_saturation_velocity = 50*Vector3d::Ones();
-		posori_tasks[i]->_angular_saturation_velocity = 30.0/180.0*M_PI*Vector3d::Ones();
+		posori_tasks[i]->_linear_saturation_velocity = 0.1;
+		posori_tasks[i]->_angular_saturation_velocity = 60.0/180.0;
 
 	}
 	// posori_tasks[1]->_angular_saturation_velocity = 20.0/180.0*M_PI*Vector3d::Ones();
@@ -211,8 +214,8 @@ int main() {
 				for(int i=0 ; i<n_robots ; i++)
 				{
 					posori_tasks[i]->reInitializeTask();
-					redis_client.set(GRIPPER_DESIRED_WIDTH_KEYS[0], to_string(0.040));
-					redis_client.set(GRIPPER_DESIRED_WIDTH_KEYS[1], to_string(0.035));
+					redis_client.set(GRIPPER_DESIRED_WIDTH_KEYS[0], to_string(0.055));
+					redis_client.set(GRIPPER_DESIRED_WIDTH_KEYS[1], to_string(0.045));
 					state = PICK_OBJECT;
 				}
 			}
@@ -232,7 +235,7 @@ int main() {
 			}
 
 			// set goal positions
-			posori_tasks[0]->_desired_position = robot_pose_in_world[0].linear().transpose()*(Vector3d(-0.05,-0.75,0.24) - robot_pose_in_world[0].translation());
+			posori_tasks[0]->_desired_position = robot_pose_in_world[0].linear().transpose()*(Vector3d(-0.07,-0.75,0.24) - robot_pose_in_world[0].translation());
 			posori_tasks[0]->_desired_orientation = robot_pose_in_world[0].linear().transpose()*AngleAxisd(180.0/180.0*M_PI, Vector3d::UnitX()).toRotationMatrix()*AngleAxisd(-45.0/180.0*M_PI, Vector3d::UnitZ()).toRotationMatrix();
 
 			// compute torques
