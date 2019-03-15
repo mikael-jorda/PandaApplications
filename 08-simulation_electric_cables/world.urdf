@@ -5,12 +5,12 @@
 
 	<robot name="TWO_ARM_PANDA">
 		<model dir="./resources" path="two_arm_panda_gripper.urdf" name="two_arm_panda_gripper" />
-		<origin xyz="0 0 0" rpy="0 0 0" />
+		<origin xyz="0 0 0" rpy="0 0 3.1415" />
 	</robot>
 
 <dynamic_object name="tool">
-		<origin xyz="0.9 0.0 0.35" rpy="1.57079632679 0 3.14159265359" />
-		<!-- <origin xyz="0.9 0.0 1.1" rpy="1.57079632679 0 0" /> -->
+		<!-- <origin xyz="0.9 0.0 0.35" rpy="1.57079632679 0 3.14159265359" /> -->
+		<origin xyz="-1.0 0.0 0.35" rpy="1.57079632679 0 0" />
 		<inertial>
 			<origin xyz="0 0 0" rpy="0 0 0" />
 			<mass value="0.5" />
@@ -204,9 +204,9 @@
 	</light>
 
 	<camera name="camera_fixed">
-		<position xyz="2.0 0.0 1.0" />
+		<position xyz="1.7 -0.5 2.5" />
 		<vertical xyz="0.0 0.0 1.0" />
-		<lookat xyz="0.0 0.0 0.5" />
+		<lookat xyz="-0.7 0.0 0.5" />
 	</camera>
 
 </world>

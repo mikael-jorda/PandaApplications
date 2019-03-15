@@ -20,11 +20,10 @@ using namespace Eigen;
 
 const string robot_file = "./resources/two_arm_panda.urdf";
 
-#define MOVE_TO_INITIAL_CONFIG      0
-#define CARTESIAN_MOVE              1
+#define GOTO_GRASP                  0
 #define HAPTIC_CONTROL              2
 
-int state = MOVE_TO_INITIAL_CONFIG;
+int state = GOTO_GRASP;
 
 // redis keys:
 // - read:
@@ -48,6 +47,12 @@ const std::string RIGHT_GRIPPER_DESIRED_FORCE_KEY  = "sai2::PandaApplication::gr
 
 unsigned long long controller_counter = 0;
 
+// function to update model at a slower rate
+void updateModelThreadRun(shared_ptr<Sai2Model::Sai2Model> robot, 
+		shared_ptr<Sai2Primitives::JointTask> joint_task, 
+		shared_ptr<Sai2Primitives::PosOriTask> left_hand_posori_task,
+		shared_ptr<Sai2Primitives::PosOriTask> right_hand_posori_task);
+
 int main() {
 
 	// start redis client
@@ -60,23 +65,23 @@ int main() {
 	signal(SIGINT, &sighandler);
 
 	// load robots
-	auto robot = new Sai2Model::Sai2Model(robot_file, false);
+	auto robot = make_shared<Sai2Model::Sai2Model>(robot_file, false);
 	robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
 	VectorXd initial_q = robot->_q;
 	robot->updateModel();
-	cout << "initial q : " << initial_q.transpose() << endl;
+	// cout << "initial q : " << initial_q.transpose() << endl;
 
 	// prepare controller	
 	int dof = robot->dof();
-	MatrixXd N_prec = MatrixXd::Identity(dof, dof);
+	// MatrixXd N_prec = MatrixXd::Identity(dof, dof);
 	VectorXd command_torques = VectorXd::Zero(dof);
 	VectorXd coriolis = VectorXd::Zero(dof);
 
 	// joint task
-	auto joint_task = new Sai2Primitives::JointTask(robot);
+	auto joint_task = make_shared<Sai2Primitives::JointTask>(robot.get());
 	VectorXd joint_task_torques = VectorXd::Zero(dof);
 
-	joint_task->_desired_position(0) += 0.2;
+	// joint_task->_desired_position(0) += 0.2;
 
 	// posori controller
 	const string left_hand_link_name = "left_arm_link7";
@@ -84,51 +89,51 @@ int main() {
 	const string right_hand_link_name = "right_arm_link7";
 	const Eigen::Vector3d right_hand_pos_in_link = Vector3d(0,0,0.2);
 
-	auto left_hand_posori_task = new Sai2Primitives::PosOriTask(robot, left_hand_link_name, left_hand_pos_in_link);
+	auto left_hand_posori_task = make_shared<Sai2Primitives::PosOriTask>(robot.get(), left_hand_link_name, left_hand_pos_in_link);
 	VectorXd left_hand_posori_task_torques = VectorXd::Zero(dof);
-	auto right_hand_posori_task = new Sai2Primitives::PosOriTask(robot, right_hand_link_name, right_hand_pos_in_link);
+	auto right_hand_posori_task = make_shared<Sai2Primitives::PosOriTask>(robot.get(), right_hand_link_name, right_hand_pos_in_link);
 	VectorXd right_hand_posori_task_torques = VectorXd::Zero(dof);
 	right_hand_posori_task->_kp_pos = 200.0;
 	right_hand_posori_task->_kv_pos = 30.0;
 	right_hand_posori_task->_kp_ori = 200.0;
 	right_hand_posori_task->_kv_ori = 30.0;
 
-	// haptic controller 
-	// cDeltaDevicePtr hapticDevice0 = cDeltaDevice::create(0);
-	// cDeltaDevicePtr hapticDevice1 = cDeltaDevice::create(1);
-    
+	right_hand_posori_task->_desired_position = Vector3d(0.65, 0.0, 0.35);
+	left_hand_posori_task->_desired_position = Vector3d(0.45, 0.0, 0.35);
+
     auto handler = new cHapticDeviceHandler();
-	// cDeltaDevicePtr hapticDevice0;
-	// cDeltaDevicePtr hapticDevice1;
-	// handler->getDevice(hapticDevice0, 0);
-	// handler->getDevice(hapticDevice1, 1);
 
 	auto haptic_controller_right_hand = new Sai2Primitives::OpenLoopTeleop(handler, 0, right_hand_posori_task->_current_position,
 												right_hand_posori_task->_current_orientation, Eigen::Matrix3d::Identity());
-	while(!haptic_controller_right_hand->device_started) 
-	{
-		cout << "starting right device" << endl;
-	}
-	haptic_controller_right_hand->GravityCompTask();
-
-
 	auto haptic_controller_left_hand = new Sai2Primitives::OpenLoopTeleop(handler, 1, left_hand_posori_task->_current_position,
 												left_hand_posori_task->_current_orientation, Eigen::Matrix3d::Identity());
-	while(!haptic_controller_left_hand->device_started) 
-	{
-		cout << "starting left device" << endl;
-	}
+
+	Matrix3d R_haptic_robot = AngleAxisd(M_PI,Vector3d::UnitZ()).toRotationMatrix();
+	haptic_controller_left_hand->setDeviceRobotRotation(R_haptic_robot);
+	haptic_controller_right_hand->setDeviceRobotRotation(R_haptic_robot);
+
+	// haptic_controller_left_hand->haptic_feedback_from_proxy = true;
+	// haptic_controller_right_hand->haptic_feedback_from_proxy = true;
+	haptic_controller_left_hand->_send_haptic_feedback = true;
+	haptic_controller_right_hand->_send_haptic_feedback = true;
+
+
+	haptic_controller_left_hand->initializeSigmaDevice();
+	haptic_controller_right_hand->initializeSigmaDevice();
+
 	haptic_controller_left_hand->GravityCompTask();
+	haptic_controller_right_hand->GravityCompTask();
 
 	bool previous_left_gripper_state = false;
 	bool previous_right_gripper_state = false;
-	Vector3d workspace_center_right = right_hand_posori_task->_current_position;
 	Vector3d workspace_center_left = left_hand_posori_task->_current_position;
+	Vector3d workspace_center_right = right_hand_posori_task->_current_position;
 
-	// haptic_controller_right_hand->hapticDevice->enableForces(true);
-	// haptic_controller_left_hand->hapticDevice->enableForces(true);
 	haptic_controller_right_hand->EnableGripperUserSwitch();
 	haptic_controller_left_hand->EnableGripperUserSwitch();
+
+	// start model update thread
+	thread model_update_thread(updateModelThreadRun, robot, joint_task, left_hand_posori_task, right_hand_posori_task);
 
 	// create a timer
 	LoopTimer timer;
@@ -146,28 +151,37 @@ int main() {
 		// read robot state from redis
 		robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
 		robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
-		robot->updateModel();
+		// robot->updateModel();
 
-		robot->coriolisForce(coriolis);		
-
-		if(state == MOVE_TO_INITIAL_CONFIG)
+		if(state == GOTO_GRASP)
 		{
 			// update tasks model
-			joint_task->updateTaskModel(N_prec);
+			// joint_task->updateTaskModel(N_prec);
 
 			// compute torques
+			left_hand_posori_task->computeTorques(left_hand_posori_task_torques);
+			right_hand_posori_task->computeTorques(right_hand_posori_task_torques);
+
 			joint_task->computeTorques(joint_task_torques);
 
-			command_torques = joint_task_torques + coriolis;
+			command_torques = left_hand_posori_task_torques + right_hand_posori_task_torques + joint_task_torques;
 
 			haptic_controller_right_hand->HomingTask();
 			haptic_controller_left_hand->HomingTask();
 
 			// if((joint_task->_desired_position - joint_task->_current_position).norm() < 1e-5 && haptic_controller_right_hand->device_homed)
-			if((joint_task->_desired_position - joint_task->_current_position).norm() < 1e-5)
+			if((left_hand_posori_task->_desired_position - left_hand_posori_task->_current_position).norm() < 1e-5
+				&& (right_hand_posori_task->_desired_position - right_hand_posori_task->_current_position).norm() < 1e-5 )
 			{
-				left_hand_posori_task->reInitializeTask();
-				right_hand_posori_task->reInitializeTask();
+				// left_hand_posori_task->reInitializeTask();
+				// right_hand_posori_task->reInitializeTask();
+
+				// redis_client.set(RIGHT_GRIPPER_MODE_KEY, "g");
+				// redis_client.set(LEFT_GRIPPER_MODE_KEY, "g");
+				// redis_client.set(RIGHT_GRIPPER_DESIRED_FORCE_KEY, "25.0");
+				// redis_client.set(LEFT_GRIPPER_DESIRED_FORCE_KEY, "25.0");
+				redis_client.set(RIGHT_GRIPPER_DESIRED_WIDTH_KEY, "0.0");
+				redis_client.set(LEFT_GRIPPER_DESIRED_WIDTH_KEY, "0.0");
 
 				workspace_center_right = right_hand_posori_task->_current_position;
 				workspace_center_left = left_hand_posori_task->_current_position;
@@ -182,76 +196,62 @@ int main() {
 				state = HAPTIC_CONTROL;
 			}
 		}
-		else if(state == CARTESIAN_MOVE)
-		{
-			// update tasks model
-			N_prec.setIdentity();
-			left_hand_posori_task->updateTaskModel(N_prec);
-			N_prec = left_hand_posori_task->_N;
-			right_hand_posori_task->updateTaskModel(N_prec);
-			N_prec = right_hand_posori_task->_N;
-			joint_task->updateTaskModel(N_prec);
-
-			// compute torques
-			left_hand_posori_task->computeTorques(left_hand_posori_task_torques);
-			right_hand_posori_task->computeTorques(right_hand_posori_task_torques);
-
-			joint_task->computeTorques(joint_task_torques);
-
-			command_torques = left_hand_posori_task_torques + right_hand_posori_task_torques + joint_task_torques + coriolis;
-		}
 		else if(state == HAPTIC_CONTROL)
 		{
 			// update tasks model
-			N_prec.setIdentity();
-			left_hand_posori_task->updateTaskModel(N_prec);
-			N_prec = left_hand_posori_task->_N;
-			right_hand_posori_task->updateTaskModel(N_prec);
-			N_prec = right_hand_posori_task->_N;
-			joint_task->updateTaskModel(N_prec);
+			// N_prec.setIdentity();
+			// left_hand_posori_task->updateTaskModel(N_prec);
+			// N_prec = left_hand_posori_task->_N;
+			// right_hand_posori_task->updateTaskModel(N_prec);
+			// N_prec = right_hand_posori_task->_N;
+			// joint_task->updateTaskModel(N_prec);
 
-			// compute torques
-			left_hand_posori_task->computeTorques(left_hand_posori_task_torques);
-			right_hand_posori_task->computeTorques(right_hand_posori_task_torques);
-
-			joint_task->computeTorques(joint_task_torques);
-
-			command_torques = left_hand_posori_task_torques + right_hand_posori_task_torques + joint_task_torques + coriolis;
-		
-			if(haptic_controller_right_hand->ReadGripperUserSwitch())
-			{
-				if(!previous_right_gripper_state)
-				{
-					haptic_controller_right_hand->setRobotCenter(workspace_center_right, right_hand_posori_task->_current_orientation);
-					haptic_controller_right_hand->setDeviceCenter(Vector3d::Zero(), haptic_controller_right_hand->_rot_dev);
-				}
-				haptic_controller_right_hand->computeHapticCommands_Impedance(right_hand_posori_task->_desired_position,
-																		right_hand_posori_task->_desired_orientation,
-																		right_hand_posori_task->_current_position,
-																		right_hand_posori_task->_current_orientation);
-			}
-			else
-			{
-				haptic_controller_right_hand->computeHapticCommands_Impedance_PositionOnly(right_hand_posori_task->_desired_position,
-																		right_hand_posori_task->_current_position);
-			}
+			// haptic control
+			haptic_controller_left_hand->updateSensedRobotPositionVelocity(left_hand_posori_task->_current_position,
+																		left_hand_posori_task->_current_velocity,
+																		left_hand_posori_task->_current_orientation,
+																		left_hand_posori_task->_current_angular_velocity);
+			haptic_controller_right_hand->updateSensedRobotPositionVelocity(right_hand_posori_task->_current_position,
+																		right_hand_posori_task->_current_velocity,
+																		right_hand_posori_task->_current_orientation,
+																		right_hand_posori_task->_current_angular_velocity);
 			if(haptic_controller_left_hand->ReadGripperUserSwitch())
 			{
 				if(!previous_left_gripper_state)
 				{
+					haptic_controller_left_hand->setDeviceOrientationCenterToCurrent();
 					haptic_controller_left_hand->setRobotCenter(workspace_center_left, left_hand_posori_task->_current_orientation);
-					haptic_controller_left_hand->setDeviceCenter(Vector3d::Zero(), haptic_controller_left_hand->_rot_dev);
 				}
-				haptic_controller_left_hand->computeHapticCommands_Impedance(left_hand_posori_task->_desired_position,
-																		left_hand_posori_task->_desired_orientation,
-																		left_hand_posori_task->_current_position,
-																		left_hand_posori_task->_current_orientation);
+				haptic_controller_left_hand->computeHapticCommands6d(left_hand_posori_task->_desired_position,
+																		left_hand_posori_task->_desired_orientation);
 			}
 			else
 			{
-				haptic_controller_left_hand->computeHapticCommands_Impedance_PositionOnly(left_hand_posori_task->_desired_position,
-																		left_hand_posori_task->_current_position);
+				haptic_controller_left_hand->computeHapticCommands3d(left_hand_posori_task->_desired_position);
 			}
+			if(haptic_controller_right_hand->ReadGripperUserSwitch())
+			{
+				if(!previous_right_gripper_state)
+				{
+					haptic_controller_right_hand->setDeviceOrientationCenterToCurrent();
+					haptic_controller_right_hand->setRobotCenter(workspace_center_right, right_hand_posori_task->_current_orientation);
+				}
+				haptic_controller_right_hand->computeHapticCommands6d(right_hand_posori_task->_desired_position,
+																		right_hand_posori_task->_desired_orientation);
+			}
+			else
+			{
+				haptic_controller_right_hand->computeHapticCommands3d(right_hand_posori_task->_desired_position);
+			}
+
+			// compute torques
+			left_hand_posori_task->computeTorques(left_hand_posori_task_torques);
+			right_hand_posori_task->computeTorques(right_hand_posori_task_torques);
+
+			joint_task->computeTorques(joint_task_torques);
+
+			command_torques = left_hand_posori_task_torques + right_hand_posori_task_torques + joint_task_torques;
+		
 		}
 
 		// send to redis
@@ -264,6 +264,8 @@ int main() {
 
 	}
 
+	model_update_thread.join();
+
 	delete haptic_controller_right_hand;
 	delete haptic_controller_left_hand;
 
@@ -275,4 +277,49 @@ int main() {
 
 
 	return 0;
+}
+
+void updateModelThreadRun(shared_ptr<Sai2Model::Sai2Model> robot, 
+		shared_ptr<Sai2Primitives::JointTask> joint_task, 
+		shared_ptr<Sai2Primitives::PosOriTask> left_hand_posori_task,
+		shared_ptr<Sai2Primitives::PosOriTask> right_hand_posori_task)
+{
+
+	int dof = robot->dof();
+	MatrixXd N_prec = MatrixXd::Identity(dof, dof);
+
+	// create a timer
+	LoopTimer timer;
+	timer.initializeTimer();
+	timer.setLoopFrequency(200); 
+	double start_time = timer.elapsedTime(); //secs
+	bool fTimerDidSleep = true;	
+
+
+	while(runloop)
+	{
+		timer.waitForNextLoop();
+
+		robot->updateModel();
+
+		if(state == GOTO_GRASP)
+		{
+			N_prec.setIdentity();
+			left_hand_posori_task->updateTaskModel(N_prec);
+			N_prec = left_hand_posori_task->_N;
+			right_hand_posori_task->updateTaskModel(N_prec);
+			N_prec = right_hand_posori_task->_N;
+			joint_task->updateTaskModel(N_prec);
+		}
+		else if(state == HAPTIC_CONTROL)
+		{
+			N_prec.setIdentity();
+			left_hand_posori_task->updateTaskModel(N_prec);
+			N_prec = left_hand_posori_task->_N;
+			right_hand_posori_task->updateTaskModel(N_prec);
+			N_prec = right_hand_posori_task->_N;
+			joint_task->updateTaskModel(N_prec);
+		}
+	}
+
 }
