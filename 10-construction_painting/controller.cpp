@@ -160,7 +160,7 @@ int main() {
 	//VectorXd q_init_2 = VectorXd::Zero(7);
 	// q_init_1 << 0.44, -1.024, 0.274, -2.54, 1.945, 1.92, -1.526; 
 	// q_init_2 << 2.24, 1.17, -2.047, -2.325, -0.584, 1.656, -0.03; 
-	q_init_1 << 0.585135,-1.04046,0.286799,-2.59264,1.95629,1.95654,-1.45693;
+	q_init_1 << -0.129231,-1.09106,-0.552381,-2.24007,-1.20897,2.75981,0.66227;
 	//q_init_2 << 2.22268,1.14805,-1.90333,-2.21937,-0.645465,1.70329,-0.074406;
 
 	q_initial.push_back(q_init_1);
@@ -217,7 +217,7 @@ int main() {
 
 	//Robot Brush : Robot[0]
 	Matrix3d transformDev_Rob_brush = robot_pose_in_world[0].linear(); //////////////////////////////////////////
-	transformDev_Rob_brush = AngleAxisd(M_PI/2, Vector3d::UnitZ()).toRotationMatrix() * transformDev_Rob_brush;
+	transformDev_Rob_brush = AngleAxisd(-M_PI/2, Vector3d::UnitZ()).toRotationMatrix() * transformDev_Rob_brush;
 	auto haptic_controller_brush = new Sai2Primitives::OpenLoopTeleop(handler, 0, workspace_center_brush, posori_tasks[0]->_current_orientation, transformDev_Rob_brush);
 	while(!haptic_controller_brush->device_started)
 	{
@@ -254,10 +254,15 @@ int main() {
 	VectorXd f_task_sensed = VectorXd::Zero(6);
 	// const VectorXd force_bias_global = readBiasXML("../../09-haptic_painting/Clyde_fsensor_bias.xml");
 	VectorXd force_bias_global = VectorXd::Zero(6);
-	force_bias_global << -2.51441,   -3.43109 ,  -133.635,  -0.228287,    1.71627, -0.0227359;
 	VectorXd force_bias_adjustment = VectorXd::Zero(6);
-	const double hand_mass = 1.47791; /////////////////////////////////////////////////////////////////////////
-	const Vector3d hand_com = Vector3d(0.0166211, 0.0218277,  0.119471);
+	double hand_mass = 0; /////////////////////////////////////////////////////////////////////////
+	Vector3d hand_com = Vector3d::Zero();
+	if(!flag_simulation)
+	{
+		force_bias_global << -2.51441,   -3.43109 ,  -133.635,  -0.228287,    1.71627, -0.0227359;
+		hand_mass = 1.47791;
+		hand_com = Vector3d(0.0166211, 0.0218277,  0.119471);
+	}
 	// write task force in redis
 	redis_client.setEigenMatrixJSON(FORCE_SENSED_KEYS[0],f_task_sensed);
 	usleep(10000);
@@ -422,6 +427,9 @@ int main() {
 			}
 			else //Only position control
 			{
+				//Compute haptic commands
+				haptic_controller_brush->updateSensedForce(f_task_sensed);
+				haptic_controller_brush->_send_haptic_feedback = true;
 				haptic_controller_brush->computeHapticCommands3d(posori_tasks[0]->_desired_position);
 
 			}
