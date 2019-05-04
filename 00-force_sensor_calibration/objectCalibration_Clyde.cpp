@@ -53,14 +53,14 @@ const bool inertia_regularization = true;
 int main(int argc, char** argv) 
 {
 
-	if(argc < 3)
-	{
-	    std::cout << "Usage :\nobjectCalibration_Clyde [calibration_file_name] [tool_name]" << std::endl;
-	    return 0;
-	}
-	const string calibration_file_name_tmp = argv[1];
-	const string calibration_file_name = "../../00-force_sensor_calibration/calibration_files/" + calibration_file_name_tmp + ".xml";
-	const string tool_name = argv[2];
+	// if(argc < 3)
+	// {
+	//     std::cout << "Usage :\nobjectCalibration_Clyde [calibration_file_name] [tool_name]" << std::endl;
+	//     return 0;
+	// }
+	// const string calibration_file_name_tmp = argv[1];
+	// const string calibration_file_name = "../../00-force_sensor_calibration/calibration_files/" + calibration_file_name_tmp + ".xml";
+	// const string tool_name = argv[2];
 
 	if(flag_simulation)
 	{
@@ -236,9 +236,9 @@ int main(int argc, char** argv)
 				double current_mass = (double) (world_gravity.transpose() * R * mean_force) / g2;
 				estimated_mass += current_mass;
 
-				local_moments.segment<3>(3*(measurement_number-1)) = mean_moment;
-				local_gravity = R * world_gravity;
-				local_gravities_cross.block(3*(measurement_number-1),0,3,3) = Sai2Model::CrossProductOperator(local_gravity);
+				local_moments.segment<3>(3*(measurement_number)) = mean_moment;
+				local_gravity = R.transpose() * world_gravity;
+				local_gravities_cross.block(3*(measurement_number),0,3,3) = Sai2Model::CrossProductOperator(local_gravity);
 
 				cout << "move to point " << measurement_number+1 << endl;
 

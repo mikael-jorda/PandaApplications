@@ -81,9 +81,9 @@ set(PANDA_APPLICATIONS_COMMON_LIBRARIES
 # add apps
 set (PANDA_APPLICATIONS_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 
-add_subdirectory(00-calibration_for_camera)
-add_subdirectory(demo-cs225a)
-# add_subdirectory(00-force_sensor_calibration)
+# add_subdirectory(00-calibration_for_camera)
+# add_subdirectory(demo-cs225a)
+add_subdirectory(00-force_sensor_calibration)
 # add_subdirectory(01-joint_motion)
 # add_subdirectory(02-cartesian_motion)
 # add_subdirectory(03-open_loop_force_control)
@@ -93,3 +93,4 @@ add_subdirectory(demo-cs225a)
 # add_subdirectory(07-dual_arm_tray)
 # add_subdirectory(08-simulation_electric_cables)
 # add_subdirectory(09-haptic_painting)
+add_subdirectory(10-construction_painting)

@@ -1,0 +1,17 @@
+# create an executable
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PANDA_APPLICATIONS_BINARY_DIR}/10-construction_painting)
+ADD_EXECUTABLE (controller10 controller.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
+ADD_EXECUTABLE (simviz10 simviz.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
+
+# and link the library against the executable
+TARGET_LINK_LIBRARIES (controller10 ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (simviz10 ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
+
+# export resources such as model files.
+# NOTE: this requires an install build
+SET(APP_RESOURCE_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources)
+FILE(MAKE_DIRECTORY ${APP_RESOURCE_DIR})
+FILE(COPY world.urdf DESTINATION ${APP_RESOURCE_DIR})
+FILE(COPY panda_arm.urdf DESTINATION ${APP_RESOURCE_DIR})
+FILE(COPY panda_arm_brush.urdf DESTINATION ${APP_RESOURCE_DIR})
+FILE(COPY panda_arm_pallette.urdf DESTINATION ${APP_RESOURCE_DIR})
