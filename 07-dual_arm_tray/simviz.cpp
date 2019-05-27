@@ -309,9 +309,10 @@ void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation
 	}
 
 	// create a timer
+	double simulation_freq = 1500.0;
 	LoopTimer timer;
 	timer.initializeTimer();
-	timer.setLoopFrequency(1000); 
+	timer.setLoopFrequency(simulation_freq); 
 	bool fTimerDidSleep = true;
 	double start_time = timer.elapsedTime(); //secs
 	double last_time = start_time;
@@ -344,7 +345,8 @@ void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation
 		// integrate forward
 		double curr_time = timer.elapsedTime();
 		double loop_dt = curr_time - last_time; 
-		sim->integrate(loop_dt);
+		// sim->integrate(loop_dt);
+		sim->integrate(1/simulation_freq);
 
 		// read joint positions, velocities, update model
 		for(int i=0 ; i<n_robots ; i++)

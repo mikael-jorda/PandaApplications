@@ -12,7 +12,7 @@
 #include <string>
 
 #include <signal.h>
-bool runloop = true;
+bool runloop = false;
 void sighandler(int sig)
 { runloop = false; }
 
@@ -69,6 +69,18 @@ const vector<string> GRIPPER_DESIRED_FORCE_KEYS = {
 	"sai2::WarehouseSimulation::panda2::gripper::desired_force",
 };
 
+// Sai2Model::Sai2Model* robot_mu_1;
+// Sai2Model::Sai2Model* robot_mu_2;
+// Sai2Primitives::JointTask* joint_task_mu_1;
+// Sai2Primitives::JointTask* joint_task_mu_2;
+// Sai2Primitives::PosOriTask* posori_task_mu_1;
+// Sai2Primitives::PosOriTask* posori_task_mu_2;
+
+// function to update model at a slower rate
+void updateModelThread(vector<shared_ptr<Sai2Model::Sai2Model>> robots, 
+		vector<shared_ptr<Sai2Primitives::JointTask>> joint_tasks, 
+		vector<shared_ptr<Sai2Primitives::PosOriTask>> posori_tasks);
+
 #define PICK_TRAY               0
 #define LIFT_TRAY               1
 
@@ -105,10 +117,11 @@ int main() {
 	signal(SIGINT, &sighandler);
 
 	// load robots
-	vector<Sai2Model::Sai2Model*> robots;
+	vector<shared_ptr<Sai2Model::Sai2Model>> robots;
 	for(int i=0 ; i<n_robots ; i++)
 	{
-		robots.push_back(new Sai2Model::Sai2Model(robot_files[i], false));
+		// auto r_tmp = make_shared<Sai2Model::Sai2Model>(robot_files[i], false);
+		robots.push_back(make_shared<Sai2Model::Sai2Model>(robot_files[i], false));
 		robots[i]->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEYS[i]);
 		robots[i]->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEYS[i]);
 		robots[i]->updateModel();
@@ -120,9 +133,9 @@ int main() {
 	vector<VectorXd> coriolis;
 	vector<MatrixXd> N_prec;
 
-	vector<Sai2Primitives::JointTask*> joint_tasks;
+	vector<shared_ptr<Sai2Primitives::JointTask>> joint_tasks;
 	vector<VectorXd> joint_task_torques;
-	vector<Sai2Primitives::PosOriTask*> posori_tasks;
+	vector<shared_ptr<Sai2Primitives::PosOriTask>> posori_tasks;
 	vector<VectorXd> posori_task_torques;
 
 	for(int i=0 ; i<n_robots ; i++)
@@ -133,7 +146,7 @@ int main() {
 		N_prec.push_back(MatrixXd::Identity(dof[i],dof[i]));
 
 		// joint tasks
-		joint_tasks.push_back(new Sai2Primitives::JointTask(robots[i]));
+		joint_tasks.push_back(make_shared<Sai2Primitives::JointTask>(robots[i].get()));
 		joint_task_torques.push_back(VectorXd::Zero(dof[i]));
 
 		joint_tasks[i]->_kp = 50.0;
@@ -142,7 +155,7 @@ int main() {
 		// end effector tasks
 		string link_name = "link7";
 		Eigen::Vector3d pos_in_link = Vector3d(0.0,0.0,0.2);
-		posori_tasks.push_back(new Sai2Primitives::PosOriTask(robots[i], link_name, pos_in_link));
+		posori_tasks.push_back(make_shared<Sai2Primitives::PosOriTask>(robots[i].get(), link_name, pos_in_link));
 		posori_task_torques.push_back(VectorXd::Zero(dof[i]));
 
 		posori_tasks[i]->_kp_pos = 200.0;
@@ -150,11 +163,14 @@ int main() {
 		posori_tasks[i]->_kp_ori = 400.0;
 		posori_tasks[i]->_kv_ori = 40.0;		
 
-		// posori_tasks[i]->_use_velocity_saturation_flag = false;
-		// posori_tasks[i]->_linear_saturation_velocity = 50;
-		// posori_tasks[i]->_angular_saturation_velocity = 30.0/180.0;
+		posori_tasks[i]->_use_velocity_saturation_flag = true;
+		posori_tasks[i]->_linear_saturation_velocity = 0.1;
+		posori_tasks[i]->_angular_saturation_velocity = 30.0/180.0;
 
 	}
+
+	// start update_model thread
+	thread model_update_thread(updateModelThread, robots, joint_tasks, posori_tasks);
 
 	// create a timer
 	LoopTimer timer;
@@ -166,6 +182,7 @@ int main() {
 	bool fTimerDidSleep = true;
 	double start_time = timer.elapsedTime(); //secs
 
+	runloop = true;
 	while (runloop) {
 		// wait for next scheduled loop
 		timer.waitForNextLoop();
@@ -178,20 +195,20 @@ int main() {
 			robots[i]->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEYS[i]);
 			robots[i]->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEYS[i]);
 
-			robots[i]->updateModel();
+			// robots[i]->updateModel();
 			robots[i]->coriolisForce(coriolis[i]);
 		}
 
 		if(state == PICK_TRAY)
 		{
-			for(int i=0 ; i<n_robots ; i++)
-			{
-				N_prec[i].setIdentity();
-				posori_tasks[i]->updateTaskModel(N_prec[i]);
+			// for(int i=0 ; i<n_robots ; i++)
+			// {
+			// 	N_prec[i].setIdentity();
+			// 	posori_tasks[i]->updateTaskModel(N_prec[i]);
 
-				N_prec[i] = posori_tasks[i]->_N;
-				joint_tasks[i]->updateTaskModel(N_prec[i]);
-			}
+			// 	N_prec[i] = posori_tasks[i]->_N;
+			// 	joint_tasks[i]->updateTaskModel(N_prec[i]);
+			// }
 
 			// set goal positions
 			Vector3d robot1_desired_position_in_world = Vector3d(0.2, -0.15, 0.03);
@@ -228,14 +245,14 @@ int main() {
 		{
 
 			// update tasks model
-			for(int i=0 ; i<n_robots ; i++)
-			{
-				N_prec[i].setIdentity();
-				posori_tasks[i]->updateTaskModel(N_prec[i]);
+			// for(int i=0 ; i<n_robots ; i++)
+			// {
+			// 	N_prec[i].setIdentity();
+			// 	posori_tasks[i]->updateTaskModel(N_prec[i]);
 
-				N_prec[i] = posori_tasks[i]->_N;
-				joint_tasks[i]->updateTaskModel(N_prec[i]);
-			}
+			// 	N_prec[i] = posori_tasks[i]->_N;
+			// 	joint_tasks[i]->updateTaskModel(N_prec[i]);
+			// }
 
 			// TODO : compute augmented object model and grasp matrix and robot torques
 			// temporary :
@@ -277,6 +294,8 @@ int main() {
 		redis_client.setEigenMatrixJSON(TORQUES_COMMANDED_KEYS[i], command_torques[i]);
 	}
 
+	model_update_thread.join();
+
 	double end_time = timer.elapsedTime();
 	std::cout << "\n";
 	std::cout << "Controller Loop run time  : " << end_time << " seconds\n";
@@ -284,4 +303,63 @@ int main() {
     std::cout << "Controller Loop frequency : " << timer.elapsedCycles()/end_time << "Hz\n";
 
 	return 0;
+}
+
+void updateModelThread(vector<shared_ptr<Sai2Model::Sai2Model>> robots, 
+		vector<shared_ptr<Sai2Primitives::JointTask>> joint_tasks, 
+		vector<shared_ptr<Sai2Primitives::PosOriTask>> posori_tasks)
+{
+
+	// prepare task controllers
+	vector<int> dof;
+	vector<MatrixXd> N_prec;
+
+	for(int i=0 ; i<n_robots ; i++)
+	{
+		dof.push_back(robots[i]->dof());
+		N_prec.push_back(MatrixXd::Identity(dof[i],dof[i]));
+	}
+
+	// create a timer
+	LoopTimer timer;
+	timer.initializeTimer();
+	timer.setLoopFrequency(200); 
+	double current_time = 0;
+	double prev_time = 0;
+	double dt = 0;
+	bool fTimerDidSleep = true;
+	double start_time = timer.elapsedTime(); //secs
+
+	while(runloop)
+	{
+		timer.waitForNextLoop();
+		for(int i=0 ; i<n_robots ; i++)
+		{
+			robots[i]->updateModel();
+		}
+
+		if(state == PICK_TRAY)
+		{
+			for(int i=0 ; i<n_robots ; i++)
+			{
+				N_prec[i].setIdentity();
+				posori_tasks[i]->updateTaskModel(N_prec[i]);
+
+				N_prec[i] = posori_tasks[i]->_N;
+				joint_tasks[i]->updateTaskModel(N_prec[i]);
+			}
+		}
+
+		else if(state == LIFT_TRAY)
+		{
+			for(int i=0 ; i<n_robots ; i++)
+			{
+				N_prec[i].setIdentity();
+				posori_tasks[i]->updateTaskModel(N_prec[i]);
+
+				N_prec[i] = posori_tasks[i]->_N;
+				joint_tasks[i]->updateTaskModel(N_prec[i]);
+			}
+		}
+	}
 }
