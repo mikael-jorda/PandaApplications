@@ -82,6 +82,7 @@ set(PANDA_APPLICATIONS_COMMON_LIBRARIES
 set (PANDA_APPLICATIONS_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 
 # add_subdirectory(01-joint_motion)
+# add_subdirectory(01bis-cartesian_hold_position)
 # add_subdirectory(02-cartesian_motion)
 # add_subdirectory(03-open_loop_force_control)
 # add_subdirectory(04-surface_alignment)
@@ -89,4 +90,4 @@ set (PANDA_APPLICATIONS_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 # add_subdirectory(06-pick_and_place)
 # add_subdirectory(07-dual_arm_tray)
 add_subdirectory(08-simulation_electric_cables)
-# add_subdirectory(09-haptic_painting)
+add_subdirectory(09-haptic_painting)

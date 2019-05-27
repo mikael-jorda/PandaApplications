@@ -22,7 +22,7 @@ using namespace std;
 using namespace Eigen;
 
 const string world_file = "./resources/world.urdf";
-const string robot_file = "./resources/two_arm_panda_gripper.urdf";
+const string robot_file = "./resources/two_arm_panda_tool.urdf";
 const string robot_name = "TWO_ARM_PANDA";
 const string camera_name = "camera_fixed";
 const string object_name = "tool";
@@ -88,6 +88,7 @@ bool fTransYp = false;
 bool fTransYn = false;
 bool fTransZp = false;
 bool fTransZn = false;
+bool fshowCameraPose = false;
 bool fRotPanTilt = false;
 
 int main() {
@@ -109,14 +110,14 @@ int main() {
 	// load simulation world
 	auto sim = new Simulation::Sai2Simulation(world_file, false);
 	sim->setCollisionRestitution(0);
-	sim->setCoeffFrictionStatic(1.3);
+	sim->setCoeffFrictionStatic(15.0);
 
 	// read joint positions, velocities, update model
 	sim->getJointPositions(robot_name, robot->_q);
 	sim->getJointVelocities(robot_name, robot->_dq);
 	robot->updateKinematics();
 
-	sim->getObjectPosition(object_name, object_position, object_orientation);
+	// sim->getObjectPosition(object_name, object_position, object_orientation);
 
 
 	/*------- Set up visualization -------*/
@@ -175,7 +176,7 @@ int main() {
 		int width, height;
 		glfwGetFramebufferSize(window, &width, &height);
 		graphics->updateGraphics(robot_name, robot);
-		graphics->updateObjectGraphics(object_name, object_position, object_orientation);
+		// graphics->updateObjectGraphics(object_name, object_position, object_orientation);
 		graphics->render(camera_name, width, height);
 
 		// swap buffers
@@ -193,7 +194,7 @@ int main() {
 		glfwPollEvents();
 
 		// move scene camera as required
-		// graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
+		graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
 		Eigen::Vector3d cam_depth_axis;
 		cam_depth_axis = camera_lookat - camera_pos;
 		cam_depth_axis.normalize();
@@ -215,13 +216,13 @@ int main() {
 		}
 		if (fTransYp) {
 			// camera_pos = camera_pos + 0.05*cam_lookat_axis;
-			camera_pos = camera_pos + 0.05*cam_up_axis;
-			camera_lookat = camera_lookat + 0.05*cam_up_axis;
+			camera_pos = camera_pos + 0.05*camera_vertical;
+			camera_lookat = camera_lookat + 0.05*camera_vertical;
 		}
 		if (fTransYn) {
 			// camera_pos = camera_pos - 0.05*cam_lookat_axis;
-			camera_pos = camera_pos - 0.05*cam_up_axis;
-			camera_lookat = camera_lookat - 0.05*cam_up_axis;
+			camera_pos = camera_pos - 0.05*camera_vertical;
+			camera_lookat = camera_lookat - 0.05*camera_vertical;
 		}
 		if (fTransZp) {
 			camera_pos = camera_pos + 0.1*cam_depth_axis;
@@ -230,6 +231,12 @@ int main() {
 		if (fTransZn) {
 			camera_pos = camera_pos - 0.1*cam_depth_axis;
 			camera_lookat = camera_lookat - 0.1*cam_depth_axis;
+		}
+		if (fshowCameraPose) {
+			cout << endl;
+			cout << "camera position : " << camera_pos.transpose() << endl;
+			cout << "camera lookat : " << camera_lookat.transpose() << endl;
+			cout << endl;
 		}
 		if (fRotPanTilt) {
 			// get current cursor position
@@ -266,16 +273,17 @@ int main() {
 void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, shared_ptr<RedisClient> redis_client) {
 
 	int dof = robot->dof();
+	int controlled_dof = dof-2;
 	VectorXd command_torques_simulation = VectorXd::Zero(dof);
-	VectorXd command_torques_control = VectorXd::Zero(dof-4);
-	VectorXd q_control = VectorXd::Zero(dof-4);
-	VectorXd dq_control = VectorXd::Zero(dof-4);
+	VectorXd command_torques_control = VectorXd::Zero(controlled_dof);
+	VectorXd q_control = VectorXd::Zero(controlled_dof);
+	VectorXd dq_control = VectorXd::Zero(controlled_dof);
 	redis_client->setEigenMatrixJSON(TORQUES_COMMANDED_KEY, command_torques_control);
 
 	int gripper_index_la_1 = robot->jointId("left_arm_finger_joint1");
 	int gripper_index_la_2 = robot->jointId("left_arm_finger_joint2");
-	int gripper_index_ra_1 = robot->jointId("right_arm_finger_joint1");
-	int gripper_index_ra_2 = robot->jointId("right_arm_finger_joint2");
+	// int gripper_index_ra_1 = robot->jointId("right_arm_finger_joint1");
+	// int gripper_index_ra_2 = robot->jointId("right_arm_finger_joint2");
 
 	redis_client->set(LEFT_GRIPPER_DESIRED_WIDTH_KEY, to_string(0.04));
 	redis_client->set(LEFT_GRIPPER_DESIRED_SPEED_KEY, to_string(0));
@@ -290,10 +298,11 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, sh
 	for(int i=0 ; i<dof ; i++)
 	{
 		if( i != gripper_index_la_1 && 
-			i != gripper_index_la_2 && 
-			i != gripper_index_ra_1 && 
-			i != gripper_index_ra_2)
+			i != gripper_index_la_2) // && 
+			// i != gripper_index_ra_1 && 
+			// i != gripper_index_ra_2)
 		{
+			// cout << "controller handled : " << i << endl;
 			controller_handled_joints.push_back(i);
 		}
 	}
@@ -317,7 +326,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, sh
 
 		// read arm torques from redis
 		command_torques_control = redis_client->getEigenMatrixJSON(TORQUES_COMMANDED_KEY);
-		for(int i=0 ; i<dof-4 ; i++)
+		for(int i=0 ; i<controlled_dof ; i++)
 		{
 			command_torques_simulation(controller_handled_joints[i]) = command_torques_control(i); 
 		}
@@ -326,14 +335,14 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, sh
 		Vector2d left_gripper_torques = grippersControl(robot, redis_client, gripper_index_la_1, gripper_index_la_2, 
 														LEFT_GRIPPER_MODE_KEY, LEFT_GRIPPER_CURRENT_WIDTH_KEY,
 														LEFT_GRIPPER_DESIRED_WIDTH_KEY, LEFT_GRIPPER_DESIRED_SPEED_KEY, LEFT_GRIPPER_DESIRED_FORCE_KEY);
-		Vector2d right_gripper_torques = grippersControl(robot, redis_client, gripper_index_ra_1, gripper_index_ra_2, 
-														RIGHT_GRIPPER_MODE_KEY, RIGHT_GRIPPER_CURRENT_WIDTH_KEY,
-														RIGHT_GRIPPER_DESIRED_WIDTH_KEY, RIGHT_GRIPPER_DESIRED_SPEED_KEY, RIGHT_GRIPPER_DESIRED_FORCE_KEY);
+		// Vector2d right_gripper_torques = grippersControl(robot, redis_client, gripper_index_ra_1, gripper_index_ra_2, 
+		// 												RIGHT_GRIPPER_MODE_KEY, RIGHT_GRIPPER_CURRENT_WIDTH_KEY,
+		// 												RIGHT_GRIPPER_DESIRED_WIDTH_KEY, RIGHT_GRIPPER_DESIRED_SPEED_KEY, RIGHT_GRIPPER_DESIRED_FORCE_KEY);
 
 		command_torques_simulation(gripper_index_la_1) = left_gripper_torques(0);
 		command_torques_simulation(gripper_index_la_2) = left_gripper_torques(1);
-		command_torques_simulation(gripper_index_ra_1) = right_gripper_torques(0);
-		command_torques_simulation(gripper_index_ra_2) = right_gripper_torques(1);
+		// command_torques_simulation(gripper_index_ra_1) = right_gripper_torques(0);
+		// command_torques_simulation(gripper_index_ra_2) = right_gripper_torques(1);
 
 		// set torques to simulation
 		sim->setJointTorques(robot_name, command_torques_simulation);
@@ -341,7 +350,8 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, sh
 		// integrate forward
 		double curr_time = timer.elapsedTime();
 		double loop_dt = curr_time - last_time; 
-		sim->integrate(loop_dt);
+		sim->integrate(1/sim_frequency);
+		// sim->integrate(loop_dt);
 
 		// read joint positions, velocities, update model
 		sim->getJointPositions(robot_name, robot->_q);
@@ -349,10 +359,10 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, sh
 		robot->updateKinematics();
 
 		// read object position
-		sim->getObjectPosition(object_name, object_position, object_orientation);
+		// sim->getObjectPosition(object_name, object_position, object_orientation);
 
 
-		for(int i=0 ; i<dof-4 ; i++)
+		for(int i=0 ; i<controlled_dof ; i++)
 		{
 			q_control(i) = robot->_q(controller_handled_joints[i]);
 			dq_control(i) = robot->_dq(controller_handled_joints[i]);
@@ -443,7 +453,7 @@ Vector2d grippersControl(Sai2Model::Sai2Model* robot,
 
 	// controller gains and force
 	double kp_gripper = 400.0;
-	double kv_gripper = 40.0;
+	double kv_gripper = 30.0;
 	double gripper_behavior_force = 0;
 
 	// gripper state
@@ -485,7 +495,7 @@ Vector2d grippersControl(Sai2Model::Sai2Model* robot,
 		std::cout << "WARNING : Desired gripper " << joint_index_1 << " " << joint_index_2 << " force lower than 0. saturating to 0\n" << std::endl;
 	}
 
-	double gripper_constraint_force = -400.0*gripper_center_point - 40.0*gripper_center_point_velocity;
+	double gripper_constraint_force = -200.0*gripper_center_point - 20.0*gripper_center_point_velocity;
 
 	if(gripper_mode == "m")
 	{
@@ -541,6 +551,9 @@ void keySelect(GLFWwindow* window, int key, int scancode, int action, int mods)
 			break;
 		case GLFW_KEY_Z:
 			fTransZn = set;
+			break;
+		case GLFW_KEY_S:
+			fshowCameraPose = set;
 			break;
 		default:
 			break;
