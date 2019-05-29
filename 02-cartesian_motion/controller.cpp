@@ -21,13 +21,15 @@ void sighandler(int sig)
 using namespace std;
 using namespace Eigen;
 
-const string robot_file = "../resources/01bis-cartesian_hold_position/panda_arm.urdf";
+const string robot_file = "resources/panda_arm.urdf";
 const string robot_name = "PANDA";
 
-#define GO_TO_INIT_CONFIG       0
-#define HOLD_CARTESIAN_POS      1
+#define CONTROLLER_1       0      // constant stiffness by choosing gains in the direction of the error
+#define CONTROLLER_2       1      // constant stiffness by choosing gains depending on mass matrix
+#define CONTROLLER_3       2      // test max gains and tracking error in static case
+#define CONTROLLER_4       3      // Constant stiffness orientation
 
-int state = GO_TO_INIT_CONFIG;
+int state = CONTROLLER_3;
 unsigned long long state_init_counter = 0;
 
 // redis keys:
@@ -56,16 +58,15 @@ const string KP_JOINT_KEY = "sai2::PandaApplication::controller:kp_joint";
 const string KV_JOINT_KEY = "sai2::PandaApplication::controller:kv_joint";
 const string KP_POS_KEY = "sai2::PandaApplication::controller:kp_pos";
 const string KV_POS_KEY = "sai2::PandaApplication::controller:kv_pos";
+const string KP_ORI_KEY = "sai2::PandaApplication::controller:kp_ori";
+const string KV_ORI_KEY = "sai2::PandaApplication::controller:kv_ori";
 
 const string DESIRED_POS_KEY = "sai2::PandaApplication::controller::desired_position";
 
 unsigned long long controller_counter = 0;
 
-const bool flag_simulation = false;
-// const bool flag_simulation = true;
-
-const bool inertia_regularization = true;
-// const bool inertia_regularization = false;
+// const bool flag_simulation = false;
+const bool flag_simulation = true;
 
 int main() {
 
@@ -118,51 +119,36 @@ int main() {
 
 	// prepare controller	
 	int dof = robot->dof();
-	MatrixXd M_reg = MatrixXd::Zero(dof,dof);
-	if(inertia_regularization)
-	{
-		M_reg(4,4) = 0.07;
-		M_reg(5,5) = 0.07;
-		M_reg(6,6) = 0.07;
-	}
 	VectorXd command_torques = VectorXd::Zero(dof);
 	VectorXd coriolis = VectorXd::Zero(dof);
 	MatrixXd N_prec = MatrixXd::Identity(dof, dof);
 
+	// joint task
 	auto joint_task = new Sai2Primitives::JointTask(robot);
-
 	VectorXd joint_task_torques = VectorXd::Zero(dof);
-	VectorXd joint_task_torques_np = VectorXd::Zero(dof);
 	joint_task->_kp = 150.0;
-	joint_task->_kv = 25.0;
-	joint_task->_ki = 150.0;
-	redis_client.set(KP_JOINT_KEY, to_string(joint_task->_kp));
-	redis_client.set(KV_JOINT_KEY, to_string(joint_task->_kv));
+	joint_task->_kv = 5.0;
 
-	joint_task->_max_velocity = 30.0 * M_PI/180.0;
-
-	VectorXd q_init_desired = VectorXd::Zero(dof);
-	// q_init_desired << 0, 0, 0, -10, 0, 90, 0;
-	q_init_desired << 50, 15, 0, -95, 0, 125, 0;
-	q_init_desired *= M_PI/180;
-	joint_task->_goal_position = q_init_desired;
-
-	// pos task
+	// posori task
 	const string link_name = "link7";
-	const Eigen::Vector3d pos_in_link = Vector3d(0.0,0.0,0.2213);
-	auto pos_task = new Sai2Primitives::PositionTask(robot, link_name, pos_in_link);
+	const Eigen::Vector3d pos_in_link = Vector3d(0.0,0.0,0.15);
+	auto posori_task = new Sai2Primitives::PosOriTask(robot, link_name, pos_in_link);
+	Vector3d x_init = posori_task->_current_position;
 
-	VectorXd pos_task_torques = VectorXd::Zero(dof);
+	VectorXd posori_task_torques = VectorXd::Zero(dof);
 
-	pos_task->_max_velocity = 0.1;
+	posori_task->_use_interpolation_flag = false;
 
-	Vector3d x_goal = pos_task->_current_position;
+	double circle_radius = 0.05;
+	double circle_period = 3.0;
 
-	pos_task->_kp = 300.0;
-	pos_task->_kv = 25.0;
-	pos_task->_ki = 100.0;
-	redis_client.set(KP_POS_KEY, to_string(pos_task->_kp));
-	redis_client.set(KV_POS_KEY, to_string(pos_task->_kv));
+	double oscillation_amplitude = M_PI/6;
+	double oscillation_period = 3.0;
+
+	redis_client.set(KP_POS_KEY, to_string(posori_task->_kp_pos));
+	redis_client.set(KP_ORI_KEY, to_string(posori_task->_kp_ori));
+	redis_client.set(KV_POS_KEY, to_string(posori_task->_kv_pos));
+	redis_client.set(KV_ORI_KEY, to_string(posori_task->_kv_ori));
 
 	// create a timer
 	LoopTimer timer;
@@ -192,62 +178,128 @@ int main() {
 		}
 		else
 		{
-			joint_task->_kp = stod(redis_client.get(KP_JOINT_KEY));
-			joint_task->_kv = stod(redis_client.get(KV_JOINT_KEY));
-			pos_task->_kp = stod(redis_client.get(KP_POS_KEY));
-			pos_task->_kv = stod(redis_client.get(KV_POS_KEY));
 			robot->updateKinematics();
-			robot->_M = redis_client.getEigenMatrixJSON(MASSMATRIX_KEY) + M_reg;
+			robot->_M = redis_client.getEigenMatrixJSON(MASSMATRIX_KEY);
 			robot->_M_inv = robot->_M.inverse();
 
 			coriolis = redis_client.getEigenMatrixJSON(CORIOLIS_KEY);
 		}
 
-		if(state == GO_TO_INIT_CONFIG)
+		if(state == CONTROLLER_1)
 		{
 			N_prec.setIdentity();
-			joint_task->updateTaskModel(N_prec);
-
-			joint_task->computeTorques(joint_task_torques);
-
-			command_torques = joint_task_torques + coriolis;
-
-			if((joint_task->_current_position - joint_task->_goal_position).norm() < 0.01)
-			{
-				joint_task->_ki = 0.0;
-				joint_task->_kp = 0.0;
-				joint_task->_kv = 10.0;
-				redis_client.set(KP_JOINT_KEY, to_string(joint_task->_kp));
-				redis_client.set(KV_JOINT_KEY, to_string(joint_task->_kv));
-
-				joint_task->reInitializeTask();
-				pos_task->reInitializeTask();
-				q_init_desired = robot->_q;
-				robot->position(x_goal, link_name, pos_in_link);
-				redis_client.setEigenMatrixJSON(DESIRED_POS_KEY, x_goal);
-				state_init_counter = controller_counter;
-				state = HOLD_CARTESIAN_POS;
-			}
-		}
-
-		else if(state == HOLD_CARTESIAN_POS)
-		{
-			N_prec.setIdentity();
-			pos_task->updateTaskModel(N_prec);
-			N_prec = pos_task->_N;
+			posori_task->updateTaskModel(N_prec);
+			N_prec = posori_task->_N;
 			joint_task->updateTaskModel(N_prec);
 
 			//update desired position
-			x_goal = redis_client.getEigenMatrixJSON(DESIRED_POS_KEY);
-			pos_task->_goal_position = x_goal;
+			posori_task->_desired_position(0) = x_init(0) + circle_radius*sin(2*M_PI*current_time/circle_period);
+			posori_task->_desired_position(1) = x_init(1) + circle_radius*(1 - cos(2*M_PI*current_time/circle_period));
 
-			// compute torques
-			pos_task->computeTorques(pos_task_torques);
+			// compute torques fake for update state of posori controller
+			posori_task->computeTorques(posori_task_torques);
+
+			// update the gains
+			posori_task->_kp_ori = 400.0;
+			posori_task->_kv_ori = 40.0;
+
+			Vector3d pos_error = posori_task->_desired_position - posori_task->_current_position;
+			Vector3d u = pos_error/pos_error.norm();
+			double effective_mass_inv = u.dot(posori_task->_Lambda.block<3,3>(0,0).inverse()*u);
+
+			posori_task->_kp_pos = 100.0 * effective_mass_inv;
+			posori_task->_kv_pos = 2 * sqrt(posori_task->_kp_pos);
+
+			// compute torques real
+			posori_task->computeTorques(posori_task_torques);
 			joint_task->computeTorques(joint_task_torques);
 
-			command_torques = pos_task_torques + joint_task_torques + coriolis;
-
+			command_torques = posori_task_torques + joint_task_torques + coriolis;
 		}
+
+		else if(state == CONTROLLER_2)
+		{
+			N_prec.setIdentity();
+			posori_task->updateTaskModel(N_prec);
+			N_prec = posori_task->_N;
+			joint_task->updateTaskModel(N_prec);
+
+			//update desired position
+			posori_task->_desired_position(0) = x_init(0) + circle_radius*sin(2*M_PI*current_time/circle_period);
+			posori_task->_desired_position(1) = x_init(1) + circle_radius*(1 - cos(2*M_PI*current_time/circle_period));
+
+			// compute torques fake for update state of posori controller
+			posori_task->computeTorques(posori_task_torques);
+
+			// update the gains
+			posori_task->_kp_ori = 400.0;
+			posori_task->_kv_ori = 40.0;
+
+			posori_task->_use_isotropic_gains = false;
+
+			posori_task->_kp_pos_vec = 100.0 * Vector3d(1.0/posori_task->_Lambda(0,0), 1.0/posori_task->_Lambda(1,1), 1.0/posori_task->_Lambda(2,2));
+			posori_task->_kv_pos_vec = 2 * Vector3d(sqrt(posori_task->_kp_pos_vec(0)), sqrt(posori_task->_kp_pos_vec(1)), sqrt(posori_task->_kp_pos_vec(2)));
+
+			// compute torques real
+			posori_task->computeTorques(posori_task_torques);
+			joint_task->computeTorques(joint_task_torques);
+
+			command_torques = posori_task_torques + joint_task_torques + coriolis;
+		}
+
+		else if(state == CONTROLLER_3)
+		{
+			N_prec.setIdentity();
+			posori_task->updateTaskModel(N_prec);
+			N_prec = posori_task->_N;
+			joint_task->updateTaskModel(N_prec);
+
+			// update the gains
+			posori_task->_kp_pos = stod(redis_client.get(KP_POS_KEY));
+			posori_task->_kv_pos = stod(redis_client.get(KV_POS_KEY));
+			posori_task->_kp_ori = stod(redis_client.get(KP_ORI_KEY));
+			posori_task->_kv_ori = stod(redis_client.get(KV_ORI_KEY));
+			
+			// compute torques
+			posori_task->computeTorques(posori_task_torques);
+			joint_task->computeTorques(joint_task_torques);
+
+			command_torques = posori_task_torques + joint_task_torques + coriolis;
+
+			if(controller_counter % 100 == 0)
+			{
+				cout << "pos error : " << (posori_task->_current_position - posori_task->_desired_position).transpose() << endl;
+				cout << "ori error : " << (posori_task->_orientation_error).transpose() << endl;
+				cout << endl;
+			}
+		}
+
+		else if(state == CONTROLLER_4)
+		{
+			N_prec.setIdentity();
+			posori_task->updateTaskModel(N_prec);
+			N_prec = posori_task->_N;
+			joint_task->updateTaskModel(N_prec);
+
+			// compute torques fake for update state of posori controller
+			posori_task->computeTorques(posori_task_torques);
+
+			// update the gains
+			posori_task->_kp_pos = 150.0;
+			posori_task->_kv_pos = 10.0;
+
+			posori_task->_use_isotropic_gains = false;
+
+			posori_task->_kp_ori_vec = 100.0 * Vector3d(1.0/posori_task->_Lambda(3,3), 1.0/posori_task->_Lambda(4,4), 1.0/posori_task->_Lambda(5,5));
+			posori_task->_kv_ori_vec = 2 * Vector3d(sqrt(posori_task->_kp_ori_vec(0)), sqrt(posori_task->_kp_ori_vec(1)), sqrt(posori_task->_kp_ori_vec(2)));
+			
+			// compute torques
+			posori_task->computeTorques(posori_task_torques);
+			joint_task->computeTorques(joint_task_torques);
+
+			command_torques = posori_task_torques + joint_task_torques + coriolis;
+		}
+
 		else
 		{
 			command_torques.setZero(dof);
@@ -260,6 +312,9 @@ int main() {
 		prev_time = current_time;
 		controller_counter++;
 	}
+
+	command_torques.setZero(dof);
+	redis_client.setEigenMatrixJSON(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 
 	double end_time = timer.elapsedTime();
 	std::cout << "\n";

@@ -21,8 +21,8 @@ void sighandler(int){fSimulationRunning = false;}
 using namespace std;
 using namespace Eigen;
 
-const string world_file = "../resources/05-mvt_with_obstacles/world.urdf";
-const string robot_file = "../resources/05-mvt_with_obstacles/panda_arm_hand.urdf";
+const string world_file = "resources/world.urdf";
+const string robot_file = "resources/panda_arm_hand.urdf";
 const string robot_name = "PANDA";
 const string camera_name = "camera_fixed";
 
@@ -47,12 +47,11 @@ const std::string GRIPPER_DESIRED_WIDTH_KEY  = "sai2::PandaApplication::gripper:
 const std::string GRIPPER_DESIRED_SPEED_KEY  = "sai2::PandaApplication::gripper::desired_speed";
 const std::string GRIPPER_DESIRED_FORCE_KEY  = "sai2::PandaApplication::gripper::desired_force";
 
-
 RedisClient redis_client;
 
 // simulation function prototype
+double sim_freq = 1000.0;
 void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim);
-void simulation_dummy(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim);
 
 // callback to print glfw errors
 void glfwError(int error, const char* description);
@@ -72,17 +71,8 @@ bool fTransZp = false;
 bool fTransZn = false;
 bool fRotPanTilt = false;
 
-// const bool flag_simulation = false;
-const bool flag_simulation = true;
-
 int main() {
 	cout << "Loading URDF world model file: " << world_file << endl;
-
-	if(!flag_simulation)
-	{
-		JOINT_ANGLES_KEY = "sai2::FrankaPanda::sensors::q";
-		JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::sensors::dq";
-	}
 
 	// start redis client
 	redis_client = RedisClient();
@@ -141,36 +131,12 @@ int main() {
 	// cache variables
 	double last_cursorx, last_cursory;
 
-	fSimulationRunning = true;
-	thread sim_thread(simulation_dummy, robot, sim);
-	if(flag_simulation)
-	{
-		// start the simulation thread first
-		thread sim_thread_bis(simulation, robot, sim);
-		sim_thread.swap(sim_thread_bis);
-		sim_thread_bis.join();
-	}
-
-
-	// if(!redis_client.exists(JOINT_ANGLES_KEY))
-	// {
-	// 	redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEY, VectorXd::Zero(robot->dof()));
-	// }
-	// if(!redis_client.exists(JOINT_VELOCITIES_KEY))
-	// {
-	// 	redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEY, VectorXd::Zero(robot->dof()));
-	// }
+	// fSimulationRunning = true;
+	thread sim_thread(simulation, robot, sim);
 
 	// while window is open:
 	while (!glfwWindowShouldClose(window))
 	{
-		if(!flag_simulation)
-		{
-			robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
-			robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
-			robot->updateKinematics();
-		}
-
 		// update graphics. this automatically waits for the correct amount of time
 		int width, height;
 		glfwGetFramebufferSize(window, &width, &height);
@@ -261,9 +227,6 @@ int main() {
 }
 
 //------------------------------------------------------------------------------
-void simulation_dummy(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {}
-
-//------------------------------------------------------------------------------
 void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
 	int dof = robot->dof();
@@ -320,12 +283,12 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	// create a timer
 	LoopTimer timer;
 	timer.initializeTimer();
-	timer.setLoopFrequency(2000); 
+	timer.setLoopFrequency(sim_freq); 
 	bool fTimerDidSleep = true;
 	double start_time = timer.elapsedTime(); //secs
 	double last_time = start_time;
 
-
+	fSimulationRunning = true;
 	while (fSimulationRunning) {
 		fTimerDidSleep = timer.waitForNextLoop();
 
@@ -390,6 +353,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		if(disturbance_flag == "1")
 		{
 			sim->setJointTorques(robot_name, command_torques + tau_dist);
+			redis_client.set(DIRSTUBANCE_KEY, "0");
 		}
 		else
 		{
