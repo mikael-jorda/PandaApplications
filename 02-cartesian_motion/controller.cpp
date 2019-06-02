@@ -24,14 +24,6 @@ using namespace Eigen;
 const string robot_file = "resources/panda_arm.urdf";
 const string robot_name = "PANDA";
 
-#define CONTROLLER_1       0      // constant stiffness by choosing gains in the direction of the error
-#define CONTROLLER_2       1      // constant stiffness by choosing gains depending on mass matrix
-#define CONTROLLER_3       2      // test max gains and tracking error in static case
-#define CONTROLLER_4       3      // Constant stiffness orientation
-
-int state = CONTROLLER_3;
-unsigned long long state_init_counter = 0;
-
 // redis keys:
 // - read:
 std::string JOINT_ANGLES_KEY;
@@ -85,21 +77,21 @@ int main() {
 	}
 	else
 	{
-		JOINT_TORQUES_COMMANDED_KEY = "sai2::FrankaPanda::actuators::fgc";
+		JOINT_TORQUES_COMMANDED_KEY = "sai2::FrankaPanda::Bonnie::actuators::fgc";
 
-		JOINT_ANGLES_KEY  = "sai2::FrankaPanda::sensors::q";
-		JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::sensors::dq";
-		JOINT_TORQUES_SENSED_KEY = "sai2::FrankaPanda::sensors::torques";
-		MASSMATRIX_KEY = "sai2::FrankaPanda::sensors::model::massmatrix";
-		CORIOLIS_KEY = "sai2::FrankaPanda::sensors::model::coriolis";
-		ROBOT_GRAVITY_KEY = "sai2::FrankaPanda::sensors::model::robot_gravity";		
+		JOINT_ANGLES_KEY  = "sai2::FrankaPanda::Bonnie::sensors::q";
+		JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::Bonnie::sensors::dq";
+		JOINT_TORQUES_SENSED_KEY = "sai2::FrankaPanda::Bonnie::sensors::torques";
+		MASSMATRIX_KEY = "sai2::FrankaPanda::Bonnie::sensors::model::massmatrix";
+		CORIOLIS_KEY = "sai2::FrankaPanda::Bonnie::sensors::model::coriolis";
+		ROBOT_GRAVITY_KEY = "sai2::FrankaPanda::Bonnie::sensors::model::robot_gravity";		
 
-		GRIPPER_MODE_KEY  = "sai2::FrankaPanda::gripper::mode"; // m for move and g for graps
-		GRIPPER_MAX_WIDTH_KEY  = "sai2::FrankaPanda::gripper::max_width";
-		GRIPPER_CURRENT_WIDTH_KEY  = "sai2::FrankaPanda::gripper::current_width";
-		GRIPPER_DESIRED_WIDTH_KEY  = "sai2::FrankaPanda::gripper::desired_width";
-		GRIPPER_DESIRED_SPEED_KEY  = "sai2::FrankaPanda::gripper::desired_speed";
-		GRIPPER_DESIRED_FORCE_KEY  = "sai2::FrankaPanda::gripper::desired_force";
+		GRIPPER_MODE_KEY  = "sai2::FrankaPanda::Bonnie::gripper::mode"; // m for move and g for graps
+		GRIPPER_MAX_WIDTH_KEY  = "sai2::FrankaPanda::Bonnie::gripper::max_width";
+		GRIPPER_CURRENT_WIDTH_KEY  = "sai2::FrankaPanda::Bonnie::gripper::current_width";
+		GRIPPER_DESIRED_WIDTH_KEY  = "sai2::FrankaPanda::Bonnie::gripper::desired_width";
+		GRIPPER_DESIRED_SPEED_KEY  = "sai2::FrankaPanda::Bonnie::gripper::desired_speed";
+		GRIPPER_DESIRED_FORCE_KEY  = "sai2::FrankaPanda::Bonnie::gripper::desired_force";
 	}
 
 	// start redis client
@@ -131,19 +123,17 @@ int main() {
 
 	// posori task
 	const string link_name = "link7";
-	const Eigen::Vector3d pos_in_link = Vector3d(0.0,0.0,0.15);
+	const Eigen::Vector3d pos_in_link = Vector3d(0.0,0.0,0.107);
 	auto posori_task = new Sai2Primitives::PosOriTask(robot, link_name, pos_in_link);
-	Vector3d x_init = posori_task->_current_position;
+
+	redis_client.setEigenMatrixJSON(DESIRED_POS_KEY, posori_task->_current_position);
 
 	VectorXd posori_task_torques = VectorXd::Zero(dof);
 
-	posori_task->_use_interpolation_flag = false;
+	posori_task->_use_interpolation_flag = true;
 
-	double circle_radius = 0.05;
-	double circle_period = 3.0;
-
-	double oscillation_amplitude = M_PI/6;
-	double oscillation_period = 3.0;
+	Matrix3d R = AngleAxisd(M_PI/2, Vector3d::UnitX()).toRotationMatrix();
+	// posori_task->_desired_orientation = R*posori_task->_desired_orientation;
 
 	redis_client.set(KP_POS_KEY, to_string(posori_task->_kp_pos));
 	redis_client.set(KP_ORI_KEY, to_string(posori_task->_kp_ori));
@@ -185,125 +175,19 @@ int main() {
 			coriolis = redis_client.getEigenMatrixJSON(CORIOLIS_KEY);
 		}
 
-		if(state == CONTROLLER_1)
-		{
-			N_prec.setIdentity();
-			posori_task->updateTaskModel(N_prec);
-			N_prec = posori_task->_N;
-			joint_task->updateTaskModel(N_prec);
+		N_prec.setIdentity();
+		posori_task->updateTaskModel(N_prec);
+		N_prec = posori_task->_N;
+		joint_task->updateTaskModel(N_prec);
 
-			//update desired position
-			posori_task->_desired_position(0) = x_init(0) + circle_radius*sin(2*M_PI*current_time/circle_period);
-			posori_task->_desired_position(1) = x_init(1) + circle_radius*(1 - cos(2*M_PI*current_time/circle_period));
+		//update desired position
+		posori_task->_desired_position = redis_client.getEigenMatrixJSON(DESIRED_POS_KEY);
 
-			// compute torques fake for update state of posori controller
-			posori_task->computeTorques(posori_task_torques);
+		// compute torques
+		posori_task->computeTorques(posori_task_torques);
+		joint_task->computeTorques(joint_task_torques);
 
-			// update the gains
-			posori_task->_kp_ori = 400.0;
-			posori_task->_kv_ori = 40.0;
-
-			Vector3d pos_error = posori_task->_desired_position - posori_task->_current_position;
-			Vector3d u = pos_error/pos_error.norm();
-			double effective_mass_inv = u.dot(posori_task->_Lambda.block<3,3>(0,0).inverse()*u);
-
-			posori_task->_kp_pos = 100.0 * effective_mass_inv;
-			posori_task->_kv_pos = 2 * sqrt(posori_task->_kp_pos);
-
-			// compute torques real
-			posori_task->computeTorques(posori_task_torques);
-			joint_task->computeTorques(joint_task_torques);
-
-			command_torques = posori_task_torques + joint_task_torques + coriolis;
-		}
-
-		else if(state == CONTROLLER_2)
-		{
-			N_prec.setIdentity();
-			posori_task->updateTaskModel(N_prec);
-			N_prec = posori_task->_N;
-			joint_task->updateTaskModel(N_prec);
-
-			//update desired position
-			posori_task->_desired_position(0) = x_init(0) + circle_radius*sin(2*M_PI*current_time/circle_period);
-			posori_task->_desired_position(1) = x_init(1) + circle_radius*(1 - cos(2*M_PI*current_time/circle_period));
-
-			// compute torques fake for update state of posori controller
-			posori_task->computeTorques(posori_task_torques);
-
-			// update the gains
-			posori_task->_kp_ori = 400.0;
-			posori_task->_kv_ori = 40.0;
-
-			posori_task->_use_isotropic_gains = false;
-
-			posori_task->_kp_pos_vec = 100.0 * Vector3d(1.0/posori_task->_Lambda(0,0), 1.0/posori_task->_Lambda(1,1), 1.0/posori_task->_Lambda(2,2));
-			posori_task->_kv_pos_vec = 2 * Vector3d(sqrt(posori_task->_kp_pos_vec(0)), sqrt(posori_task->_kp_pos_vec(1)), sqrt(posori_task->_kp_pos_vec(2)));
-
-			// compute torques real
-			posori_task->computeTorques(posori_task_torques);
-			joint_task->computeTorques(joint_task_torques);
-
-			command_torques = posori_task_torques + joint_task_torques + coriolis;
-		}
-
-		else if(state == CONTROLLER_3)
-		{
-			N_prec.setIdentity();
-			posori_task->updateTaskModel(N_prec);
-			N_prec = posori_task->_N;
-			joint_task->updateTaskModel(N_prec);
-
-			// update the gains
-			posori_task->_kp_pos = stod(redis_client.get(KP_POS_KEY));
-			posori_task->_kv_pos = stod(redis_client.get(KV_POS_KEY));
-			posori_task->_kp_ori = stod(redis_client.get(KP_ORI_KEY));
-			posori_task->_kv_ori = stod(redis_client.get(KV_ORI_KEY));
-			
-			// compute torques
-			posori_task->computeTorques(posori_task_torques);
-			joint_task->computeTorques(joint_task_torques);
-
-			command_torques = posori_task_torques + joint_task_torques + coriolis;
-
-			if(controller_counter % 100 == 0)
-			{
-				cout << "pos error : " << (posori_task->_current_position - posori_task->_desired_position).transpose() << endl;
-				cout << "ori error : " << (posori_task->_orientation_error).transpose() << endl;
-				cout << endl;
-			}
-		}
-
-		else if(state == CONTROLLER_4)
-		{
-			N_prec.setIdentity();
-			posori_task->updateTaskModel(N_prec);
-			N_prec = posori_task->_N;
-			joint_task->updateTaskModel(N_prec);
-
-			// compute torques fake for update state of posori controller
-			posori_task->computeTorques(posori_task_torques);
-
-			// update the gains
-			posori_task->_kp_pos = 150.0;
-			posori_task->_kv_pos = 10.0;
-
-			posori_task->_use_isotropic_gains = false;
-
-			posori_task->_kp_ori_vec = 100.0 * Vector3d(1.0/posori_task->_Lambda(3,3), 1.0/posori_task->_Lambda(4,4), 1.0/posori_task->_Lambda(5,5));
-			posori_task->_kv_ori_vec = 2 * Vector3d(sqrt(posori_task->_kp_ori_vec(0)), sqrt(posori_task->_kp_ori_vec(1)), sqrt(posori_task->_kp_ori_vec(2)));
-			
-			// compute torques
-			posori_task->computeTorques(posori_task_torques);
-			joint_task->computeTorques(joint_task_torques);
-
-			command_torques = posori_task_torques + joint_task_torques + coriolis;
-		}
-
-		else
-		{
-			command_torques.setZero(dof);
-		}
+		command_torques = posori_task_torques + joint_task_torques + coriolis;
 
 		// send to redis
 		// command_torques.setZero(dof);
