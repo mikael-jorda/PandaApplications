@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Operational Space Position Control</title>
+
+    <!-- Global and utility stylesheets -->
+    <link rel="stylesheet" href="./css/library/picnic.min.css" type="text/css">
+    <link rel="stylesheet" href="./css/range_input.css" type="text/css">
+    <link rel="stylesheet" href="./css/global_styles.css" type="text/css">
+    <link rel="stylesheet" href="./css/chosen.min.css" type="text/css">
+
+    <!-- External library includes -->
+    <script src="./js/library/jquery-3.3.1.min.js" type="text/javascript"></script>
+    <script src="./js/library/chosen.jquery.min.js" type="text/javascript"></script>
+    <script src="./js/library/echarts.min.js" type="text/javascript"></script>
+
+    <!-- SAI2 utility modules - must come first!  -->
+    <script type="module" src="./js/const.js"></script>
+    <script type="module" src="./js/redis.js"></script>
+
+    <!-- SAI2 custom UI elements -->
+    <script type="module" src='./js/module/sai2-interface-logger.js'></script>
+    <script type="module" src="./js/module/sai2-interface-slider.js"></script>
+    <script type="module" src="./js/module/sai2-interface-select.js"></script>
+    <script type="module" src="./js/module/sai2-interface-toggle.js"></script>
+    <script type="module" src="./js/module/sai2-interface-plot.js"></script>
+    <script type="module" src="./js/module/sai2-interface-enum.js"></script>
+    <script type="module" src="./js/module/sai2-interface-trajectory-select.js"></script>
+
+    <!-- global execution scripts -->
+    <script type="module "src="./js/index.js"></script>
+
+    <!-- Example CSS goes here -->
+    <style>
+      body {
+        color: #525252;
+        display: flex;
+        flex-direction: column;
+      }
+
+      .title {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      .title h1 {
+        text-align: center;
+        display: inline-block;
+      }
+
+      .container {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr;
+        gap: 10px;
+        justify-content: space-around;
+        height: 80vh;
+      }
+
+      .container-item {
+        border-style: solid;
+        border-radius: 1em;
+        padding: 1em;
+      }
+
+      .right-container {
+        display: grid;
+        grid-template-rows: 1fr auto;
+        gap: 10px;
+      }
+
+      .center {
+        text-align: center;
+      }
+
+      .mydiv {
+        width: 45%;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="title">
+      <h1>Blank Left with Plot and Logger</h1>
+    </div>
+    
+    <div class="container">
+      <div class="container-item">
+
+    <div class="container">
+      <div class="container-item">
+        <sai2-interface-slider
+         key='sai2::PandaApplication::controller::desired_position'
+         display='["x","y","z"]'
+         min='[-0.4,-0.4,0.2]' max='[0.4,0.4,0.7]' step='0.01'/>
+        </div>
+
+      <div class="container-item">
+        <sai2-interface-slider
+         key='sai2::PandaApplication::controller:kp_pos'
+         display='kp'
+         min='0' max='400' step='1'/>
+
+        <sai2-interface-slider
+         key='sai2::PandaApplication::controller:kv_pos'
+         display='kp'
+         min='0' max='40' step='1'/>
+      </div>
+      </div>
+
+      </div>
+
+      <div class="container-item right-container">
+        <div class="plot">
+          <h2 class="center">Plot</h2>
+          <sai2-interface-plot>
+          </sai2-interface-plot>
+        </div>
+        <div class="logger center">
+          <h2>Logger</h2>
+          <sai2-interface-logger></sai2-interface-logger>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
