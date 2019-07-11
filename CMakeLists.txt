@@ -1,8 +1,8 @@
 cmake_minimum_required (VERSION 2.8.12)
 project (PandaApplications)
 SET(CMAKE_CXX_FLAGS "-std=c++11")
-SET(CMAKE_BUILD_TYPE "Debug")
-# SET(CMAKE_BUILD_TYPE "Release")
+# SET(CMAKE_BUILD_TYPE "Debug")
+SET(CMAKE_BUILD_TYPE "Release")
 
 # set common source
 set (PANDA_APPLICATIONS_COMMON_SOURCE
@@ -82,10 +82,11 @@ set(PANDA_APPLICATIONS_COMMON_LIBRARIES
 set (PANDA_APPLICATIONS_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 
 # add_subdirectory(00-calibration_for_camera)
+# add_subdirectory(00-experiment_joint_control)
 # add_subdirectory(demo-cs225a)
 # add_subdirectory(00-force_sensor_calibration)
 # add_subdirectory(01-joint_motion)
-add_subdirectory(02-cartesian_motion)
+# add_subdirectory(02-cartesian_motion)
 # add_subdirectory(03-open_loop_force_control)
 # add_subdirectory(04-surface_alignment)
 # add_subdirectory(05-contact_driven_demo)
@@ -94,3 +95,5 @@ add_subdirectory(02-cartesian_motion)
 # add_subdirectory(08-simulation_electric_cables)
 # add_subdirectory(09-haptic_painting)
 # add_subdirectory(10-construction_painting)
+# add_subdirectory(11-metaGraspTesting)
+add_subdirectory(12-metaGraspTwoRobots)
