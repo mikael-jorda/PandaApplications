@@ -144,7 +144,7 @@
       <parent link="link0"/>
       <child link="link1"/>
       <axis xyz="0 0 1"/>
-      <calibration falling="-80.0" />
+      <calibration falling="00.0" />
       <limit effort="87" lower="-2.8973" upper="2.8973" velocity="2.1750"/>
     </joint>
     <joint name="joint2" type="revolute">
