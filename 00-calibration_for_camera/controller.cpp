@@ -22,10 +22,10 @@ const string robot_name = "PANDA";
 
 // redis keys:
 // - read:
-std::string JOINT_ANGLES_KEY = "sai2::FrankaPanda::Bonnie::sensors::q";;
-std::string JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::Bonnie::sensors::dq";;
+std::string JOINT_ANGLES_KEY = "sai2::FrankaPanda::Clyde::sensors::q";;
+std::string JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::Clyde::sensors::dq";;
 // - write
-std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::FrankaPanda::Bonnie::actuators::fgc";;
+std::string JOINT_TORQUES_COMMANDED_KEY = "sai2::FrankaPanda::Clyde::actuators::fgc";;
 
 unsigned long long controller_counter = 0;
 
@@ -59,9 +59,12 @@ int main() {
 	Affine3d T_base_marker_link = Affine3d::Identity();
 
 	ofstream data_file;
-	data_file.open("marker_link_pose_in_robot_frame.txt");
+	data_file.open("ee_pose_in_robot_frame.txt");
+
+	int point_number = 0;
 
 	while (runloop) {
+		point_number++;
 
 		// wait for user input
 		char s = getchar();
@@ -82,6 +85,7 @@ int main() {
 		robot->transform(T_base_marker_link, marker_link);
 		data_file << T_base_marker_link.linear().col(0).transpose() << " " << T_base_marker_link.linear().col(1).transpose() << " " << T_base_marker_link.linear().col(2).transpose() << " " << T_base_marker_link.translation().transpose() << "\n";
 
+		cout << "recorded point number : " << point_number << endl;
 
 	}
 

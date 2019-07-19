@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+
+<tool name="hand_camera">
+	<inertial>
+		<origin xyz="-0.00519832 -0.00201736   0.0970318"/>
+		<mass value="1.27926"/>
+	</inertial>
+</tool>

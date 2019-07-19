@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+
+<tool name="right_hand_fist_pos">
+	<inertial>
+		<origin xyz="  0.0225551   0.0230516 7.63723e-05"/>
+		<mass value="0.0103246"/>
+	</inertial>
+</tool>

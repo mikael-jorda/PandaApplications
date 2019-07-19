@@ -208,7 +208,7 @@ int main() {
 		posori_task_torques.push_back(VectorXd::Zero(dof[i]));
 
 		posori_tasks[i]->_kp_pos = 400.0;
-		posori_tasks[i]->_kv_pos = 28.0;
+		posori_tasks[i]->_kv_pos = 20.0;
 		posori_tasks[i]->_kp_ori = 200.0;
 		posori_tasks[i]->_kv_ori = 15.0;		
 
@@ -244,19 +244,27 @@ int main() {
 		VectorXd::Zero(dof[1]),
 	};
 	q_init[0] << -0.0560503,  -0.881276,   0.136037,   -1.72751,   -0.06887,    2.37994,  -0.667217;
-	q_init[1] << -0.8111,   1.1555,  2.42385, -1.21504,   1.7895,  2.43347, 0.620746;
+	// q_init[1] << -0.8111,   1.1555,  2.42385, -1.21504,   1.7895,  2.43347, 0.620746;
+	q_init[1] << -0.642836,   1.10865,   2.46559, -0.804433,    1.3181,    2.4675,   1.31391;
 
 	VectorXd q_Bonnie_wait = VectorXd::Zero(dof[1]);
 	q_Bonnie_wait << -0.968476,   1.06765,   2.67113,  -2.34798,    1.7432,   1.33183,   1.29608;
 	
 	VectorXd svh_init_config = VectorXd::Zero(9);
-	svh_init_config << 0, 10, 10, 10, 10, 10, 5, 5, 10;
+	VectorXd svh_pre_grasp_config = VectorXd::Zero(9);
+	svh_init_config << 0, 0, 0, 0, 0, 0, 0, 0, 10;
+	svh_pre_grasp_config << 0, 55, 5, 5, 5, 5, 5, 5, 10;
 	redis_client.setEigenMatrixJSON(SVH_HAND_COMMAND_POSITIONS_KEY, svh_init_config);
 
 	VectorXd hand_position_offset = VectorXd::Zero(9);
-	hand_position_offset << 0, 0, 5, 5, 5, 5, 5, 5, 0;
+	hand_position_offset << 0, 0, 0, 50, 0, 15, 10, 10, 0;
 
 	int grasp_wait_counter = 0;
+
+	// Vector3d hand_base_offset = Vector3d::Zero();
+	const Vector3d direction_of_approach_hand_local = AngleAxisd(-M_PI/4, Vector3d(-1/sqrt(2), 1/sqrt(2), 0)).toRotationMatrix() * Vector3d::UnitZ();
+	Vector3d direction_of_approach_hand_global = Vector3d::Zero();
+
 
 
 	vector<double> buffer_joint_task_error;
@@ -324,7 +332,7 @@ int main() {
 
 				joint_tasks[i]->_kp = 300.0;
 				joint_tasks[i]->_kv = 15.0;
-				joint_tasks[i]->_ki = 55.0;
+				joint_tasks[i]->_ki = 35.0;
 
 				joint_tasks[i]->computeTorques(joint_task_torques[i]);
 				posori_task_torques[i].setZero();
@@ -333,12 +341,12 @@ int main() {
 
 			int current_buffer_index = controller_counter % buffer_size;
 			cumulated_error -= buffer_joint_task_error[current_buffer_index];
-			buffer_joint_task_error[current_buffer_index] = (joint_tasks[1]->_desired_position - joint_tasks[1]->_current_position).norm();
+			buffer_joint_task_error[current_buffer_index] = (joint_tasks[1]->_desired_position - joint_tasks[1]->_current_position).norm() + (joint_tasks[0]->_desired_position - joint_tasks[0]->_current_position).norm();
 			cumulated_error += buffer_joint_task_error[current_buffer_index];
 
 			// cout << cumulated_error / buffer_size << endl;
 
-			if(cumulated_error / buffer_size < 1e-2)
+			if(cumulated_error / buffer_size < 3e-2)
 			{
 
 				posori_tasks[0]->reInitializeTask();
@@ -375,14 +383,26 @@ int main() {
 				Vector3d desired_pos_in_world_frame = T_world_camera * desired_pos_in_camera_frame;
 				Matrix3d desired_rot_in_world_frame = T_world_camera.linear() * desired_rot_in_camera_frame * R_eeC_hand.transpose();
 
-				posori_tasks[0]->_desired_position = desired_pos_in_world_frame + Vector3d(-0.05, 0.0, 0.05);
+
 				posori_tasks[0]->_desired_orientation = desired_rot_in_world_frame;
+
+				
+				// hand_base_offset(0) = desired_rot_in_world_frame(0,2);
+				// hand_base_offset(1) = desired_rot_in_world_frame(1,2);
+				// hand_base_offset.normalize();
+				// hand_base_offset = - 0.05 * hand_base_offset;
+				// hand_base_offset(2) = 0.03;
+				// posori_tasks[0]->_desired_position = desired_pos_in_world_frame + Vector3d(-0.05, 0.0, 0.05);
+				// posori_tasks[0]->_desired_position = desired_pos_in_world_frame + Vector3d(-0.0, 0.0, 0.10);
+				direction_of_approach_hand_global = desired_rot_in_world_frame * direction_of_approach_hand_local;
+				posori_tasks[0]->_desired_position = desired_pos_in_world_frame - 0.05 * direction_of_approach_hand_global;
 				state = MOVE_ABOVE_GRASP_POSE;
 
 				joint_tasks[1]->_desired_position = q_Bonnie_wait;
 
-				VectorXd hand_positions_temp = redis_client.getEigenMatrixJSON(SVH_RECEIVED_POSITION_KEY) - hand_position_offset;
-				redis_client.setEigenMatrixJSON(SVH_HAND_COMMAND_POSITIONS_KEY, hand_positions_temp);
+				// VectorXd hand_positions_temp = redis_client.getEigenMatrixJSON(SVH_RECEIVED_POSITION_KEY);// - hand_position_offset;
+				// redis_client.setEigenMatrixJSON(SVH_HAND_COMMAND_POSITIONS_KEY, hand_positions_temp);
+				redis_client.setEigenMatrixJSON(SVH_HAND_COMMAND_POSITIONS_KEY, svh_pre_grasp_config);
 
 			}
 		}
@@ -395,11 +415,11 @@ int main() {
 
 			joint_tasks[1]->computeTorques(joint_task_torques[1]);
 
-			if((posori_tasks[0]->_desired_position - posori_tasks[0]->_current_position).norm() < 0.012)
+			if((posori_tasks[0]->_desired_position - posori_tasks[0]->_current_position).norm() < 0.013)
 			{
-				posori_tasks[0]->_desired_position = posori_tasks[0]->_desired_position + Vector3d(0.05, 0.0, -0.05);
+				posori_tasks[0]->_desired_position = posori_tasks[0]->_desired_position + 0.05 * direction_of_approach_hand_global;
 				state = MOVE_TO_GRASP_POSE;
-				grasp_wait_counter = 2000;
+				grasp_wait_counter = 1000;
 			}
 		}
 
@@ -411,14 +431,21 @@ int main() {
 			joint_tasks[1]->computeTorques(joint_task_torques[1]);
 
 
-			if((posori_tasks[0]->_desired_position - posori_tasks[0]->_current_position).norm() < 0.012  &&  grasp_wait_counter == 0)
+			if((posori_tasks[0]->_desired_position - posori_tasks[0]->_current_position).norm() < 0.013  &&  grasp_wait_counter == 0)
 			{
 				// VectorXd hand_positions_temp = redis_client.getEigenMatrixJSON(SVH_RECEIVED_POSITION_KEY);
 				// hand_positions_temp(3) += 5.0;
-				VectorXd hand_positions_temp = redis_client.getEigenMatrixJSON(SVH_RECEIVED_POSITION_KEY); // + hand_position_offset;
+				// 
+				Vector3d pushing_amount = direction_of_approach_hand_global;
+				pushing_amount(2) = 0;
+				pushing_amount.normalize();
+
+				posori_tasks[0]->_desired_position = posori_tasks[0]->_desired_position + 0.01 * pushing_amount;
+				
+				VectorXd hand_positions_temp = redis_client.getEigenMatrixJSON(SVH_RECEIVED_POSITION_KEY) + hand_position_offset;
 				redis_client.setEigenMatrixJSON(SVH_HAND_COMMAND_POSITIONS_KEY, hand_positions_temp);
 				state = GRASP;
-				grasp_wait_counter = 2000;
+				grasp_wait_counter = 1000;
 			}
 
 			grasp_wait_counter--;
@@ -455,11 +482,11 @@ int main() {
 
 			joint_tasks[1]->computeTorques(joint_task_torques[1]);
 			
-			// if(grasp_wait_counter == 0)
-			// {
-			// 	posori_tasks[0]->_desired_position = posori_tasks[0]->_desired_position + Vector3d(0.0, 0.0, 0.25);
-			// 	state = LIFT;
-			// }
+			if(grasp_wait_counter == 0)
+			{
+				posori_tasks[0]->_desired_position = posori_tasks[0]->_desired_position + Vector3d(0.0, 0.0, 0.07);
+				state = LIFT;
+			}
 
 			grasp_wait_counter--;
 		}
@@ -467,24 +494,24 @@ int main() {
 		else if(state == LIFT)
 		{
 
-			VectorXd SVH_positions = redis_client.getEigenMatrixJSON(SVH_POSITIONS_KEY);
-			VectorXd SVH_currents = redis_client.getEigenMatrixJSON(SVH_CURRENT_KEY);
-			VectorXd SVH_desired_positions = redis_client.getEigenMatrixJSON(SVH_HAND_COMMAND_POSITIONS_KEY);
+			// VectorXd SVH_positions = redis_client.getEigenMatrixJSON(SVH_POSITIONS_KEY);
+			// VectorXd SVH_currents = redis_client.getEigenMatrixJSON(SVH_CURRENT_KEY);
+			// VectorXd SVH_desired_positions = redis_client.getEigenMatrixJSON(SVH_HAND_COMMAND_POSITIONS_KEY);
 
-			double desired_current = -150.0;
-			double Ka = 0.1;
+			// double desired_current = -150.0;
+			// double Ka = 0.1;
 
-			double index_distal_velocity_command = Ka * (SVH_currents(2) - desired_current);
-			double middle_distal_velocity_command = Ka * (SVH_currents(4) - desired_current);
-			double ring_velocity_command = Ka * (SVH_currents(6) - desired_current);
-			double pinky_velocity_command = Ka * (SVH_currents(7) - desired_current);
+			// double index_distal_velocity_command = Ka * (SVH_currents(2) - desired_current);
+			// double middle_distal_velocity_command = Ka * (SVH_currents(4) - desired_current);
+			// double ring_velocity_command = Ka * (SVH_currents(6) - desired_current);
+			// double pinky_velocity_command = Ka * (SVH_currents(7) - desired_current);
 
-			SVH_desired_positions(2) += 0.001 * index_distal_velocity_command;
-			SVH_desired_positions(4) += 0.001 * middle_distal_velocity_command;
-			SVH_desired_positions(6) += 0.001 * ring_velocity_command;
-			SVH_desired_positions(7) += 0.001 * pinky_velocity_command;
+			// SVH_desired_positions(2) += 0.001 * index_distal_velocity_command;
+			// SVH_desired_positions(4) += 0.001 * middle_distal_velocity_command;
+			// SVH_desired_positions(6) += 0.001 * ring_velocity_command;
+			// SVH_desired_positions(7) += 0.001 * pinky_velocity_command;
 
-			redis_client.setEigenMatrixJSON(SVH_HAND_COMMAND_POSITIONS_KEY, SVH_desired_positions);
+			// redis_client.setEigenMatrixJSON(SVH_HAND_COMMAND_POSITIONS_KEY, SVH_desired_positions);
 
 			posori_tasks[0]->computeTorques(posori_task_torques[0]);
 			joint_tasks[0]->computeTorques(joint_task_torques[0]);
@@ -494,6 +521,7 @@ int main() {
 			if(redis_client.get(GO_TO_INITIAL_KEY) == "1")
 			{
 				joint_tasks[0]->reInitializeTask();
+				joint_tasks[1]->reInitializeTask();
 				cout << "Go To Initial Config" << endl;
 				state = GO_TO_INIT_CONFIG;
 				redis_client.set(GO_TO_INITIAL_KEY, "0");
@@ -528,14 +556,19 @@ int main() {
 			pot_field_force = 0.0;
 		}
 
+		// if(state >= MOVE_TO_GRASP_POSE)
+		// {
+		// 	pot_field_force = 0;
+		// }
+
 		potential_field[0](1) = pot_field_force;
 
 		if(controller_counter % 100 == 0)
 		{
 		// 	cout << q1 << endl;
-			cout << (posori_tasks[0]->_desired_position - posori_tasks[0]->_current_position).norm() << endl;
-			cout << pot_field_force << endl;
-			cout << endl;
+			// cout << (posori_tasks[0]->_desired_position - posori_tasks[0]->_current_position).norm() << endl;
+			// cout << pot_field_force << endl;
+			// cout << endl;
 		}
 
 		for(int i = 0 ; i<n_robots ; i++)

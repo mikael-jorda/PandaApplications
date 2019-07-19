@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <string>
+#include <tinyxml2.h>
 
 #include <signal.h>
 bool runloop = true;
@@ -69,6 +70,14 @@ vector<string> ROBOT_GRAVITY_KEYS =
 	"sai2::WarehouseSimulation::panda1::model::gravity",
 	"sai2::WarehouseSimulation::panda2::model::gravity",		
 };
+
+
+VectorXd readBiasXML(const string path_to_bias_file);
+// void readObjectMassAndCMXml(double object_mass, Vector3d object_com, const string file_name, const string tool_name);
+
+const string bias_file = "../../00-force_sensor_calibration/calibration_files/Clyde_fsensor_bias.xml";
+const string object_mas_cm_file = "../../00-force_sensor_calibration/calibration_files/friday0510.xml";
+const string object_name = "right_hand_fist_pos";
 
 const bool flag_simulation = false;
 // const bool flag_simulation = true;
@@ -160,8 +169,13 @@ int main() {
 	//VectorXd q_init_2 = VectorXd::Zero(7);
 	// q_init_1 << 0.44, -1.024, 0.274, -2.54, 1.945, 1.92, -1.526; 
 	// q_init_2 << 2.24, 1.17, -2.047, -2.325, -0.584, 1.656, -0.03; 
-	q_init_1 << -0.129231,-1.09106,-0.552381,-2.24007,-1.20897,2.75981,0.66227;
 	//q_init_2 << 2.22268,1.14805,-1.90333,-2.21937,-0.645465,1.70329,-0.074406;
+	//
+	// q_init_1 << -0.129231,-1.09106,-0.552381,-2.24007,-1.20897,2.75981,0.66227;
+
+	// q_init_1 << -0.911341,-0.525124,0.0156919,-2.14789,-1.53807,2.0796,0.664134;
+
+	q_init_1 << -0.828898,-0.250577,-0.174005,-2.04157,-1.66987,2.22351,1.03342;
 
 	q_initial.push_back(q_init_1);
 	//q_initial.push_back(q_init_2);
@@ -191,12 +205,12 @@ int main() {
 
 		// end effector tasks
 		string link_name = "link7";
-		Eigen::Vector3d pos_in_link = Vector3d(0.0,0.0,0.2);
+		Eigen::Vector3d pos_in_link = Vector3d(0.0,0.0,0.0);
 		posori_tasks.push_back(new Sai2Primitives::PosOriTask(robots[i], link_name, pos_in_link));
 		posori_task_torques.push_back(VectorXd::Zero(dof[i]));
 		posori_tasks[i]->_use_interpolation_flag = false;
 		posori_tasks[i]->_use_velocity_saturation_flag = true;
-		posori_tasks[i]->_linear_saturation_velocity = 0.5;
+		posori_tasks[i]->_linear_saturation_velocity = 50;
 		posori_tasks[i]->_angular_saturation_velocity = M_PI/1.5;
 		// posori_tasks[i]->_otg->setMaxLinearVelocity(0.5);
 		// posori_tasks[i]->_otg->setMaxAngularVelocity(2.0*M_PI/3.0);
@@ -227,9 +241,15 @@ int main() {
 	
 	haptic_controller_brush->_haptic_feedback_from_proxy = false; // If set to true, the force feedback is computed from a stiffness/damping proxy.
 	
-	haptic_controller_brush->_filter_on = true;
+	haptic_controller_brush->_filter_on = false;
+
+
 	double fc_force=0.02;
 	double fc_moment=0.02;
+
+
+	// double fc_force=0.02;
+	// double fc_moment=0.02;
 	haptic_controller_brush->setFilterCutOffFreq(fc_force, fc_moment);
 
 	//Task scaling factors
@@ -247,9 +267,14 @@ int main() {
 						  0.0, 1/20.0, 0.0,
 						  0.0, 0.0, 1/20.0;
 
-	Red_factor_trans_brush << 1.0, 0.0, 0.0,
-						  0.0, 1.0, 0.0,
-						  0.0, 0.0, 1.0;
+	// Red_factor_trans_brush << 1.0, 0.0, 0.0,
+	// 					  0.0, 1.0, 0.0,
+	// 					  0.0, 0.0, 1.0;
+
+	Red_factor_trans_brush << 0.8, 0.0, 0.0,
+						  0.0, 0.8, 0.0,
+						  0.0, 0.0, 0.8;
+
 	haptic_controller_brush->setForceFeedbackCtrlGains(k_pos_brush, d_pos_brush, k_ori_brush, d_ori_brush, Red_factor_rot_brush, Red_factor_trans_brush);
 	VectorXd f_task_sensed = VectorXd::Zero(6);
 	// const VectorXd force_bias_global = readBiasXML("../../09-haptic_painting/Clyde_fsensor_bias.xml");
@@ -259,9 +284,19 @@ int main() {
 	Vector3d hand_com = Vector3d::Zero();
 	if(!flag_simulation)
 	{
-		force_bias_global << -2.51441,   -3.43109 ,  -133.635,  -0.228287,    1.71627, -0.0227359;
-		hand_mass = 1.47791;
-		hand_com = Vector3d(0.0166211, 0.0218277,  0.119471);
+		force_bias_global = readBiasXML(bias_file);
+		// force_bias_global << -2.51441,   -3.43109 ,  -133.635,  -0.228287,    1.71627, -0.0227359;
+		// hand_mass = 1.47791;
+		// hand_com = Vector3d(0.0166211, 0.0218277,  0.119471);
+		// hand_mass = 1.23084;
+		// hand_com = Vector3d(-0.000843834,  -0.00687915,    0.0988995);
+
+		hand_mass = 1.27926;
+		hand_com = Vector3d(-0.00519832, -0.00201736,   0.0970318);
+
+
+		cout << "bias, mass and com\n" << force_bias_global.transpose() << endl << hand_mass << endl << hand_com.transpose() << endl << endl;
+
 	}
 	// write task force in redis
 	redis_client.setEigenMatrixJSON(FORCE_SENSED_KEYS[0],f_task_sensed);
@@ -523,18 +558,53 @@ int main() {
 	return 0;
 }
 
-// VectorXd readBiasXML(const string path_to_bias_file)
+VectorXd readBiasXML(const string path_to_bias_file)
+{
+	VectorXd sensor_bias = VectorXd::Zero(6);
+	tinyxml2::XMLDocument doc;
+	doc.LoadFile(path_to_bias_file.c_str());
+	if (!doc.Error())
+	{
+		cout << "Loading bias file file ["+path_to_bias_file+"]." << endl;
+		try 
+		{
+
+			std::stringstream bias( doc.FirstChildElement("force_bias")->
+				Attribute("value"));
+			bias >> sensor_bias(0);
+			bias >> sensor_bias(1);
+			bias >> sensor_bias(2);
+			bias >> sensor_bias(3);
+			bias >> sensor_bias(4);
+			bias >> sensor_bias(5);
+			std::stringstream ss; ss << sensor_bias.transpose();
+			cout << "Sensor bias : "+ss.str() << endl;
+		}
+		catch( const std::exception& e ) // reference to the base of a polymorphic object
+		{ 
+			std::cout << e.what(); // information from length_error printed
+			cout << "WARNING : Failed to parse bias file." << endl;
+		}
+	} 
+	else 
+	{
+		cout << "WARNING : Could no load bias file ["+path_to_bias_file+"]" << endl;
+		doc.PrintError();
+	}
+	return sensor_bias;
+}
+
+// void readObjectMassAndCMXml(double object_mass, Vector3d object_com, const string file_name, const string tool_name)
 // {
-// 	VectorXd sensor_bias = VectorXd::Zero(6);
 // 	tinyxml2::XMLDocument doc;
-// 	doc.LoadFile(path_to_bias_file.c_str());
+// 	doc.LoadFile(file_name.c_str());
 // 	if (!doc.Error())
 // 	{
-// 		cout << "Loading bias file file ["+path_to_bias_file+"]." << endl;
+// 		cout << "Loading object calibration file ["+file_name+"]." << endl;
 // 		try 
 // 		{
 
-// 			std::stringstream bias( doc.FirstChildElement("force_bias_global")->
+// 			std::stringstream bias( doc.FirstChildElement("force_bias")->
 // 				Attribute("value"));
 // 			bias >> sensor_bias(0);
 // 			bias >> sensor_bias(1);
@@ -556,5 +626,4 @@ int main() {
 // 		cout << "WARNING : Could no load bias file ["+path_to_bias_file+"]" << endl;
 // 		doc.PrintError();
 // 	}
-// 	return sensor_bias;
 // }
