@@ -30,7 +30,7 @@
 	    </visual>
 	</static_object>
 
-	<static_object name="Box">
+<!-- 	<static_object name="Box">
 		<origin xyz="0.7 0.0 0.15" rpy="0 0 0" />
 		<collision>
 	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
@@ -47,7 +47,7 @@
 		        <color rgba="1.00 0.50 0.00 1.0" />
 	        </material>
 	    </visual>
-	</static_object>
+	</static_object> -->
 
 	<light name="light1" type="directional">
 		<position xyz="2.0 -2.0 2.0" />

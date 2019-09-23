@@ -258,6 +258,9 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		moment_buffer.push_back(Vector3d::Zero());
 	}
 
+	VectorXd friction = VectorXd::Zero(7);
+	double friction_coeff = 0.3;
+
 	// create a timer
 	LoopTimer timer;
 	timer.initializeTimer();
@@ -272,6 +275,18 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 
 		// read arm torques from redis
 		command_torques = redis_client.getEigenMatrixJSON(TORQUES_COMMANDED_KEY);
+
+		for(int i=0 ; i<7 ; i++)
+		{
+			if(command_torques(i) > friction_coeff)
+			{
+				command_torques(i) -= friction_coeff;
+			}
+			else if(command_torques(i) < -friction_coeff)
+			{
+				command_torques(i) += friction_coeff;
+			}
+		}
 
 		// set torques to simulation
 		sim->setJointTorques(robot_name, command_torques);

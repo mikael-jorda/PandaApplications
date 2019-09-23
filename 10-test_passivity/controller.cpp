@@ -25,8 +25,9 @@ const string robot_name = "PANDA";
 #define MOVE_TO_INITIAL      0
 #define MOVE_TO_CONTACT      1
 #define FORCE_CONTROL        2
+#define DEBUG                10
 
-int state = MOVE_TO_INITIAL;
+int state = DEBUG;
 
 // redis keys:
 // - read:
@@ -53,7 +54,8 @@ const string KP_ORI_KEY = "sai2::PandaApplication::controller:kp_ori";
 const string KV_ORI_KEY = "sai2::PandaApplication::controller:kv_ori";
 
 // desired force
-const string DESIRED_EE_FORCE_KEY = "sai2::PandaApplication::controller:desried_ee_force";
+const string DESIRED_EE_FORCE_KEY = "sai2::PandaApplication::controller:desired_ee_force";
+const string DESIRED_EE_POSITION_KEY = "sai2::PandaApplication::controller:desired_ee_position";
 
 // logging quantities
 const string LOGGING_PO_KEY = "sai2::PandaApplication::logging::passivity_observer";
@@ -61,12 +63,14 @@ const string LOGGING_RC_INV_KEY = "sai2::PandaApplication::logging::Rc_inv";
 const string LOGGING_DESIRED_FORCE_KEY = "sai2::PandaApplication::logging::desired_force";
 const string LOGGING_SENSED_FORCE_KEY = "sai2::PandaApplication::logging::sensed_force";
 
+const string LOGGING_EE_POS_KEY = "sai2::PandaApplication::logging::ee_position";
+const string LOGGING_EE_VEL_KEY = "sai2::PandaApplication::logging::ee_velocity";
 
 unsigned long long controller_counter = 0;
 int olfc_counter = 1500;
 
-const bool flag_simulation = false;
-// const bool flag_simulation = true;
+// const bool flag_simulation = false;
+const bool flag_simulation = true;
 
 const bool inertia_regularization = true;
 
@@ -129,7 +133,7 @@ int main() {
 	// goal_position *= M_PI/180.0;
 	// joint_task->_desired_position = goal_position;
 
-	joint_task->_desired_position << 0.65, 0.30, 0.0, -1.30, 0.0, 1.6, -0.80;
+	// joint_task->_desired_position << 0.65, 0.30, 0.0, -1.30, 0.0, 1.6, -0.80;
 
 	// posori controller
 	const string link_name = "link7";
@@ -158,6 +162,15 @@ int main() {
 	// double ee_mass = 0.0594724;
 	double ee_mass = 0.13;
 	Vector3d p_sensor_eecom = Vector3d(0.00527075, -0.00639089, 3.55516e-05);
+
+	if(state == DEBUG)
+	{
+		posori_task->_kv_force = 10.0;
+		posori_task->_use_interpolation_flag = false;
+		// posori_task->_otg->setMaxLinearVelocity(0.15);
+		redis_client.setEigenMatrixJSON(DESIRED_EE_POSITION_KEY, posori_task->_desired_position);
+		posori_task->setForceAxis(Vector3d::UnitZ());
+	}
 
 	// create a timer
 	LoopTimer timer;
@@ -300,11 +313,35 @@ int main() {
 		}
 	}
 
-	if(controller_counter % 100 == 0)
+	else if(state == DEBUG)
 	{
-		cout << "sensed force world frame : " << posori_task->_sensed_force.transpose() << endl;
-		cout << endl;
+		// update tasks model
+		N_prec.setIdentity();
+		posori_task->updateTaskModel(N_prec);
+		N_prec = posori_task->_N;
+		joint_task->updateTaskModel(N_prec);
+
+		posori_task->_desired_position = redis_client.getEigenMatrixJSON(DESIRED_EE_POSITION_KEY);
+
+		for(int i=3 ; i<6 ; i++)
+		{
+			posori_task->_Lambda(i,i) += 0.1;
+		}
+
+		// compute torques
+		posori_task->computeTorques(posori_task_torques);
+
+		joint_task->computeTorques(joint_task_torques);
+
+		command_torques = posori_task_torques + joint_task_torques;
+
 	}
+
+	// if(controller_counter % 100 == 0)
+	// {
+	// 	cout << "sensed force world frame : " << posori_task->_sensed_force.transpose() << endl;
+	// 	cout << endl;
+	// }
 
 	// send to redis
 	// command_torques.setZero();
@@ -313,8 +350,11 @@ int main() {
 	// logging to redis
 	redis_client.set(LOGGING_PO_KEY, to_string(posori_task->_passivity_observer + posori_task->_stored_energy));
 	redis_client.set(LOGGING_RC_INV_KEY, to_string(posori_task->_Rc_inv));
-	redis_client.setEigenMatrixJSON(LOGGING_SENSED_FORCE_KEY, posori_task->_sensed_force);
-	redis_client.setEigenMatrixJSON(LOGGING_DESIRED_FORCE_KEY, posori_task->_desired_force);
+	// redis_client.setEigenMatrixJSON(LOGGING_SENSED_FORCE_KEY, posori_task->_sensed_force);
+	// redis_client.setEigenMatrixJSON(LOGGING_DESIRED_FORCE_KEY, posori_task->_desired_force);
+
+	redis_client.setEigenMatrixJSON(LOGGING_EE_POS_KEY, posori_task->_current_position);
+	redis_client.setEigenMatrixJSON(LOGGING_EE_VEL_KEY, posori_task->_current_velocity);
 
 	controller_counter++;
 
