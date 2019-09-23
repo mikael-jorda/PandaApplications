@@ -32,8 +32,7 @@ const string camera_name = "camera_fixed";
 // - write:
 std::string JOINT_ANGLES_KEY  = "sai2::PandaApplication::sensors::q";
 std::string JOINT_VELOCITIES_KEY = "sai2::PandaApplication::sensors::dq";
-std::string SENSED_FORCE_KEY = "sai2::PandaApplication::sensors::force";
-std::string SENSED_MOMENT_KEY = "sai2::PandaApplication::sensors::moment";
+std::string SENSED_FORCE_MOMENT_KEY = "sai2::PandaApplication::sensors::force_moment";
 // - read
 const std::string TORQUES_COMMANDED_KEY  = "sai2::PandaApplication::actuators::fgc";
 
@@ -247,6 +246,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	ForceSensorSim* fsensor = new ForceSensorSim(robot_name, link_name, T_link_sensor, robot);
 	Vector3d sensed_force = Vector3d::Zero();
 	Vector3d sensed_moment = Vector3d::Zero();
+	VectorXd sensed_force_moment = VectorXd::Zero(6);
 
 	const int introduced_delay = 50; // timesteps
 	vector<Vector3d> force_buffer;
@@ -287,6 +287,11 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		fsensor->getMomentLocalFrame(sensed_moment);
 		force_buffer[buffer_counter] = sensed_force;
 		moment_buffer[buffer_counter] = sensed_moment;
+		// sensed_force_moment.head(3) = force_buffer[(buffer_counter - 0) % introduced_delay];
+		// sensed_force_moment.tail(3) = moment_buffer[(buffer_counter - 0) % introduced_delay];
+
+		sensed_force_moment.head(3) = sensed_force;
+		sensed_force_moment.tail(3) = sensed_moment;
 
 		// read joint positions, velocities, update model
 		sim->getJointPositions(robot_name, robot->_q);
@@ -296,8 +301,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		// write new robot state to redis
 		redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEY, robot->_q);
 		redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEY, robot->_dq);
-		redis_client.setEigenMatrixJSON(SENSED_FORCE_KEY, -force_buffer[(buffer_counter - 0) % introduced_delay]);
-		redis_client.setEigenMatrixJSON(SENSED_MOMENT_KEY, -moment_buffer[(buffer_counter - 0) % introduced_delay]);
+		redis_client.setEigenMatrixJSON(SENSED_FORCE_MOMENT_KEY, sensed_force_moment);
 
 		//update last time
 		last_time = curr_time;

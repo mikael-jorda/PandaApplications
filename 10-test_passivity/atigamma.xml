@@ -1,0 +1,8 @@
+<?xml version="1.0" ?>
+
+<tool name="small_cylinder">
+	<inertial>
+		<origin xyz=" 0.00527075 -0.00639089 3.55516e-05"/>
+		<mass value="0.0594724"/>
+	</inertial>
+</tool>

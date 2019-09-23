@@ -34,8 +34,7 @@ std::string JOINT_ANGLES_KEY;
 std::string JOINT_VELOCITIES_KEY;
 std::string JOINT_TORQUES_SENSED_KEY;
 
-std::string SENSED_FORCE_KEY; 
-std::string SENSED_MOMENT_KEY; 
+std::string SENSED_FORCE_MOMENT_KEY; 
 
 // - write
 std::string JOINT_TORQUES_COMMANDED_KEY;
@@ -64,10 +63,10 @@ const string LOGGING_SENSED_FORCE_KEY = "sai2::PandaApplication::logging::sensed
 
 
 unsigned long long controller_counter = 0;
-int olfc_counter = 500;
+int olfc_counter = 1500;
 
-// const bool flag_simulation = false;
-const bool flag_simulation = true;
+const bool flag_simulation = false;
+// const bool flag_simulation = true;
 
 const bool inertia_regularization = true;
 
@@ -79,20 +78,21 @@ int main() {
 		JOINT_VELOCITIES_KEY = "sai2::PandaApplication::sensors::dq";
 		JOINT_TORQUES_COMMANDED_KEY  = "sai2::PandaApplication::actuators::fgc";
 
-		SENSED_FORCE_KEY = "sai2::PandaApplication::sensors::force";
-		SENSED_MOMENT_KEY = "sai2::PandaApplication::sensors::moment";
+		SENSED_FORCE_MOMENT_KEY = "sai2::PandaApplication::sensors::force_moment";
 
 	}
 	else
 	{
-		JOINT_TORQUES_COMMANDED_KEY = "sai2::FrankaPanda::actuators::fgc";
+		JOINT_TORQUES_COMMANDED_KEY = "sai2::FrankaPanda::Clyde::actuators::fgc";
 
-		JOINT_ANGLES_KEY  = "sai2::FrankaPanda::sensors::q";
-		JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::sensors::dq";
-		JOINT_TORQUES_SENSED_KEY = "sai2::FrankaPanda::sensors::torques";
-		MASSMATRIX_KEY = "sai2::FrankaPanda::sensors::model::massmatrix";
-		CORIOLIS_KEY = "sai2::FrankaPanda::sensors::model::coriolis";
-		ROBOT_GRAVITY_KEY = "sai2::FrankaPanda::sensors::model::robot_gravity";		
+		JOINT_ANGLES_KEY  = "sai2::FrankaPanda::Clyde::sensors::q";
+		JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::Clyde::sensors::dq";
+		JOINT_TORQUES_SENSED_KEY = "sai2::FrankaPanda::Clyde::sensors::torques";
+		MASSMATRIX_KEY = "sai2::FrankaPanda::Clyde::sensors::model::massmatrix";
+		CORIOLIS_KEY = "sai2::FrankaPanda::Clyde::sensors::model::coriolis";
+		ROBOT_GRAVITY_KEY = "sai2::FrankaPanda::Clyde::sensors::model::robot_gravity";	
+
+		SENSED_FORCE_MOMENT_KEY = "sai2::ATIGamma_Sensor::force_torque";	
 
 	}
 
@@ -116,17 +116,20 @@ int main() {
 
 	MatrixXd N_prec = MatrixXd::Identity(robot->dof(), robot->dof());
 	VectorXd joint_task_torques = VectorXd::Zero(robot->dof());
-	joint_task->_kp = 100.0;
+	joint_task->_kp = 150.0;
 	joint_task->_kv = 15.0;
+	joint_task->_ki = 20.0;
 	redis_client.set(KP_JOINT_KEY, to_string(joint_task->_kp));
 	redis_client.set(KV_JOINT_KEY, to_string(joint_task->_kv));
 
 	VectorXd command_torques = VectorXd::Zero(robot->dof());
 
-	Eigen::VectorXd goal_position(robot->dof());
-	goal_position << 0, 30, 0, -90, 0, 120, 0;
-	goal_position *= M_PI/180.0;
-	joint_task->_desired_position = goal_position;
+	// Eigen::VectorXd goal_position(robot->dof());
+	// goal_position << 0, 30, 0, -90, 0, 120, 0;
+	// goal_position *= M_PI/180.0;
+	// joint_task->_desired_position = goal_position;
+
+	joint_task->_desired_position << 0.65, 0.30, 0.0, -1.30, 0.0, 1.6, -0.80;
 
 	// posori controller
 	const string link_name = "link7";
@@ -143,8 +146,18 @@ int main() {
 	redis_client.set(KP_ORI_KEY, to_string(posori_task->_kp_ori));
 	redis_client.set(KV_ORI_KEY, to_string(posori_task->_kv_ori));
 
-	Vector3d sensed_force = Vector3d::Zero();
-	Vector3d sensed_moment = Vector3d::Zero();
+	posori_task->_otg->setMaxLinearVelocity(0.05);
+
+	// Vector3d sensed_force = Vector3d::Zero();
+	// Vector3d sensed_moment = Vector3d::Zero();
+
+	VectorXd sensed_force_moment = VectorXd::Zero(6);
+	VectorXd force_bias = VectorXd::Zero(6);
+	force_bias << 0.119518,   0.0137842,     1.50978, -0.00386726, -0.00689004, 0.000847295;
+
+	// double ee_mass = 0.0594724;
+	double ee_mass = 0.13;
+	Vector3d p_sensor_eecom = Vector3d(0.00527075, -0.00639089, 3.55516e-05);
 
 	// create a timer
 	LoopTimer timer;
@@ -162,8 +175,23 @@ int main() {
 	robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
 	robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
 
-	sensed_force = redis_client.getEigenMatrixJSON(SENSED_FORCE_KEY);
-	sensed_moment = redis_client.getEigenMatrixJSON(SENSED_MOMENT_KEY);
+	sensed_force_moment = redis_client.getEigenMatrixJSON(SENSED_FORCE_MOMENT_KEY);
+	if(!flag_simulation)
+	{
+		// remove bias and ee mass
+		sensed_force_moment -= force_bias;
+
+		Matrix3d R_sensor;
+		robot->rotation(R_sensor, "link7");
+		Vector3d globalz_loc_frame = R_sensor.transpose().col(2);
+
+		sensed_force_moment.head(3) -= ee_mass * 9.81 * globalz_loc_frame;
+		sensed_force_moment.tail(3) -= ee_mass * 9.81 * p_sensor_eecom.cross(globalz_loc_frame);
+
+	}
+
+	posori_task->updateSensedForceAndMoment(sensed_force_moment.head(3), sensed_force_moment.tail(3));
+
 
 	// update robot model
 	if(flag_simulation)
@@ -201,9 +229,10 @@ int main() {
 
 		command_torques = joint_task_torques;
 
-		if((joint_task->_desired_position - joint_task->_current_position).norm() < 1e-5)
+		if((joint_task->_desired_position - joint_task->_current_position).norm() < 0.1)
 		{
 			joint_task->_kp = 0.0;
+			joint_task->_ki = 0.0;
 			joint_task->_kv = 5.0;
 			redis_client.set(KP_JOINT_KEY, to_string(joint_task->_kp));
 			redis_client.set(KV_JOINT_KEY, to_string(joint_task->_kv));
@@ -229,12 +258,12 @@ int main() {
 
 		// cout << sensed_force.transpose() << endl;
 
-		if( sensed_force(2) > 5 )
+		if( sensed_force_moment(2) > 5 )
 		{
 			cout << "open loop force control start" << endl;
 			posori_task->setForceAxis(Vector3d(0,0,1));
-			posori_task->_desired_force = Vector3d(0,0,-5);
-			redis_client.set(DESIRED_EE_FORCE_KEY, to_string(-5));
+			posori_task->_desired_force = Vector3d(0,0,-0);
+			redis_client.set(DESIRED_EE_FORCE_KEY, to_string(-0));
 			// posori_task->setClosedLoopForceControl();
 			state = FORCE_CONTROL;
 		}
@@ -242,7 +271,6 @@ int main() {
 	else if(state == FORCE_CONTROL)
 	{
 
-		posori_task->updateSensedForceAndMoment(sensed_force, sensed_moment);
 
 		N_prec.setIdentity();
 		posori_task->updateTaskModel(N_prec);
@@ -260,10 +288,11 @@ int main() {
 		if(olfc_counter == 0)
 		{
 			cout << "closed loop force control start" << endl;
+			// posori_task->_passivity_enabled = false;
 			posori_task->setClosedLoopForceControl();
 			olfc_counter--;
-			posori_task->_kp_force = 10.0;
-			posori_task->_ki_force = 1.7;
+			posori_task->_kp_force = 0.3;
+			posori_task->_ki_force = 2.7;
 		}	
 		else
 		{
@@ -271,11 +300,18 @@ int main() {
 		}
 	}
 
+	if(controller_counter % 100 == 0)
+	{
+		cout << "sensed force world frame : " << posori_task->_sensed_force.transpose() << endl;
+		cout << endl;
+	}
+
 	// send to redis
+	// command_torques.setZero();
 	redis_client.setEigenMatrixJSON(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 
 	// logging to redis
-	redis_client.set(LOGGING_PO_KEY, to_string(posori_task->_passivity_observer));
+	redis_client.set(LOGGING_PO_KEY, to_string(posori_task->_passivity_observer + posori_task->_stored_energy));
 	redis_client.set(LOGGING_RC_INV_KEY, to_string(posori_task->_Rc_inv));
 	redis_client.setEigenMatrixJSON(LOGGING_SENSED_FORCE_KEY, posori_task->_sensed_force);
 	redis_client.setEigenMatrixJSON(LOGGING_DESIRED_FORCE_KEY, posori_task->_desired_force);
@@ -283,6 +319,9 @@ int main() {
 	controller_counter++;
 
 	}
+
+	command_torques.setZero();
+	redis_client.setEigenMatrixJSON(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 
 double end_time = timer.elapsedTime();
 	std::cout << "\n";
