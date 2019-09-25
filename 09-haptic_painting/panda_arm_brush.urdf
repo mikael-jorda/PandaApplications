@@ -131,6 +131,18 @@
           <mesh filename="../../../Model/meshes/visual/link7.obj"/>
         </geometry>
       </visual>
+       <visual>
+        <origin xyz="0 0 0.11" rpy="1.5708 -0 0" />
+        <geometry>
+          <cylinder length="0.4" radius="0.005"/>
+        </geometry>
+      </visual>   
+       <collision>
+        <origin xyz="0 0 0.11" rpy="1.5708 -0 0" />
+        <geometry>
+          <cylinder length="0.4" radius="0.005"/>
+        </geometry>
+      </collision> 
       <!-- <collision>
         <geometry>
           <mesh filename="../../../Model/meshes/collision/link7.obj"/>

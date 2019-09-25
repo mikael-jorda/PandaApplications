@@ -4,11 +4,11 @@
 <world name="demo_world" gravity="0.0 0.0 -9.81">
 
 	<robot name="PANDA_LEFT">
-		<model dir="./resources" path="panda_arm_brush.urdf" name="panda_hand" />
+		<model dir="./resources" path="panda_arm_palette.urdf" name="panda_hand" />
 		<origin xyz="0 -0.5 0.0" rpy="0 0 0.3010693" />
 	</robot>
 	<robot name="PANDA_RIGHT">
-		<model dir="./resources" path="panda_arm_pallette.urdf" name="panda_hand" />
+		<model dir="./resources" path="panda_arm_brush.urdf" name="panda_hand" />
 		<origin xyz="-0.06 0.57 0.0" rpy="0 0 -1.0864675" />
 	</robot>
 

@@ -25,8 +25,8 @@ using namespace Eigen;
 
 const string world_file = "./resources/world.urdf";
 const vector<string> robot_files = {
+	"./resources/panda_arm_palette.urdf",
 	"./resources/panda_arm_brush.urdf",
-	"./resources/panda_arm_pallette.urdf",
 };
 const vector<string> robot_names = {
 	"PANDA_LEFT",
@@ -313,11 +313,17 @@ void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation
 	// Add force sensor to the end-effector
 	string link_name = "link7";
 	Affine3d transform_in_link = Affine3d::Identity();
-	transform_in_link.translation() = Vector3d(0.0,0.0,0.2);
-	auto force_sensor = new ForceSensorSim(robot_names[0], link_name, transform_in_link, robots[0]);
-	VectorXd f_sensed = VectorXd::Zero(6);
-	Vector3d sensed_force = Vector3d::Zero();
-	Vector3d sensed_moment = Vector3d::Zero();
+	transform_in_link.translation() = Vector3d(0.0,0.0,0.12);
+	auto force_sensor_right = new ForceSensorSim(robot_names[0], link_name, transform_in_link, robots[0]);
+	VectorXd f_sensed_right = VectorXd::Zero(6);
+	Vector3d sensed_force_right = Vector3d::Zero();
+	Vector3d sensed_moment_right = Vector3d::Zero();
+
+	auto force_sensor_left = new ForceSensorSim(robot_names[1], link_name, transform_in_link, robots[1]);
+	VectorXd f_sensed_left = VectorXd::Zero(6);
+	Vector3d sensed_force_left = Vector3d::Zero();
+	Vector3d sensed_moment_left = Vector3d::Zero();
+
 
 	// create a timer
 	LoopTimer timer;
@@ -381,12 +387,19 @@ void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation
 		redis_client.set(TIMESTAMP_KEY, to_string(curr_time));
 
 		// read end-effector task forces from the force sensor simulation
-		force_sensor->update(sim);
-		force_sensor->getForce(sensed_force);
-		force_sensor->getMoment(sensed_moment);
-		f_sensed << sensed_force, sensed_moment;
+		force_sensor_right->update(sim);
+		force_sensor_right->getForceLocalFrame(sensed_force_right);
+		force_sensor_right->getMomentLocalFrame(sensed_moment_right);
+		f_sensed_right << sensed_force_right, sensed_moment_right;
+
+		force_sensor_left->update(sim);
+		force_sensor_left->getForceLocalFrame(sensed_force_left);
+		force_sensor_left->getMomentLocalFrame(sensed_moment_left);
+		f_sensed_left << sensed_force_left, sensed_moment_left;
+
 		// write task force in redis
-		redis_client.setEigenMatrixJSON(FORCE_SENSED_KEYS[0],f_sensed);
+		redis_client.setEigenMatrixJSON(FORCE_SENSED_KEYS[0], -f_sensed_right);
+		redis_client.setEigenMatrixJSON(FORCE_SENSED_KEYS[1], -f_sensed_left);
 
 		//update last time
 		last_time = curr_time;
