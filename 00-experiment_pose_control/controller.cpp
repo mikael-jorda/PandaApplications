@@ -25,59 +25,66 @@ const string robot_file = "resources/panda_arm.urdf";
 const string robot_name = "PANDA";
 
 #define IMPEDANCE                           0
-#define DYNAMIC_DECOUPLING                  1
-#define INERTIA_SATURATION                  2
-#define INERTIA_REGULARIZATION              3
-#define INERTIA_REGULARIZATION_ORI_ONLY     4
-#define IMPEDANCE_ORI_POSORI_DECOUPLING     5
-#define IMPEDANCE_ORI_NO_POSORI_DECOUPLING  6
+#define INERTIA_SATURATION                  1
+#define INERTIA_REGULARIZATION              2
+#define INERTIA_REGULARIZATION_ORI_ONLY     3
+#define IMPEDANCE_ORI_POSORI_DECOUPLING     4
+#define IMPEDANCE_ORI_NO_POSORI_DECOUPLING  5
+#define DYNAMIC_DECOUPLING                  6
 
-#define SPIRAL_Z                 0
-#define SPIRAL_X                 1
-#define ORIENTATION_ONLY         2
-#define SPIRAL_Z_ORIENTATION     3
-#define SPIRAL_X_ORIENTATION     4
+#define SPIRAL_Z                        0
+#define SPIRAL_X                        1
+#define ORIENTATION_ONLY                2
+#define SPIRAL_Z_ORIENTATION            3
+#define SPIRAL_X_ORIENTATION            4
 
-#define SLOW_SPEED    0
-#define MEDIUM_SPEED  1
-#define HIGH_SPEED    2
+#define SLOW_SPEED                      0
+#define MEDIUM_SPEED                    1
+#define HIGH_SPEED                      2
 
-#define LOW_GAINS        0
-#define MEDIUM_GAINS     1
-#define HIGH_GAINS       2
+#define LOW_GAINS                       0
+#define MEDIUM_GAINS                    1
+#define HIGH_GAINS                      2
 
 #define DEBUG                           0
 #define EXPERIMENT_TRACKING             1
 #define EXPERIMENT_REGULATION           2
 #define GO_TO_INITIAL                   3
 
-int state = GO_TO_INITIAL;
-int controller_type = 0;
-int speed = 0;
-int gains_value = 0;
-int motion_type = 0;
+const int number_motion_types = 5;
+const int number_speeds = 3;
+const int number_controller_types = 7;
+const int number_gains_values = 3;
 
-int experiment_number = 1;
+
+int state = GO_TO_INITIAL;
+int motion_type = 0;
+int speed = 0;
+int controller_type = 0;
+int gains_value = 0;
+
+int experiment_number = 1 + gains_value + number_gains_values * (controller_type + number_controller_types * (speed + number_speeds * motion_type));
+const int number_experiments = number_gains_values * number_controller_types * number_speeds * number_motion_types;
 int number_of_oscillation_per_experiment = 2;
 
 // linear motion parameters
-Vector3d experiment_speed_circle_velocity = Vector3d(0.1, 0.3, 0.5);
-Vector3d experiment_speed_axis_max_velocity = Vector3d(0.05, 0.25, 0.45);
+Vector3d experiment_speed_circle_velocity = Vector3d(0.1, 0.25, 0.4);
+Vector3d experiment_speed_axis_max_velocity = Vector3d(0.1, 0.2, 0.3);
 double circle_radius = 0.06;
 double cylinder_length = 0.20;
 Vector3d experiment_speed_frequency_circle = experiment_speed_circle_velocity / circle_radius;
 Vector3d experiment_speed_frequency_axis_motion = experiment_speed_axis_max_velocity / cylinder_length;
 
 // orientation part parameters
-Vector3d experiment_speed_orientation_oscillation_frequency = 2 * M_PI * Vector3d(0.1, 0.3, 0.5);
+Vector3d experiment_speed_orientation_oscillation_frequency = 2 * M_PI * Vector3d(0.05, 0.15, 0.25);
 Vector3d orientation_rotation_axis = Vector3d::UnitX();
-double orientation_oscillation_amplitude = M_PI/3;
+double orientation_oscillation_amplitude = M_PI/4;
 
-int experiment_countdown = 0;
+int experiment_countdown = 1000 * number_of_oscillation_per_experiment * 2 * M_PI / experiment_speed_frequency_axis_motion(speed);
 
 // gains
-Vector3d kp_experiments = Vector3d(100.0, 200.0, 400.0);
-Vector3d kv_experiments = Vector3d(20.0, 25.0, 30.0);
+Vector3d kp_experiments = Vector3d(100.0, 200.0, 300.0);
+Vector3d kv_experiments = Vector3d(15.0, 20.0, 25.0);
 
 // redis keys:
 // - read:
@@ -92,14 +99,6 @@ std::string MASSMATRIX_KEY;
 std::string CORIOLIS_KEY;
 std::string ROBOT_GRAVITY_KEY;
 
-// - gripper
-std::string GRIPPER_MODE_KEY; // m for move and g for graps
-std::string GRIPPER_MAX_WIDTH_KEY;
-std::string GRIPPER_CURRENT_WIDTH_KEY;
-std::string GRIPPER_DESIRED_WIDTH_KEY;
-std::string GRIPPER_DESIRED_SPEED_KEY;
-std::string GRIPPER_DESIRED_FORCE_KEY;
-
 // gains
 const string KP_JOINT_KEY = "sai2::PandaApplication::controller:kp_joint";
 const string KV_JOINT_KEY = "sai2::PandaApplication::controller:kv_joint";
@@ -109,8 +108,8 @@ const string CURRENT_POSITION_KEY = "sai2::PandaApplication::controller::current
 
 unsigned long long controller_counter = 0;
 
-// const bool flag_simulation = false;
-const bool flag_simulation = true;
+const bool flag_simulation = false;
+// const bool flag_simulation = true;
 
 const string prefix_path = "../../00-experiment_pose_control/data_files/";
 string create_filename();
@@ -124,31 +123,17 @@ int main() {
 		JOINT_ANGLES_KEY  = "sai2::PandaApplication::sensors::q";
 		JOINT_VELOCITIES_KEY = "sai2::PandaApplication::sensors::dq";
 		JOINT_TORQUES_COMMANDED_KEY  = "sai2::PandaApplication::actuators::fgc";
-
-		GRIPPER_MODE_KEY  = "sai2::PandaApplication::gripper::mode"; // m for move and g for graps
-		GRIPPER_MAX_WIDTH_KEY  = "sai2::PandaApplication::gripper::max_width";
-		GRIPPER_CURRENT_WIDTH_KEY  = "sai2::PandaApplication::gripper::current_width";
-		GRIPPER_DESIRED_WIDTH_KEY  = "sai2::PandaApplication::gripper::desired_width";
-		GRIPPER_DESIRED_SPEED_KEY  = "sai2::PandaApplication::gripper::desired_speed";
-		GRIPPER_DESIRED_FORCE_KEY  = "sai2::PandaApplication::gripper::desired_force";		
 	}
 	else
 	{
-		JOINT_TORQUES_COMMANDED_KEY = "sai2::FrankaPanda::actuators::fgc";
+		JOINT_TORQUES_COMMANDED_KEY = "sai2::FrankaPanda::Clyde::actuators::fgc";
 
-		JOINT_ANGLES_KEY  = "sai2::FrankaPanda::sensors::q";
-		JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::sensors::dq";
-		JOINT_TORQUES_SENSED_KEY = "sai2::FrankaPanda::sensors::torques";
-		MASSMATRIX_KEY = "sai2::FrankaPanda::sensors::model::massmatrix";
-		CORIOLIS_KEY = "sai2::FrankaPanda::sensors::model::coriolis";
-		ROBOT_GRAVITY_KEY = "sai2::FrankaPanda::sensors::model::robot_gravity";		
-
-		GRIPPER_MODE_KEY  = "sai2::FrankaPanda::gripper::mode"; // m for move and g for graps
-		GRIPPER_MAX_WIDTH_KEY  = "sai2::FrankaPanda::gripper::max_width";
-		GRIPPER_CURRENT_WIDTH_KEY  = "sai2::FrankaPanda::gripper::current_width";
-		GRIPPER_DESIRED_WIDTH_KEY  = "sai2::FrankaPanda::gripper::desired_width";
-		GRIPPER_DESIRED_SPEED_KEY  = "sai2::FrankaPanda::gripper::desired_speed";
-		GRIPPER_DESIRED_FORCE_KEY  = "sai2::FrankaPanda::gripper::desired_force";
+		JOINT_ANGLES_KEY  = "sai2::FrankaPanda::Clyde::sensors::q";
+		JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::Clyde::sensors::dq";
+		JOINT_TORQUES_SENSED_KEY = "sai2::FrankaPanda::Clyde::sensors::torques";
+		MASSMATRIX_KEY = "sai2::FrankaPanda::Clyde::sensors::model::massmatrix";
+		CORIOLIS_KEY = "sai2::FrankaPanda::Clyde::sensors::model::coriolis";
+		ROBOT_GRAVITY_KEY = "sai2::FrankaPanda::Clyde::sensors::model::robot_gravity";		
 	}
 
 	// start redis client
@@ -174,6 +159,7 @@ int main() {
 
 	VectorXd initial_q = VectorXd::Zero(dof);
 	initial_q << 20.0, 25.0, 5.0, -110.0, 30.0, 125.0, 45.0;
+	// initial_q << 20.0, 45.0, 5.0, -90.0, 30.0, 125.0, 45.0;
 	initial_q *= M_PI/180.0;
 
 	// joint task
@@ -181,7 +167,7 @@ int main() {
 	VectorXd joint_task_torques = VectorXd::Zero(dof);
 	joint_task->_use_interpolation_flag = true;
 	joint_task->_kp = 200.0;
-	joint_task->_kv = 25.0;
+	joint_task->_kv = 15.0;
 	joint_task->_ki = 5.0;
 
 	joint_task->_desired_position = initial_q;
@@ -267,6 +253,11 @@ int main() {
 					state = EXPERIMENT_TRACKING;
 					initial_time = current_time;
 				}
+				else if(motion_type == 5)
+				{
+					cout << "\n\nALL EXPERIMENTS FINISHED\n\n" << endl;
+					motion_type = 100;
+				}
 			}
 		}
 
@@ -318,10 +309,10 @@ int main() {
 					newfile = false;
 				}
 
-				data_file << posori_task->_desired_position.transpose() << '\t' << posori_task->_current_position.transpose() << '\t' << 
+				data_file << robot->_q.transpose() << '\t' << robot->_dq.transpose() << '\t' << posori_task->_desired_position.transpose() << '\t' << posori_task->_current_position.transpose() << '\t' << 
 					posori_task->_desired_velocity.transpose() << '\t' << posori_task->_current_velocity.transpose() << '\t' <<
 					posori_task->_orientation_error.transpose() << '\t' << posori_task->_desired_angular_velocity.transpose() << '\t' <<
-					posori_task->_current_angular_velocity.transpose() << '\t' << posori_task_torques.transpose() << command_torques.transpose() <<
+					posori_task->_current_angular_velocity.transpose() << '\t' << posori_task->_task_force.transpose() << '\t' << posori_task_torques.transpose() << command_torques.transpose() <<
 					endl;
 
 				if(motion_type == SPIRAL_Z)
@@ -384,7 +375,7 @@ int main() {
 
 					data_file.close();
 
-					cout << "finished experiment : " << experiment_number << "/315" << endl;
+					cout << "finished experiment : " << experiment_number << "/" << number_experiments << endl;
 					cout << "motion type : " << motion_type << "\tspeed : " << speed << "\tcontroller type : " << controller_type << "\tgains : " << gains_value << endl;
 					cout << endl;
 					newfile = true;
@@ -400,9 +391,10 @@ int main() {
 							controller_type = 0;
 							speed++;
 
-							state = GO_TO_INITIAL;
-
+							joint_task->reInitializeTask();
+							joint_task->_desired_position = initial_q;
 							joint_task->_use_interpolation_flag = true;
+							state = GO_TO_INITIAL;
 
 							if(speed == 3)
 							{
@@ -622,14 +614,14 @@ void write_first_line(ofstream& file_handler)
 	switch(state)
 	{
 		case EXPERIMENT_REGULATION :
-			file_handler << "desired_position[3]\tcurrent_position[3]\tdesired_velocity[3]\tcurrent_velocity[3]\t" <<
+			file_handler << "joint positions[7]\tjoint velocities[7]\tdesired_position[3]\tcurrent_position[3]\tdesired_velocity[3]\tcurrent_velocity[3]\t" <<
 				"orientation_error[3]\tdesired_angular_velocity[3]\tcurrent_angular_velocity[3]\t" <<
-				"posori_task_torques[7]\tcommand_torques[7]\tsensed_force[6]\n";
+				"posori_task_force[6]\tposori_task_torques[7]\tcommand_torques[7]\tsensed_force[6]\n";
 			break;
 		case EXPERIMENT_TRACKING :
-			file_handler << "desired_position[3]\tcurrent_position[3]\tdesired_velocity[3]\tcurrent_velocity[3]\t" <<
+			file_handler << "joint positions[7]\tjoint velocities[7]\tdesired_position[3]\tcurrent_position[3]\tdesired_velocity[3]\tcurrent_velocity[3]\t" <<
 				"orientation_error[3]\tdesired_angular_velocity[3]\tcurrent_angular_velocity[3]\t" <<
-				"posori_task_torques[7]\tcommand_torques[7]\n";
+				"posori_task_force[6]\tposori_task_torques[7]\tcommand_torques[7]\n";
 			break;
 		case DEBUG :
 			file_handler << "debug_file\n";
