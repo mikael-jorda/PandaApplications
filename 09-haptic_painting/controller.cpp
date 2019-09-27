@@ -133,8 +133,8 @@ vector<string> DEVICE_SENSED_TORQUE_KEYS = {
 	"sai2::ChaiHapticDevice::device1::sensors::sensed_torque",
 };
 
-// const bool flag_simulation = false;
-const bool flag_simulation = true;
+const bool flag_simulation = false;
+// const bool flag_simulation = true;
 
 const bool inertia_regularization = true;
 
@@ -165,7 +165,7 @@ int main() {
 		MASSMATRIX_KEYS[0] = "sai2::FrankaPanda::Clyde::sensors::model::massmatrix";
 		CORIOLIS_KEYS[0] = "sai2::FrankaPanda::Clyde::sensors::model::coriolis";
 		ROBOT_GRAVITY_KEYS[0] = "sai2::FrankaPanda::Clyde::sensors::model::robot_gravity";		
-		FORCE_SENSED_KEYS[0] = "sai2::optoforceSensor::6Dsensor::force";
+		FORCE_SENSED_KEYS[0] = "sai2::ATIGamma_Sensor::Clyde::force_torque";
 
 		JOINT_TORQUES_COMMANDED_KEYS[1] = "sai2::FrankaPanda::Bonnie::actuators::fgc";
 		JOINT_ANGLES_KEYS[1]  = "sai2::FrankaPanda::Bonnie::sensors::q";
@@ -173,7 +173,7 @@ int main() {
 		MASSMATRIX_KEYS[1] = "sai2::FrankaPanda::Bonnie::sensors::model::massmatrix";
 		CORIOLIS_KEYS[1] = "sai2::FrankaPanda::Bonnie::sensors::model::coriolis";
 		ROBOT_GRAVITY_KEYS[1] = "sai2::FrankaPanda::Bonnie::sensors::model::robot_gravity";	
-		FORCE_SENSED_KEYS[1] = "sai2::optoforceSensor::6Dsensor::force";
+		FORCE_SENSED_KEYS[1] = "sai2::ATIGamma_Sensor::Bonnie::force_torque";
 	}
 
 
@@ -225,8 +225,8 @@ int main() {
 	VectorXd q_init_2 = VectorXd::Zero(7);
 	// q_init_1 << 0.44, -1.024, 0.274, -2.54, 1.945, 1.92, -1.526; 
 	// q_init_2 << 2.24, 1.17, -2.047, -2.325, -0.584, 1.656, -0.03; 
-	q_init_1 << 0.585135,-1.04046,0.286799,-2.59264,1.95629,1.95654,-1.45693;
-	q_init_2 << 2.22268,1.14805,-1.90333,-2.21937,-0.645465,1.70329,-0.074406;
+	q_init_1 << 1.58126,-1.32543,-1.109,-2.52754,0.905724,1.84656,-1.12792;
+	q_init_2 << -1.49122,-1.00293,0.913876,-1.99563,-0.55207,2.4641,1.33142;
 
 	q_initial.push_back(q_init_1);
 	q_initial.push_back(q_init_2);
@@ -286,7 +286,7 @@ int main() {
 	auto brush_teleop_task = new Sai2Primitives::HapticController(posori_tasks[1]->_current_position, posori_tasks[1]->_current_orientation, robot_pose_in_world[1].linear());
 
 	brush_teleop_task->_filter_on = true;
-	brush_teleop_task->setFilterCutOffFreq(0.04, 0.04);
+	brush_teleop_task->setFilterCutOffFreq(0.007, 0.04);
 	brush_teleop_task->_haptic_feedback_from_proxy = false;
 	brush_teleop_task->_send_haptic_feedback = true;
 	//Task scaling factors
@@ -300,9 +300,9 @@ int main() {
 						  0.0, 1/20.0, 0.0,
 						  0.0, 0.0, 1/20.0;
 
-	Red_factor_trans_brush << 1.0, 0.0, 0.0,
-						  0.0, 1.0, 0.0,
-						  0.0, 0.0, 1.0;
+	Red_factor_trans_brush << 1.1, 0.0, 0.0,
+						  0.0, 1.1, 0.0,
+						  0.0, 0.0, 1.1;
 	brush_teleop_task->setReductionFactorForceFeedback(Red_factor_trans_brush, Red_factor_rot_brush);
 	
 	VectorXd f_task_sensed_brush = VectorXd::Zero(6);
@@ -312,16 +312,19 @@ int main() {
 	
 	if(!flag_simulation)
 	{
-		force_bias_global_brush << -2.32819,  -3.88484,   -129.07,  -0.38751,   1.57918, -0.021328;
-		hand_brush_mass = 1.5;
-		hand_brush_com = Vector3d(0.0, 0.0, 0.1);
+		// -15.0335    2.36657   0.996593  -0.202162    -1.1767 -0.0399846
+		// 1.5546
+		// 9.21258e-06  -0.0041225   0.0777601
+		force_bias_global_brush << -15.0277,     2.3619,    1.11118,  -0.202308,   -1.17481, -0.0457088;
+		hand_brush_mass = 1.55647;
+		hand_brush_com = Vector3d(-7.30332e-05,  -0.00447694,    0.0777536);
 	}
 
 	auto palette_teleop_task = new Sai2Primitives::HapticController(posori_tasks[0]->_current_position, posori_tasks[0]->_current_orientation, robot_pose_in_world[0].linear());
-	palette_teleop_task->_filter_on = true;
-	palette_teleop_task->setFilterCutOffFreq(0.04, 0.04);
+	// palette_teleop_task->_filter_on = true;
+	// palette_teleop_task->setFilterCutOffFreq(0.04, 0.04);
 	palette_teleop_task->_haptic_feedback_from_proxy = false;
-	palette_teleop_task->_send_haptic_feedback = true;
+	palette_teleop_task->_send_haptic_feedback = false;
 
 	//Task scaling factors
 	double Ks_palette=2.0;
@@ -344,12 +347,12 @@ int main() {
 	double hand_palette_mass = 0.0;
 	Vector3d hand_palette_com = Vector3d::Zero();
 	
-	if(!flag_simulation)
-	{
-		force_bias_global_palette << -2.32819,  -3.88484,   -129.07,  -0.38751,   1.57918, -0.021328;
-		hand_palette_mass = 1.5;
-		hand_palette_com = Vector3d(0.0, 0.0, 0.1);
-	}
+	// if(!flag_simulation)
+	// {
+	// 	force_bias_global_palette << -2.32819,  -3.88484,   -129.07,  -0.38751,   1.57918, -0.021328;
+	// 	hand_palette_mass = 1.5;
+	// 	hand_palette_com = Vector3d(0.0, 0.0, 0.1);
+	// }
 
 	// Read haptic device specifications from haptic driver
 	VectorXd _max_stiffness_device0 = redis_client.getEigenMatrixJSON(DEVICE_MAX_STIFFNESS_KEYS[0]);
@@ -379,11 +382,17 @@ int main() {
 	bool previous_gripper_state_brush = false;
 
 	//// passivity observer and controller ////
-	auto passivity_controller_brush = new Sai2Primitives::BilateralPassivityController(posori_tasks[0], brush_teleop_task);
+	auto passivity_controller_brush = new Sai2Primitives::BilateralPassivityController(posori_tasks[1], brush_teleop_task);
 	Vector3d haptic_damping_force_passivity_brush = Vector3d::Zero();
 	Vector3d command_force_device_plus_damping_brush = Vector3d::Zero();
 
 	Vector3d command_force_device_plus_damping_palette = Vector3d::Zero();
+
+	// remove inertial forces from hand
+	Vector3d hand_velocity = Vector3d::Zero();
+	Vector3d prev_hand_velocity = Vector3d::Zero();
+	Vector3d hand_acceleration = Vector3d::Zero();
+	Vector3d hand_inertial_forces = Vector3d::Zero();
 
 	// setup redis keys to be updated with the callback
 	// objects to read from redis
@@ -400,7 +409,7 @@ int main() {
 	redis_client.addEigenToRead(JOINT_ANGLES_KEYS[1], robots[1]->_q);
 	redis_client.addEigenToRead(JOINT_VELOCITIES_KEYS[1], robots[1]->_dq);
 
-	redis_client.addEigenToRead(FORCE_SENSED_KEYS[0], f_sensed_palette);
+	// redis_client.addEigenToRead(FORCE_SENSED_KEYS[0], f_sensed_palette);
 	redis_client.addEigenToRead(FORCE_SENSED_KEYS[1], f_sensed_brush);
 
 	redis_client.addEigenToRead(DEVICE_POSITION_KEYS[0], palette_teleop_task->_current_position_device);
@@ -483,6 +492,17 @@ int main() {
 			}
 
 		}
+
+		// compute hand inertial forces
+		hand_velocity = posori_tasks[1]->_current_velocity + posori_tasks[1]->_current_angular_velocity.cross(hand_brush_com);
+		if(controller_counter > 100)
+		{
+			hand_acceleration = (hand_velocity - prev_hand_velocity)/dt;
+		}
+		prev_hand_velocity = hand_velocity;
+		hand_inertial_forces = hand_brush_mass * hand_acceleration;
+
+
 		// read force sensor data and remove bias and effecto from hand gravity
 		f_sensed_brush -= force_bias_global_brush; 
 		Matrix3d R_sensor_brush = Matrix3d::Identity();
@@ -490,28 +510,31 @@ int main() {
 		Vector3d p_tool_sensorFrame_brush = hand_brush_mass * R_sensor_brush.transpose() * Vector3d(0,0,-9.81); 
 		f_sensed_brush.head(3) += p_tool_sensorFrame_brush;
 		f_sensed_brush.tail(3) += hand_brush_com.cross(p_tool_sensorFrame_brush);
+
+		f_sensed_brush.head(3) -= 0.9 * R_sensor_brush.transpose() * hand_inertial_forces;
+
 		posori_tasks[1]->updateSensedForceAndMoment(f_sensed_brush.head(3), f_sensed_brush.tail(3));
 		VectorXd sensed_force_brush_world_frame = VectorXd::Zero(6);
 		sensed_force_brush_world_frame << posori_tasks[1]->_sensed_force, posori_tasks[1]->_sensed_moment;
 		brush_teleop_task->updateSensedForce(-sensed_force_brush_world_frame);
 
-		f_sensed_palette -= force_bias_global_palette; 
-		Matrix3d R_sensor_palette = Matrix3d::Identity();
-		robots[0]->rotation(R_sensor_palette, "link7");
-		Vector3d p_tool_sensorFrame_palette = hand_palette_mass * R_sensor_palette.transpose() * Vector3d(0,0,-9.81); 
-		f_sensed_palette.head(3) += p_tool_sensorFrame_palette;
-		f_sensed_palette.tail(3) += hand_palette_com.cross(p_tool_sensorFrame_palette);
-		posori_tasks[0]->updateSensedForceAndMoment(f_sensed_palette.head(3), f_sensed_palette.tail(3));
-		VectorXd sensed_force_palette_world_frame = VectorXd::Zero(6);
-		sensed_force_palette_world_frame << posori_tasks[0]->_sensed_force, posori_tasks[0]->_sensed_moment;
-		palette_teleop_task->updateSensedForce(-sensed_force_palette_world_frame);
+		// f_sensed_palette -= force_bias_global_palette; 
+		// Matrix3d R_sensor_palette = Matrix3d::Identity();
+		// robots[0]->rotation(R_sensor_palette, "link7");
+		// Vector3d p_tool_sensorFrame_palette = hand_palette_mass * R_sensor_palette.transpose() * Vector3d(0,0,-9.81); 
+		// f_sensed_palette.head(3) += p_tool_sensorFrame_palette;
+		// f_sensed_palette.tail(3) += hand_palette_com.cross(p_tool_sensorFrame_palette);
+		// posori_tasks[0]->updateSensedForceAndMoment(f_sensed_palette.head(3), f_sensed_palette.tail(3));
+		// VectorXd sensed_force_palette_world_frame = VectorXd::Zero(6);
+		// sensed_force_palette_world_frame << posori_tasks[0]->_sensed_force, posori_tasks[0]->_sensed_moment;
+		// palette_teleop_task->updateSensedForce(-sensed_force_palette_world_frame);
 
-		if(controller_counter % 100 == 0)
-		{
-			cout << "force brush : " << f_sensed_brush.transpose() << endl;
-			cout << "force palette : " << f_sensed_palette.transpose() << endl;
-			cout << endl;
-		}
+		// if(controller_counter % 100 == 0)
+		// {
+		// 	cout << "force brush : " << f_sensed_brush.transpose() << endl;
+		// 	cout << "force palette : " << f_sensed_palette.transpose() << endl;
+		// 	cout << endl;
+		// }
 
 		palette_teleop_task->UseGripperAsSwitch();
 		brush_teleop_task->UseGripperAsSwitch();
@@ -662,6 +685,8 @@ int main() {
 				workspace_center_palette = posori_tasks[0]->_current_position;
 				haptic_center_palette = palette_teleop_task->_current_position_device;
 
+				passivity_controller_brush->reInitializeTask();
+
 				palette_teleop_task->setRobotCenter(workspace_center_palette, posori_tasks[0]->_current_orientation);
 				palette_teleop_task->setDeviceCenter(haptic_center_palette, palette_teleop_task->_current_rotation_device);
 				
@@ -686,6 +711,8 @@ int main() {
 			joint_tasks[0]->computeTorques(joint_task_torques[0]);
 
 			command_torques[0] = joint_task_torques[0] + coriolis[0] + posori_task_torques[0];
+
+			passivity_controller_brush->computePOPCForce(haptic_damping_force_passivity_brush);
 
 			// read gripper state
 			gripper_state_palette = palette_teleop_task->gripper_state;
@@ -753,8 +780,15 @@ int main() {
 		
 
 		// send to redis
-		command_force_device_plus_damping_brush = brush_teleop_task->_commanded_force_device;
+		command_force_device_plus_damping_brush = brush_teleop_task->_commanded_force_device + haptic_damping_force_passivity_brush;
 		command_force_device_plus_damping_palette = palette_teleop_task->_commanded_force_device;
+		
+		if(controller_counter % 100 == 0)
+		{
+			cout << -sensed_force_brush_world_frame.transpose() << endl;
+			cout << endl;
+		}
+		// 
 		// command_force_device_plus_damping_brush.setZero();
 		// command_force_device_plus_damping_palette.setZero();
 		redis_client.writeAllSetupValues();

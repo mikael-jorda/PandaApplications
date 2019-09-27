@@ -70,7 +70,7 @@ int main() {
 		ROBOT_GRAVITY_KEY = "sai2::FrankaPanda::Clyde::sensors::model::robot_gravity";		
 
 		// FORCE_SENSED_KEY = "sai2::optoforceSensor::6Dsensor::force";
-		FORCE_SENSED_KEY = "sai2::ATIGamma_Sensor::force_torque";
+		FORCE_SENSED_KEY = "sai2::ATIGamma_Sensor::Clyde::force_torque";
 	}
 
 	// start redis client
