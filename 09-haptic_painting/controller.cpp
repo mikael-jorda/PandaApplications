@@ -286,7 +286,7 @@ int main() {
 	auto brush_teleop_task = new Sai2Primitives::HapticController(posori_tasks[1]->_current_position, posori_tasks[1]->_current_orientation, robot_pose_in_world[1].linear());
 
 	brush_teleop_task->_filter_on = true;
-	brush_teleop_task->setFilterCutOffFreq(0.007, 0.04);
+	brush_teleop_task->setFilterCutOffFreq(0.005, 0.04);
 	brush_teleop_task->_haptic_feedback_from_proxy = false;
 	brush_teleop_task->_send_haptic_feedback = true;
 	//Task scaling factors
@@ -300,24 +300,24 @@ int main() {
 						  0.0, 1/20.0, 0.0,
 						  0.0, 0.0, 1/20.0;
 
-	Red_factor_trans_brush << 1.1, 0.0, 0.0,
-						  0.0, 1.1, 0.0,
-						  0.0, 0.0, 1.1;
+	Red_factor_trans_brush << 1.3, 0.0, 0.0,
+						  0.0, 1.3, 0.0,
+						  0.0, 0.0, 1.3;
 	brush_teleop_task->setReductionFactorForceFeedback(Red_factor_trans_brush, Red_factor_rot_brush);
 	
 	VectorXd f_task_sensed_brush = VectorXd::Zero(6);
 	VectorXd force_bias_global_brush = VectorXd::Zero(6);
+	VectorXd force_bias_adjustment_brush = VectorXd::Zero(6);
 	double hand_brush_mass = 0.0;
 	Vector3d hand_brush_com = Vector3d::Zero();
 	
 	if(!flag_simulation)
 	{
-		// -15.0335    2.36657   0.996593  -0.202162    -1.1767 -0.0399846
-		// 1.5546
-		// 9.21258e-06  -0.0041225   0.0777601
-		force_bias_global_brush << -15.0277,     2.3619,    1.11118,  -0.202308,   -1.17481, -0.0457088;
-		hand_brush_mass = 1.55647;
-		hand_brush_com = Vector3d(-7.30332e-05,  -0.00447694,    0.0777536);
+		force_bias_adjustment_brush << 0.3, 0.7, 0, 0, 0, 0;
+
+		force_bias_global_brush << -0.133241,   0.413947,    15.3625, -0.0922695, 0.00362847, 0.00647149;
+		hand_brush_mass = 1.56353;
+		hand_brush_com = Vector3d(-6.19239e-05,  -0.00452189,    0.0777715);
 	}
 
 	auto palette_teleop_task = new Sai2Primitives::HapticController(posori_tasks[0]->_current_position, posori_tasks[0]->_current_orientation, robot_pose_in_world[0].linear());
@@ -504,14 +504,14 @@ int main() {
 
 
 		// read force sensor data and remove bias and effecto from hand gravity
-		f_sensed_brush -= force_bias_global_brush; 
+		f_sensed_brush -= force_bias_global_brush + force_bias_adjustment_brush; 
 		Matrix3d R_sensor_brush = Matrix3d::Identity();
 		robots[1]->rotation(R_sensor_brush, "link7");
 		Vector3d p_tool_sensorFrame_brush = hand_brush_mass * R_sensor_brush.transpose() * Vector3d(0,0,-9.81); 
 		f_sensed_brush.head(3) += p_tool_sensorFrame_brush;
 		f_sensed_brush.tail(3) += hand_brush_com.cross(p_tool_sensorFrame_brush);
 
-		f_sensed_brush.head(3) -= 0.9 * R_sensor_brush.transpose() * hand_inertial_forces;
+		f_sensed_brush.head(3) -= 0.8 * R_sensor_brush.transpose() * hand_inertial_forces;
 
 		posori_tasks[1]->updateSensedForceAndMoment(f_sensed_brush.head(3), f_sensed_brush.tail(3));
 		VectorXd sensed_force_brush_world_frame = VectorXd::Zero(6);
@@ -606,6 +606,7 @@ int main() {
 
 			command_torques[1] = joint_task_torques[1] + coriolis[1] + posori_task_torques[1];
 
+			passivity_controller_brush->computePOPCForce(haptic_damping_force_passivity_brush);
 
 			if(remote_enabled == 0)
 			{
@@ -633,6 +634,8 @@ int main() {
 
 			// read gripper state
 			gripper_state_brush = brush_teleop_task->gripper_state;
+
+
 
 			if (remote_enabled==1 && gripper_state_brush)
 			{
@@ -712,7 +715,6 @@ int main() {
 
 			command_torques[0] = joint_task_torques[0] + coriolis[0] + posori_task_torques[0];
 
-			passivity_controller_brush->computePOPCForce(haptic_damping_force_passivity_brush);
 
 			// read gripper state
 			gripper_state_palette = palette_teleop_task->gripper_state;
