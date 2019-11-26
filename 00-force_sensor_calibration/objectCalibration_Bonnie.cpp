@@ -103,7 +103,7 @@ int main(int argc, char** argv)
 	auto robot = new Sai2Model::Sai2Model(robot_file, false);
 	robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
 	VectorXd initial_q_desired = robot->_q;
-	initial_q_desired << -90, 30, 90, -90, -30, 90, 0;
+	initial_q_desired << 90, 30, 90, -90, -30, 90, 0;
 	initial_q_desired = M_PI/180.0 * initial_q_desired;
 	robot->updateModel();
 

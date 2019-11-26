@@ -119,22 +119,22 @@ int main() {
 
 	VectorXd q_des_degrees = VectorXd::Zero(dof);
 
-	q_des_degrees << -90, 30, 90, -90, -30, 90, 0;
+	q_des_degrees << 90, 30, 90, -90, -30, 90, 0;
 	q_desired[0] = M_PI/180.0 * q_des_degrees; 
 
-	q_des_degrees << -90, 30, 90, -90, 60, 90, -135;
+	q_des_degrees << 90, 30, 90, -90, 60, 90, -135;
 	q_desired[1] = M_PI/180.0 * q_des_degrees; 
 
-	q_des_degrees << -90, 30, 90, -90, 60, 90, -45;
+	q_des_degrees << 90, 30, 90, -90, 60, 90, -45;
 	q_desired[2] = M_PI/180.0 * q_des_degrees; 
 
-	q_des_degrees << -90, 30, 90, -90, 60, 90, 45;
+	q_des_degrees << 90, 30, 90, -90, 60, 90, 45;
 	q_desired[3] = M_PI/180.0 * q_des_degrees; 
 
-	q_des_degrees << -90, 30, 90, -90, 60, 90, 135;
+	q_des_degrees << 90, 30, 90, -90, 60, 90, 135;
 	q_desired[4] = M_PI/180.0 * q_des_degrees; 
 
-	q_des_degrees << -90, 30, 90, -90, 150, 90, 0;
+	q_des_degrees << 90, 30, 90, -90, 150, 90, 0;
 	q_desired[5] = M_PI/180.0 * q_des_degrees; 
 
 	int measurement_number = 0;
