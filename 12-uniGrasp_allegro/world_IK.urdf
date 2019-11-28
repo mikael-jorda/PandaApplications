@@ -3,8 +3,11 @@
 <!-- <world name="demo_world" gravity="0.0 0.0 0.0"> -->
 <world name="demo_world" gravity="0.0 0.0 -9.81">
 
-	<robot name="PANDA_HAND">
+<!-- 	<robot name="PANDA_HAND">
 		<model dir="./resources" path="panda_arm_AllegroHand.urdf" name="panda_arm_Allegrohand" />
+	</robot> -->
+	<robot name="ALLEGRO_HAND">
+		<model dir="./resources" path="floatingAllegroHand.urdf" name="AllegroHand" />
 	</robot>
 
 	<static_object name="Floor">
