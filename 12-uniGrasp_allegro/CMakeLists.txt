@@ -1,0 +1,19 @@
+# create an executable
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PANDA_APPLICATIONS_BINARY_DIR}/12-unigrasp_allegro)
+ADD_EXECUTABLE (controller12-allegro controller.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
+# ADD_EXECUTABLE (display_ee_pose-allegro display_pose_ee.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
+ADD_EXECUTABLE (simviz12-allegro simviz.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
+ADD_EXECUTABLE (IKsolver solveIKAllegro.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
+
+# and link the library against the executable
+TARGET_LINK_LIBRARIES (controller12-allegro ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
+# TARGET_LINK_LIBRARIES (display_ee_pose-allegro ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (simviz12-allegro ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (IKsolver ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
+
+# export resources such as model files.
+# NOTE: this requires an install build
+SET(APP_RESOURCE_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources)
+FILE(MAKE_DIRECTORY ${APP_RESOURCE_DIR})
+FILE(COPY world.urdf world_IK.urdf DESTINATION ${APP_RESOURCE_DIR})
+FILE(COPY panda_arm.urdf panda_arm_AllegroHand.urdf DESTINATION ${APP_RESOURCE_DIR})
