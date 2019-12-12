@@ -74,8 +74,8 @@
         <child link="virtual_link_3"/>
         <origin rpy="0 0 0" xyz="0 0 0"/>
     </joint>
-    <joint name="virtual_ry" type="revolute">
-        <axis xyz="0 1 0"/>
+    <joint name="virtual_rz" type="revolute">
+        <axis xyz="0 0 1"/>
         <limit effort="0" lower="-100" upper="100" velocity="0"/>
         <parent link="virtual_link_3"/>
         <child link="virtual_link_4"/>
@@ -88,8 +88,8 @@
         <child link="virtual_link_5"/>
         <origin rpy="0 0 0" xyz="0 0 0"/>
     </joint>    
-    <joint name="virtual_rz" type="revolute">
-        <axis xyz="0 0 1"/>
+    <joint name="virtual_ry" type="revolute">
+        <axis xyz="0 1 0"/>
         <limit effort="0" lower="-100" upper="100" velocity="0"/>
         <parent link="virtual_link_5"/>
         <child link="virtual_link_6"/>

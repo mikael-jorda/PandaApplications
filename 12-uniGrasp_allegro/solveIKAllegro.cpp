@@ -11,6 +11,8 @@
 #include <iostream>
 #include <string>
 
+#include <chrono>
+
 using namespace std;
 using namespace Eigen;
 
@@ -79,7 +81,7 @@ int main() {
 	const Vector3d palm_pos_in_link = Vector3d(0,0,0);
 
 	robot->_q(2) = 0.5;
-	robot->_q(3) = M_PI/2;
+	robot->_q(5) = 115.0/180.0*M_PI;
 
 	// joint limits
 	VectorXd q_min = VectorXd::Zero(dof);
@@ -94,10 +96,11 @@ int main() {
 	q_max.tail(16) << 0.47, 1.61, 1.709, 1.618, 0.47, 1.61, 1.709, 1.618, 0.47, 1.61, 1.709, 1.618, -0.263, 1.163, 1.644, 1.719;
 	// q_weights.tail(16) = 1000.0*VectorXd::Ones(16);
 
-	robot->_q.tail(16) = (2*q_min.tail(16) + q_max.tail(16))/3.0;
+	robot->_q.tail(16) = (q_min.tail(16) + q_max.tail(16))/2.0;
 	robot->_q(6) = 0;
 	robot->_q(10) = 0;
 	robot->_q(14) = 0;
+	robot->_q(19) = 0;
 
 	// prepare IK points
 	vector<string> ik_links = {
@@ -154,14 +157,18 @@ int main() {
 	p_thumb_index.normalize();
 	p_index_middle.normalize();
 	double angle = atan2(p_thumb_index(1), p_thumb_index(0));
-	robot->_q(4) = -angle;
+	robot->_q(3) = angle;
 
 	robot->_q(0) = ik_desired_positions[0](0);
 	robot->_q(1) = ik_desired_positions[0](1);
-	robot->_q(2) = ik_desired_positions[0](2) + 0.12;
+	robot->_q(2) = ik_desired_positions[0](2) + 0.17;
 	robot->_q.head(3) += 0.05 * p_index_middle;
+	robot->_q.head(3) += 0.05 * p_thumb_index;
 
 	robot->updateKinematics();
+
+
+	auto t1 = std::chrono::high_resolution_clock::now();
 
 	// compute inverse kinematics
 	VectorXd q_ik = VectorXd::Zero(dof);	
@@ -176,6 +183,11 @@ int main() {
 	desired_finger_configuration = robot->_q.tail(16);
 	desired_finger_configuration.segment<4>(8) << 0.0, 0.1, 0.1, 0.05;
 
+	auto t2 = std::chrono::high_resolution_clock::now();
+
+    auto duration = std::chrono::duration_cast<std::chrono::microseconds>( t2 - t1 ).count();
+
+    cout << "time for IK solver in ms : " << duration/1000.0 << endl;;
 	/*------- Set up visualization -------*/
 	// display contact points
 	vector<chai3d::cShapeSphere*> graphic_contact_points;

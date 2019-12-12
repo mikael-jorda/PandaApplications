@@ -65,8 +65,8 @@ vector<string> ROBOT_GRAVITY_KEYS =
 
 // camera stuff
 const string CAMERA_FINISHED_KEY = "sai2::PandaApplication::camera_finished";
-const string DESIRED_FINGERTIP_POS_IN_CAMERA_FRAME_KEY = "sai2::PandaApplication::desired_fingertip_pos_in_camera_frame";
-const string DESIRED_FINGERTIP_POS_IN_WORLD_FRAME_KEY = "sai2::PandaApplication::desired_fingertip_pos_in_world_frame";
+// const string DESIRED_FINGERTIP_POS_IN_CAMERA_FRAME_KEY = "sai2::PandaApplication::desired_fingertip_pos_in_camera_frame";
+// const string DESIRED_FINGERTIP_POS_IN_WORLD_FRAME_KEY = "sai2::PandaApplication::desired_fingertip_pos_in_world_frame";
 
 const string CAMERA_POS_IN_WORLD_KEY = "sai2::PandaApplication::camera::camera_pos_in_world";
 const string CAMERA_ROT_IN_WORLD_KEY = "sai2::PandaApplication::camera::camera_rot_in_world";
@@ -78,11 +78,13 @@ const string GO_TO_INITIAL_KEY = "sai2::PandaApplication::controller::go_to_init
 
 
 // ik keys
-const string ALLEGRO_DESIRED_JOINT_POSITIONS_FROM_IK = "sai2::unigraspAllegro::desired_finger_configuration_from_IK";
-const string DESIRED_PALM_POSITION_FROM_IK_KEY = "sai2::unigraspAllegro::desired_palm_position_from_IK";
-const string DESIRED_PALM_ORIENTATION_FROM_IK_KEY = "sai2::unigraspAllegro::desired_palm_orientation_from_IK";
-const string IK_FINISHED_KEY = "sai2::unigraspAllegro::ik_finished";
+// const string ALLEGRO_DESIRED_JOINT_POSITIONS_FROM_IK = "sai2::unigraspAllegro::desired_finger_configuration_from_IK";
+// const string DESIRED_PALM_POSITION_FROM_IK_KEY = "sai2::unigraspAllegro::desired_palm_position_from_IK";
+// const string DESIRED_PALM_ORIENTATION_FROM_IK_KEY = "sai2::unigraspAllegro::desired_palm_orientation_from_IK";
+// const string IK_FINISHED_KEY = "sai2::unigraspAllegro::ik_finished";
 
+// desired pos
+const string DESIRED_PALM_POSITION_FROM_CAMERA = "sai2::unigraspAllegro::desired_palm_position_from_camera";
 
 // allegro driver keys
 const string ALLEGRO_JOINT_POSITIONS = "sai2::allegroHand::sensors::joint_positions";
@@ -100,7 +102,7 @@ void updateModelThread(vector<shared_ptr<Sai2Model::Sai2Model>> robots,
 unsigned long long controller_counter = 0;
 
 #define GO_TO_INIT_CONFIG          0
-#define WAIT_FOR_CAMERA_AND_IK     1
+#define WAIT_FOR_CAMERA     1
 #define MOVE_ABOVE_GRASP_POSE      2
 #define MOVE_TO_GRASP_POSE         3
 #define GRASP                      4
@@ -184,7 +186,7 @@ int main() {
 	const vector<Vector3d> pos_in_link =
 	{
 		// Vector3d(0.137, 0.015, 0.2032),
-		Vector3d(0.135, 0.005, 0.2032),
+		Vector3d(0.131, 0.0, 0.2032),
 		// Vector3d(0.05, 0.0, 0.15),
 		// Vector3d(0.0504, -0.0976, 0.124),
 		Vector3d(0.0504, -0.0976, 0.084),
@@ -261,10 +263,10 @@ int main() {
 	// init configs
 	// --------------------------------------
 	// --------------------------------------
-	redis_client.setEigenMatrixJSON(DESIRED_FINGERTIP_POS_IN_CAMERA_FRAME_KEY, VectorXd::Zero(9));
-	redis_client.setEigenMatrixJSON(DESIRED_FINGERTIP_POS_IN_WORLD_FRAME_KEY, VectorXd::Zero(9));
+	// redis_client.setEigenMatrixJSON(DESIRED_FINGERTIP_POS_IN_CAMERA_FRAME_KEY, VectorXd::Zero(9));
+	// redis_client.setEigenMatrixJSON(DESIRED_FINGERTIP_POS_IN_WORLD_FRAME_KEY, VectorXd::Zero(9));
 	redis_client.set(GO_TO_INITIAL_KEY, "0");
-	redis_client.set(IK_FINISHED_KEY, "0");
+	// redis_client.set(IK_FINISHED_KEY, "0");
 
 
 	vector<VectorXd> q_init =
@@ -273,7 +275,7 @@ int main() {
 		VectorXd::Zero(dof[1]),
 	};
 	// q_init[0] << 0.847144, -0.0343682, -0.637469, -1.85414, -0.103955, 1.87454, 0.496223;
-	q_init[0] << 0.913412,-0.0274987,-0.713741,-1.85752,-0.0796924,1.87787,-0.187067;
+	q_init[0] << 0.914098,-0.0273809,-0.714809,-1.73998,-0.199282,1.28285,-0.202581;
 	// q_init[1] << 2.28843,-1.03064,-1.3612,-1.8834,2.14458,1.59748,0.491425;
 	q_init[1] << 2.00311,-1.05719,-1.37171,-1.91844,2.09774,1.51831,0.532613;
 	// q_init[1] << 2.05321,-1.11204,-1.25244,-2.27785,2.09808,1.39183,0.51338;
@@ -316,7 +318,7 @@ int main() {
 
 	// Vector3d hand_base_offset = Vector3d::Zero();
 	// const Vector3d direction_of_approach_hand_local = AngleAxisd(-M_PI/4, Vector3d(-1/sqrt(2), 1/sqrt(2), 0)).toRotationMatrix() * Vector3d::UnitZ();
-	const Vector3d direction_of_approach_hand_local = AngleAxisd(M_PI/12, Vector3d::UnitY()).toRotationMatrix() * Vector3d::UnitZ();
+	const Vector3d direction_of_approach_hand_local = AngleAxisd(M_PI/4, Vector3d::UnitY()).toRotationMatrix() * Vector3d::UnitZ();
 	// const Vector3d direction_of_approach_hand_local = Vector3d::UnitZ();
 	Vector3d direction_of_approach_hand_global = Vector3d::Zero();
 
@@ -342,6 +344,9 @@ int main() {
 	Vector3d desired_palm_position_from_ik = Vector3d::Zero();
 	Matrix3d desired_palm_orientation_from_ik = Matrix3d::Identity();
 
+	Vector3d desired_palm_position_from_camera = Vector3d::Zero();
+	redis_client.setEigenMatrixJSON(DESIRED_PALM_POSITION_FROM_CAMERA, desired_palm_position_from_camera);
+
 	Matrix3d R_world_camera = Matrix3d::Identity();
 	Vector3d p_world_camera = Vector3d::Zero();
 	// prepare redis things to read and write
@@ -360,18 +365,20 @@ int main() {
 	redis_client.set(CAMERA_FINISHED_KEY, "0");
 
 	redis_client.addIntToRead(CAMERA_FINISHED_KEY, camera_finished);
-	redis_client.addEigenToRead(DESIRED_FINGERTIP_POS_IN_CAMERA_FRAME_KEY, desired_fingertip_pos_in_camera_frame);
+	// redis_client.addEigenToRead(DESIRED_FINGERTIP_POS_IN_CAMERA_FRAME_KEY, desired_fingertip_pos_in_camera_frame);
 
-	redis_client.addEigenToRead(ALLEGRO_DESIRED_JOINT_POSITIONS_FROM_IK, allegro_grasp_config);
+	// redis_client.addEigenToRead(ALLEGRO_DESIRED_JOINT_POSITIONS_FROM_IK, allegro_grasp_config);
 
-	redis_client.addEigenToRead(DESIRED_PALM_POSITION_FROM_IK_KEY, desired_palm_position_from_ik);
-	redis_client.addEigenToRead(DESIRED_PALM_ORIENTATION_FROM_IK_KEY, desired_palm_orientation_from_ik);
+	// redis_client.addEigenToRead(DESIRED_PALM_POSITION_FROM_IK_KEY, desired_palm_position_from_ik);
+	// redis_client.addEigenToRead(DESIRED_PALM_ORIENTATION_FROM_IK_KEY, desired_palm_orientation_from_ik);
 	
+	redis_client.addEigenToRead(DESIRED_PALM_POSITION_FROM_CAMERA, desired_palm_position_from_camera);
+
 	// write
 	redis_client.addEigenToWrite(ALLEGRO_PALM_ORIENTATION_KEY, R_palm);
 
 	redis_client.addEigenToWrite(ALLEGRO_COMMANDED_JOINT_POSITIONS, allegro_commanded_positons);
-	redis_client.addEigenToWrite(DESIRED_FINGERTIP_POS_IN_WORLD_FRAME_KEY , desired_fingertip_pos_in_world_frame);
+	// redis_client.addEigenToWrite(DESIRED_FINGERTIP_POS_IN_WORLD_FRAME_KEY , desired_fingertip_pos_in_world_frame);
 
 	for(int i=0 ; i<n_robots ; i++)
 	{
@@ -490,7 +497,7 @@ int main() {
 			{
 
 				posori_tasks[0]->reInitializeTask();
-				state = WAIT_FOR_CAMERA_AND_IK;
+				state = WAIT_FOR_CAMERA;
 				cout << "Wait For Camera Input" << endl << endl;
 				joint_tasks[0]->_kp = 0.0;
 				joint_tasks[0]->_kv = 5.0;
@@ -500,7 +507,7 @@ int main() {
 
 		}
 
-		else if(state == WAIT_FOR_CAMERA_AND_IK)
+		else if(state == WAIT_FOR_CAMERA)
 		{
 			posori_tasks[0]->computeTorques(posori_task_torques[0]);
 			joint_tasks[0]->computeTorques(joint_task_torques[0]);
@@ -508,38 +515,40 @@ int main() {
 			joint_tasks[1]->computeTorques(joint_task_torques[1]);
 
 			// if(desired_fingertip_pos_in_camera_frame.norm() > 1e-2)
-			if(desired_fingertip_pos_in_camera_frame.norm() > 1e-2 && camera_finished == 1)
+			// if(desired_fingertip_pos_in_camera_frame.norm() > 1e-2 && camera_finished == 1)
+			// {
+			// 	Affine3d T_world_camera = Affine3d::Identity();
+			// 	Affine3d T_Bonnie_eeB = Affine3d::Identity();
+			// 	robots[1]->transform(T_Bonnie_eeB, link_names[1]);
+			// 	T_world_camera = T_World_Bonnie * T_Bonnie_eeB * T_eeB_camera;
+
+			// 	p_world_camera = T_world_camera.translation();
+			// 	R_world_camera = T_world_camera.linear();
+
+			// 	// for(int i=0 ; i<3 ; i++)
+			// 	// {
+			// 	// 	desired_fingertip_pos_in_world_frame.segment<3>(3*i) = T_world_camera * desired_fingertip_pos_in_camera_frame.segment<3>(3*i);
+			// 	// }
+
+			// 	if(flagcout)
+			// 	{
+			// 		cout << "Waiting for IK input" << endl;
+			// 		flagcout = false;
+			// 	}
+			// }
+			if(camera_finished == 1)
 			{
+
 				Affine3d T_world_camera = Affine3d::Identity();
 				Affine3d T_Bonnie_eeB = Affine3d::Identity();
 				robots[1]->transform(T_Bonnie_eeB, link_names[1]);
 				T_world_camera = T_World_Bonnie * T_Bonnie_eeB * T_eeB_camera;
 
-				p_world_camera = T_world_camera.translation();
-				R_world_camera = T_world_camera.linear();
+				posori_tasks[0]->_desired_position = T_world_camera * desired_palm_position_from_camera;
 
-				// for(int i=0 ; i<3 ; i++)
-				// {
-				// 	desired_fingertip_pos_in_world_frame.segment<3>(3*i) = T_world_camera * desired_fingertip_pos_in_camera_frame.segment<3>(3*i);
-				// }
-
-				if(flagcout)
-				{
-					cout << "Waiting for IK input" << endl;
-					flagcout = false;
-				}
-			}
-			if(redis_client.get(IK_FINISHED_KEY) == "1")
-			{
-				flagcout = true;
-				allegro_commanded_positons = allegro_grasp_config - allegro_grasp_position_offset;
-				// allegro_commanded_positons = allegro_grasp_config;
-
-				posori_tasks[0]->_desired_orientation = desired_palm_orientation_from_ik * R_eeC_hand.transpose();
-				posori_tasks[0]->_desired_position = desired_palm_position_from_ik;
 
 				direction_of_approach_hand_global = posori_tasks[0]->_desired_orientation * direction_of_approach_hand_local;
-				posori_tasks[0]->_desired_position -= 0.1 * direction_of_approach_hand_global;
+				posori_tasks[0]->_desired_position -= 0.2 * direction_of_approach_hand_global;
 				// posori_tasks[0]->_desired_position += 0.03 * Vector3d::UnitZ();
 				
 
@@ -547,7 +556,6 @@ int main() {
 
 				joint_tasks[1]->_desired_position = q_Bonnie_wait;
 
-				redis_client.set(IK_FINISHED_KEY, "0");
 
 				state = MOVE_ABOVE_GRASP_POSE;
 			}
@@ -622,7 +630,6 @@ int main() {
 			if((posori_tasks[0]->_desired_position - posori_tasks[0]->_current_position).norm() < 0.013)
 			{
 				posori_tasks[0]->_desired_position += 0.1 * direction_of_approach_hand_global;
-				posori_tasks[0]->_desired_position -= 0.003 * Vector3d::UnitZ();
 				state = MOVE_TO_GRASP_POSE;
 				cout << "move to grasp pose" << endl;
 				grasp_wait_counter = 1800;
@@ -649,7 +656,10 @@ int main() {
 
 				// posori_tasks[0]->_desired_position = posori_tasks[0]->_desired_position + 0.01 * pushing_amount;
 				
-				allegro_commanded_positons = allegro_grasp_config + allegro_grasp_position_offset;
+				redis_client.set(ALLEGRO_CONTROL_MODE, "t");
+				VectorXd allegro_command_torques = VectorXd::Zero(16);
+				allegro_command_torques << 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 1.0, 1.0, 1.0, 0.0, 0.0, 1.0, 1.0;
+				redis_client.setEigenMatrixJSON(ALLEGRO_COMMANDED_JOINT_TORQUES, allegro_command_torques);
 
 
 				// VectorXd hand_positions_temp = redis_client.getEigenMatrixJSON(SVH_RECEIVED_POSITION_KEY) + hand_position_offset;
@@ -695,8 +705,9 @@ int main() {
 				cout << "Go To Initial Config" << endl;
 				redis_client.set(GO_TO_INITIAL_KEY, "0");
 				redis_client.set(CAMERA_FINISHED_KEY, "0");
-				redis_client.set(IK_FINISHED_KEY, "0");
-				redis_client.setEigenMatrixJSON(DESIRED_FINGERTIP_POS_IN_CAMERA_FRAME_KEY, VectorXd::Zero(9));
+				redis_client.set(ALLEGRO_CONTROL_MODE, "p");
+				// redis_client.set(IK_FINISHED_KEY, "0");
+				// redis_client.setEigenMatrixJSON(DESIRED_FINGERTIP_POS_IN_CAMERA_FRAME_KEY, VectorXd::Zero(9));
 				state = GO_TO_INIT_CONFIG;
 
 			}
