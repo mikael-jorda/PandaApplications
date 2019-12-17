@@ -32,8 +32,7 @@ const string camera_name = "camera_fixed";
 // - write:
 std::string JOINT_ANGLES_KEY  = "sai2::PandaApplication::sensors::q";
 std::string JOINT_VELOCITIES_KEY = "sai2::PandaApplication::sensors::dq";
-std::string SENSED_FORCE_KEY = "sai2::PandaApplication::sensors::force";
-std::string SENSED_MOMENT_KEY = "sai2::PandaApplication::sensors::moment";
+std::string	FORCE_SENSED_KEY = "sai2::PandaApplication::sensors::force_moment";
 // - read
 const std::string TORQUES_COMMANDED_KEY  = "sai2::PandaApplication::actuators::fgc";
 
@@ -82,7 +81,10 @@ int main() {
 	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
 
 	// load robots
-	auto robot = new Sai2Model::Sai2Model(robot_file, false);
+	Affine3d robot_pose_in_world;
+	robot_pose_in_world.translation() = Vector3d(-0.06, 0.57, 0.0);
+	robot_pose_in_world.linear() = AngleAxisd(-1.0864675, Vector3d::UnitZ()).toRotationMatrix();
+	auto robot = new Sai2Model::Sai2Model(robot_file, false, robot_pose_in_world);
 	robot->updateKinematics();
 
 	// load simulation world
@@ -243,20 +245,11 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 	// create a force sensor
 	const string link_name = "link7";
 	Affine3d T_link_sensor = Affine3d::Identity();
-	T_link_sensor.translation() = Vector3d(0, 0, 0.11);
+	T_link_sensor.translation() = Vector3d(0, 0, 0.12);
 	ForceSensorSim* fsensor = new ForceSensorSim(robot_name, link_name, T_link_sensor, robot);
 	Vector3d sensed_force = Vector3d::Zero();
 	Vector3d sensed_moment = Vector3d::Zero();
-
-	const int introduced_delay = 50; // timesteps
-	vector<Vector3d> force_buffer;
-	vector<Vector3d> moment_buffer;
-	int buffer_counter = 0;
-	for(int i=0 ; i<introduced_delay ; i++)
-	{
-		force_buffer.push_back(Vector3d::Zero());
-		moment_buffer.push_back(Vector3d::Zero());
-	}
+	VectorXd sensed_force_moment = VectorXd::Zero(6);
 
 	// create a timer
 	LoopTimer timer;
@@ -285,8 +278,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		fsensor->update(sim);
 		fsensor->getForceLocalFrame(sensed_force);
 		fsensor->getMomentLocalFrame(sensed_moment);
-		force_buffer[buffer_counter] = sensed_force;
-		moment_buffer[buffer_counter] = sensed_moment;
+		sensed_force_moment << sensed_force, sensed_moment;
 
 		// read joint positions, velocities, update model
 		sim->getJointPositions(robot_name, robot->_q);
@@ -296,15 +288,12 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
 		// write new robot state to redis
 		redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEY, robot->_q);
 		redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEY, robot->_dq);
-		redis_client.setEigenMatrixJSON(SENSED_FORCE_KEY, -force_buffer[(buffer_counter - 0) % introduced_delay]);
-		redis_client.setEigenMatrixJSON(SENSED_MOMENT_KEY, -moment_buffer[(buffer_counter - 0) % introduced_delay]);
+		redis_client.setEigenMatrixJSON(FORCE_SENSED_KEY, -sensed_force_moment);
 
 		//update last time
 		last_time = curr_time;
 
 		simulation_counter++;
-
-		buffer_counter = (buffer_counter + 1) % introduced_delay;
 	}
 
 	double end_time = timer.elapsedTime();
