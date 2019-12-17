@@ -41,7 +41,7 @@ string CORIOLIS_KEY;
 string ROBOT_GRAVITY_KEY;
 
 VectorXd readBiasXML(const string path_to_bias_file);
-void writeCalibrationXml(const string file_name, const string tool_name, const Vector3d object_com, const double object_mass);
+// void writeCalibrationXml(const string file_name, const string tool_name, const Vector3d object_com, const double object_mass);
 
 unsigned long long controller_counter = 0;
 
@@ -53,14 +53,14 @@ const bool inertia_regularization = true;
 int main(int argc, char** argv) 
 {
 
-	if(argc < 3)
-	{
-	    std::cout << "Usage :\nobjectCalibration_Bonnie [calibration_file_name] [tool_name]" << std::endl;
-	    return 0;
-	}
-	const string calibration_file_name_tmp = argv[1];
-	const string calibration_file_name = "../../00-force_sensor_calibration/calibration_files/" + calibration_file_name_tmp + ".xml";
-	const string tool_name = argv[2];
+	// if(argc < 3)
+	// {
+	//     std::cout << "Usage :\nobjectCalibration_Bonnie [calibration_file_name] [tool_name]" << std::endl;
+	//     return 0;
+	// }
+	// const string calibration_file_name_tmp = argv[1];
+	// const string calibration_file_name = "../../00-force_sensor_calibration/calibration_files/" + calibration_file_name_tmp + ".xml";
+	// const string tool_name = argv[2];
 
 	if(flag_simulation)
 	{
@@ -103,7 +103,7 @@ int main(int argc, char** argv)
 	auto robot = new Sai2Model::Sai2Model(robot_file, false);
 	robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
 	VectorXd initial_q_desired = robot->_q;
-	initial_q_desired << 90, 30, 90, -90, -30, 90, 0;
+	initial_q_desired << 0, 30, 90, -90, -30, 90, 0;
 	initial_q_desired = M_PI/180.0 * initial_q_desired;
 	robot->updateModel();
 
@@ -244,16 +244,20 @@ int main(int argc, char** argv)
 				cout << "move to point " << measurement_number+1 << endl;
 
 				measurement_number++;
-				joint_task->_desired_position.tail(3) += last_joint_positions_increment[measurement_number]; 
-				measurement_counter = measurement_total_length;
-				mean_force.setZero();
-				mean_moment.setZero();
+				if(measurement_number < n_measure_points)
+				{
+					joint_task->_desired_position.tail(3) += last_joint_positions_increment[measurement_number]; 
+					measurement_counter = measurement_total_length;
+					mean_force.setZero();
+					mean_moment.setZero();
+				}
+				else
+				{
+					cout << "bias calibration finished" << endl;
+					runloop = false;
+				}
 			}
-			if(measurement_number == n_measure_points)
-			{
-				cout << "bias calibration finished" << endl;
-				runloop = false;
-			}
+
 		}
 
 		controller_counter++;
@@ -270,7 +274,7 @@ int main(int argc, char** argv)
 
 	estimated_com = A.colPivHouseholderQr().solve(b);
 
-	writeCalibrationXml(calibration_file_name, tool_name, estimated_com, estimated_mass);
+	// writeCalibrationXml(calibration_file_name, tool_name, estimated_com, estimated_mass);
 
 	cout << endl;
 	cout << "estimated mass : " << estimated_mass << endl;
@@ -287,29 +291,29 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-void writeCalibrationXml(const string file_name, const string tool_name, const Vector3d object_com, const double object_mass)
-{
-	cout << "write tool properties to file " << file_name << endl;
+// void writeCalibrationXml(const string file_name, const string tool_name, const Vector3d object_com, const double object_mass)
+// {
+// 	cout << "write tool properties to file " << file_name << endl;
 
-	ofstream file;
-	file.open(file_name);
+// 	ofstream file;
+// 	file.open(file_name);
 
-	if(file.is_open())
-	{
-		file << "<?xml version=\"1.0\" ?>\n\n";
-		file << "<tool name=\"" << tool_name << "\">\n";
-		file << "\t<inertial>\n";
-		file << "\t\t<origin xyz=\"" << object_com.transpose() << "\"/>\n";
-		file << "\t\t<mass value=\"" << object_mass << "\"/>\n";
-		file << "\t</inertial>\n";
-		file << "</tool>" << endl;
-		file.close();
-	}
-	else
-	{
-		cout << "could not create xml file" << endl;
-	}
-}
+// 	if(file.is_open())
+// 	{
+// 		file << "<?xml version=\"1.0\" ?>\n\n";
+// 		file << "<tool name=\"" << tool_name << "\">\n";
+// 		file << "\t<inertial>\n";
+// 		file << "\t\t<origin xyz=\"" << object_com.transpose() << "\"/>\n";
+// 		file << "\t\t<mass value=\"" << object_mass << "\"/>\n";
+// 		file << "\t</inertial>\n";
+// 		file << "</tool>" << endl;
+// 		file.close();
+// 	}
+// 	else
+// 	{
+// 		cout << "could not create xml file" << endl;
+// 	}
+// }
 
 VectorXd readBiasXML(const string path_to_bias_file)
 {

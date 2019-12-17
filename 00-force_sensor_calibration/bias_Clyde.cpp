@@ -39,6 +39,8 @@ string MASSMATRIX_KEY;
 string CORIOLIS_KEY;
 string ROBOT_GRAVITY_KEY;
 
+const string ALLGERO_PALM_ORIENTATION_KEY = "sai2::allegroHand::controller::palm_orientation";
+
 void writeXml(const string file_name, const VectorXd sensor_bias);
 
 unsigned long long controller_counter = 0;
@@ -109,6 +111,21 @@ int main() {
 	joint_task->_ki = 300.0;
 	joint_task->_kp = 400.0;
 	joint_task->_kv = 25.0;
+
+	// hand palm orientation
+	Matrix3d R_ee_palm = Matrix3d::Identity();
+	Matrix3d R_world_ee = Matrix3d::Identity();
+	Matrix3d R_world_palm = Matrix3d::Identity();
+	R_ee_palm << 0, 0, 1,
+				0, -1, 0,
+				1, 0, 0;
+
+	if(!flag_simulation)
+	{
+		robot->rotation(R_world_ee, "link7");
+		R_world_palm = R_world_ee * R_ee_palm;
+		redis_client.setEigenMatrixJSON(ALLGERO_PALM_ORIENTATION_KEY, R_world_palm);
+	}
 
 	// prepare successive positions
 	vector<VectorXd> q_desired;
@@ -183,6 +200,14 @@ int main() {
 		}
 		joint_task->updateTaskModel(N_prec);
 
+		if(!flag_simulation)
+		{
+			// palm orientation
+			robot->rotation(R_world_ee, "link7");
+			R_world_palm = R_world_ee * R_ee_palm;
+			redis_client.setEigenMatrixJSON(ALLGERO_PALM_ORIENTATION_KEY, R_world_palm);
+		}
+
 		// compute torques
 		joint_task->computeTorques(joint_task_torques);
 
@@ -208,14 +233,18 @@ int main() {
 				current_force_measurement.setZero();
 
 				measurement_number++;
-				joint_task->_desired_position = q_desired[measurement_number];
-				measurement_counter = measurement_total_length;
+				if(measurement_number < 6)
+				{
+					joint_task->_desired_position = q_desired[measurement_number];
+					measurement_counter = measurement_total_length;
+				}
+				else
+				{
+					cout << "bias calibration finished" << endl;
+					runloop = false;
+				}
 			}
-			if(measurement_number > 5)
-			{
-				cout << "bias calibration finished" << endl;
-				runloop = false;
-			}
+
 		}
 
 		controller_counter++;
@@ -223,8 +252,8 @@ int main() {
 	}
 
 	bias_force = bias_force/6.0;
-	writeXml(bias_file_name, bias_force);
 	cout << "force bias :\n" << bias_force.transpose() << endl << endl;
+	writeXml(bias_file_name, bias_force);
 
 	command_torques.setZero();
 	redis_client.setEigenMatrixJSON(JOINT_TORQUES_COMMANDED_KEY, command_torques);

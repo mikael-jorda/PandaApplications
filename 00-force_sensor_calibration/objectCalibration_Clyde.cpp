@@ -40,8 +40,10 @@ string MASSMATRIX_KEY;
 string CORIOLIS_KEY;
 string ROBOT_GRAVITY_KEY;
 
+const string ALLGERO_PALM_ORIENTATION_KEY = "sai2::allegroHand::controller::palm_orientation";
+
 VectorXd readBiasXML(const string path_to_bias_file);
-void writeCalibrationXml(const string file_name, const string tool_name, const Vector3d object_com, const double object_mass);
+// void writeCalibrationXml(const string file_name, const string tool_name, const Vector3d object_com, const double object_mass);
 
 unsigned long long controller_counter = 0;
 
@@ -53,14 +55,14 @@ const bool inertia_regularization = true;
 int main(int argc, char** argv) 
 {
 
-	if(argc < 3)
-	{
-	    std::cout << "Usage :\nobjectCalibration_Clyde [calibration_file_name] [tool_name]" << std::endl;
-	    return 0;
-	}
-	const string calibration_file_name_tmp = argv[1];
-	const string calibration_file_name = "../../00-force_sensor_calibration/calibration_files/" + calibration_file_name_tmp + ".xml";
-	const string tool_name = argv[2];
+	// if(argc < 3)
+	// {
+	//     std::cout << "Usage :\nobjectCalibration_Clyde [calibration_file_name] [tool_name]" << std::endl;
+	//     return 0;
+	// }
+	// const string calibration_file_name_tmp = argv[1];
+	// const string calibration_file_name = "../../00-force_sensor_calibration/calibration_files/" + calibration_file_name_tmp + ".xml";
+	// const string tool_name = argv[2];
 
 	if(flag_simulation)
 	{
@@ -81,7 +83,8 @@ int main(int argc, char** argv)
 		CORIOLIS_KEY = "sai2::FrankaPanda::Clyde::sensors::model::coriolis";
 		ROBOT_GRAVITY_KEY = "sai2::FrankaPanda::Clyde::sensors::model::robot_gravity";		
 
-		FORCE_SENSED_KEY = "sai2::optoforceSensor::6Dsensor::force";
+		// FORCE_SENSED_KEY = "sai2::optoforceSensor::6Dsensor::force";
+		FORCE_SENSED_KEY = "sai2::ATIGamma_Sensor::Clyde::force_torque";
 	}
 
 	// start redis client
@@ -122,6 +125,21 @@ int main(int argc, char** argv)
 	joint_task->_ki = 300.0;
 	joint_task->_kp = 400.0;
 	joint_task->_kv = 25.0;
+
+	// hand palm orientation
+	Matrix3d R_ee_palm = Matrix3d::Identity();
+	Matrix3d R_world_ee = Matrix3d::Identity();
+	Matrix3d R_world_palm = Matrix3d::Identity();
+	R_ee_palm << 0, 0, 1,
+				0, -1, 0,
+				1, 0, 0;
+
+	if(!flag_simulation)
+	{
+		robot->rotation(R_world_ee, "link7");
+		R_world_palm = R_world_ee * R_ee_palm;
+		redis_client.setEigenMatrixJSON(ALLGERO_PALM_ORIENTATION_KEY, R_world_palm);
+	}
 
 	// prepare successive positions
 	VectorXd q_desired = initial_q_desired;
@@ -206,6 +224,14 @@ int main(int argc, char** argv)
 		}
 		joint_task->updateTaskModel(N_prec);
 
+		if(!flag_simulation)
+		{
+			// palm orientation
+			robot->rotation(R_world_ee, "link7");
+			R_world_palm = R_world_ee * R_ee_palm;
+			redis_client.setEigenMatrixJSON(ALLGERO_PALM_ORIENTATION_KEY, R_world_palm);
+		}
+
 		// compute torques
 		joint_task->computeTorques(joint_task_torques);
 
@@ -243,15 +269,19 @@ int main(int argc, char** argv)
 				cout << "move to point " << measurement_number+1 << endl;
 
 				measurement_number++;
-				joint_task->_desired_position.tail(3) += last_joint_positions_increment[measurement_number]; 
-				measurement_counter = measurement_total_length;
-				mean_force.setZero();
-				mean_moment.setZero();
-			}
-			if(measurement_number == n_measure_points)
-			{
-				cout << "bias calibration finished" << endl;
-				runloop = false;
+
+				if(measurement_number < n_measure_points)
+				{
+					joint_task->_desired_position.tail(3) += last_joint_positions_increment[measurement_number]; 
+					measurement_counter = measurement_total_length;
+					mean_force.setZero();
+					mean_moment.setZero();
+				}
+				else
+				{
+					cout << "bias calibration finished" << endl;
+					runloop = false;
+				}
 			}
 		}
 
@@ -269,7 +299,7 @@ int main(int argc, char** argv)
 
 	estimated_com = A.colPivHouseholderQr().solve(b);
 
-	writeCalibrationXml(calibration_file_name, tool_name, estimated_com, estimated_mass);
+	// writeCalibrationXml(calibration_file_name, tool_name, estimated_com, estimated_mass);
 
 	cout << endl;
 	cout << "estimated mass : " << estimated_mass << endl;
@@ -286,29 +316,29 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-void writeCalibrationXml(const string file_name, const string tool_name, const Vector3d object_com, const double object_mass)
-{
-	cout << "write tool properties to file " << file_name << endl;
+// void writeCalibrationXml(const string file_name, const string tool_name, const Vector3d object_com, const double object_mass)
+// {
+// 	cout << "write tool properties to file " << file_name << endl;
 
-	ofstream file;
-	file.open(file_name);
+// 	ofstream file;
+// 	file.open(file_name);
 
-	if(file.is_open())
-	{
-		file << "<?xml version=\"1.0\" ?>\n\n";
-		file << "<tool name=\"" << tool_name << "\">\n";
-		file << "\t<inertial>\n";
-		file << "\t\t<origin xyz=\"" << object_com.transpose() << "\"/>\n";
-		file << "\t\t<mass value=\"" << object_mass << "\"/>\n";
-		file << "\t</inertial>\n";
-		file << "</tool>" << endl;
-		file.close();
-	}
-	else
-	{
-		cout << "could not create xml file" << endl;
-	}
-}
+// 	if(file.is_open())
+// 	{
+// 		file << "<?xml version=\"1.0\" ?>\n\n";
+// 		file << "<tool name=\"" << tool_name << "\">\n";
+// 		file << "\t<inertial>\n";
+// 		file << "\t\t<origin xyz=\"" << object_com.transpose() << "\"/>\n";
+// 		file << "\t\t<mass value=\"" << object_mass << "\"/>\n";
+// 		file << "\t</inertial>\n";
+// 		file << "</tool>" << endl;
+// 		file.close();
+// 	}
+// 	else
+// 	{
+// 		cout << "could not create xml file" << endl;
+// 	}
+// }
 
 VectorXd readBiasXML(const string path_to_bias_file)
 {
