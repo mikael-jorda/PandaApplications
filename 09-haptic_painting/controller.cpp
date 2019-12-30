@@ -156,7 +156,6 @@ RedisClient redis_client;
 
 int main() {
 
-
 	if(!flag_simulation)
 	{
 		JOINT_TORQUES_COMMANDED_KEYS[0] = "sai2::FrankaPanda::Clyde::actuators::fgc";
@@ -175,7 +174,6 @@ int main() {
 		ROBOT_GRAVITY_KEYS[1] = "sai2::FrankaPanda::Bonnie::sensors::model::robot_gravity";	
 		FORCE_SENSED_KEYS[1] = "sai2::ATIGamma_Sensor::Bonnie::force_torque";
 	}
-
 
 	// position of robots in world
 	vector<Affine3d> robot_pose_in_world;
@@ -798,8 +796,6 @@ int main() {
 		prev_time = current_time;
 		controller_counter++;
 	}
-
-
 
 	for(int i=0 ; i<n_robots ; i++)
 	{

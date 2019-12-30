@@ -1,0 +1,60 @@
+<?xml version="1.0" ?>
+
+<world name="demo_world" gravity="0.0 0.0 -1.0">
+<!-- <world name="demo_world" gravity="0.0 0.0 -9.81"> -->
+
+<!-- 	<robot name="TWO_ARM_PANDA">
+		<model dir="./resources" path="two_arm_panda_tool.urdf" name="two_arm_panda_tool" />
+		<origin xyz="0 0 0" rpy="0 0 3.1415" />
+	</robot> -->
+
+	<static_object name="cylinder">
+		<origin xyz="-1.5 0 0" rpy="0 1.57079632679 0" />
+		<visual>
+			<geometry>
+				<cylinder radius="0.01" length="3" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<cylinder radius="0.01" length="3" />
+			</geometry>
+		</collision>
+	</static_object>
+
+	<dynamic_object name="cane">
+		<origin xyz="0 0.025 0" rpy="0 0 1.57079632679" />
+		<inertial>
+			<origin xyz="0 0 0" rpy="0 0 0" />
+			<mass value="4" />
+			<inertia ixx="0.4" iyy="0.4" izz="0.4" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+			<geometry>
+				<mesh filename="../../Model/objects/tool_mesh.obj" />
+			</geometry>
+		</visual>
+		<collision>
+			<geometry>
+				<mesh filename="../../Model/objects/tool_mesh.obj" />
+			</geometry>
+		</collision>
+	</dynamic_object>
+
+	<light name="light1" type="directional">
+		<position xyz="2.0 -2.0 4.0" />
+		<lookat xyz="0.0 0.0 0.0" />
+	</light>
+
+	<light name="light2" type="directional">
+		<position xyz="2.0 2.0 4.0" />
+		<lookat xyz="0.0 0.0 0.0" />
+	</light>
+
+	<camera name="camera_fixed">
+		<position xyz="1 -0.2 1" />
+		<vertical xyz="0.0 0.0 1.0" />
+		<lookat xyz="0 0 0" />
+	</camera>
+
+</world>
