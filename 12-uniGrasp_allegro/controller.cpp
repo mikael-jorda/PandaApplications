@@ -8,6 +8,8 @@
 #include <iostream>
 #include <string>
 
+#include "safe_ptr.h"
+
 #include <signal.h>
 bool runloop = true;
 void sighandler(int sig)
@@ -93,9 +95,9 @@ const string ALLEGRO_CONTROL_MODE = "sai2::allegroHand::controller::control_mode
 
 
 // function to update model at a slower rate
-void updateModelThread(vector<shared_ptr<Sai2Model::Sai2Model>> robots, 
-		vector<shared_ptr<Sai2Primitives::JointTask>> joint_tasks, 
-		vector<shared_ptr<Sai2Primitives::PosOriTask>> posori_tasks);
+void updateModelThread(vector<sf::safe_ptr<Sai2Model::Sai2Model>> robots, 
+		vector<sf::safe_ptr<Sai2Primitives::JointTask>> joint_tasks, 
+		vector<sf::safe_ptr<Sai2Primitives::PosOriTask>> posori_tasks);
 
 unsigned long long controller_counter = 0;
 
@@ -155,10 +157,10 @@ int main() {
 	signal(SIGINT, &sighandler);
 
 	// load robots
-	vector<shared_ptr<Sai2Model::Sai2Model>> robots;
+	vector<sf::safe_ptr<Sai2Model::Sai2Model>> robots;
 	for(int i=0 ; i<n_robots ; i++)
 	{
-		robots.push_back(make_shared<Sai2Model::Sai2Model>(robot_files[i], false));
+		robots.push_back(sf::safe_ptr<Sai2Model::Sai2Model>(robot_files[i], false));
 		robots[i]->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEYS[i]);
 		robots[i]->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEYS[i]);
 		robots[i]->updateModel();
@@ -170,9 +172,9 @@ int main() {
 	vector<VectorXd> coriolis;
 	vector<MatrixXd> N_prec;
 
-	vector<shared_ptr<Sai2Primitives::JointTask>> joint_tasks;
+	vector<sf::safe_ptr<Sai2Primitives::JointTask>> joint_tasks;
 	vector<VectorXd> joint_task_torques;
-	vector<shared_ptr<Sai2Primitives::PosOriTask>> posori_tasks;
+	vector<sf::safe_ptr<Sai2Primitives::PosOriTask>> posori_tasks;
 	vector<VectorXd> posori_task_torques;
 
 	const vector<string> link_names =
@@ -221,7 +223,7 @@ int main() {
 		N_prec.push_back(MatrixXd::Identity(dof[i],dof[i]));
 
 		// joint tasks
-		joint_tasks.push_back(make_shared<Sai2Primitives::JointTask>(robots[i].get()));
+		joint_tasks.push_back(sf::safe_ptr<Sai2Primitives::JointTask>(robots[i].get_obj_ptr()));
 		joint_task_torques.push_back(VectorXd::Zero(dof[i]));
 
 		joint_tasks[i]->_kp = 200.0;
@@ -232,7 +234,7 @@ int main() {
 		joint_tasks[i]->_otg->setMaxJerk(3*M_PI);
 
 		// end effector tasks
-		posori_tasks.push_back(make_shared<Sai2Primitives::PosOriTask>(robots[i].get(), link_names[i], pos_in_link[i]));
+		posori_tasks.push_back(sf::safe_ptr<Sai2Primitives::PosOriTask>(robots[i].get_obj_ptr(), link_names[i], pos_in_link[i]));
 		posori_task_torques.push_back(VectorXd::Zero(dof[i]));
 
 		posori_tasks[i]->_kp_pos = 500.0;
@@ -787,9 +789,9 @@ int main() {
 	return 0;
 }
 
-void updateModelThread(vector<shared_ptr<Sai2Model::Sai2Model>> robots, 
-		vector<shared_ptr<Sai2Primitives::JointTask>> joint_tasks, 
-		vector<shared_ptr<Sai2Primitives::PosOriTask>> posori_tasks)
+void updateModelThread(vector<sf::safe_ptr<Sai2Model::Sai2Model>> robots, 
+		vector<sf::safe_ptr<Sai2Primitives::JointTask>> joint_tasks, 
+		vector<sf::safe_ptr<Sai2Primitives::PosOriTask>> posori_tasks)
 {
 
 	// prepare task controllers

@@ -7,7 +7,8 @@ SET(CMAKE_BUILD_TYPE "Debug")
 # set common source
 set (PANDA_APPLICATIONS_COMMON_SOURCE
 	)
-include_directories(${PROJECT_SOURCE_DIR}/src)
+# include_directories(${PROJECT_SOURCE_DIR}/src)
+include_directories(${PROJECT_SOURCE_DIR}/utils)
 
 # set common dependencies
 # - eigen3

@@ -10,6 +10,8 @@
 #include <iostream>
 #include <string>
 
+#include "safe_ptr.h"
+
 #include <signal.h>
 bool runloop = true;
 void sighandler(int sig)
@@ -53,10 +55,10 @@ const string FIX_OBJECT_KEY = "sai2::PandaApplication::fix_object";
 unsigned long long controller_counter = 0;
 
 // function to update model at a slower rate
-void updateModelThreadRun(shared_ptr<Sai2Model::Sai2Model> robot, 
-		shared_ptr<Sai2Primitives::JointTask> joint_task, 
-		shared_ptr<Sai2Primitives::PosOriTask> left_hand_posori_task,
-		shared_ptr<Sai2Primitives::PosOriTask> right_hand_posori_task);
+void updateModelThreadRun(sf::safe_ptr<Sai2Model::Sai2Model> robot, 
+		sf::safe_ptr<Sai2Primitives::JointTask> joint_task, 
+		sf::safe_ptr<Sai2Primitives::PosOriTask> left_hand_posori_task,
+		sf::safe_ptr<Sai2Primitives::PosOriTask> right_hand_posori_task);
 
 int main() {
 
@@ -73,7 +75,7 @@ int main() {
 	Affine3d T_world_robot = Affine3d::Identity();
 	T_world_robot.translation() << 1.3, -0.3, 7;
 	T_world_robot.linear() = AngleAxisd(M_PI, Vector3d::UnitZ()).toRotationMatrix();
-	auto robot = make_shared<Sai2Model::Sai2Model>(robot_file, false, T_world_robot);
+	auto robot = sf::safe_ptr<Sai2Model::Sai2Model>(robot_file, false, T_world_robot);
 	robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
 	VectorXd initial_q = robot->_q;
 	robot->updateModel();
@@ -86,7 +88,7 @@ int main() {
 	VectorXd coriolis = VectorXd::Zero(dof);
 
 	// joint task
-	auto joint_task = make_shared<Sai2Primitives::JointTask>(robot.get());
+	auto joint_task = sf::safe_ptr<Sai2Primitives::JointTask>(robot.get_obj_ptr());
 	VectorXd joint_task_torques = VectorXd::Zero(dof);
 
 	joint_task->_use_interpolation_flag = false;
@@ -99,9 +101,9 @@ int main() {
 	const string right_hand_link_name = "right_arm_link7";
 	const Eigen::Vector3d right_hand_pos_in_link = Vector3d(0,0,0.2);
 
-	auto left_hand_posori_task = make_shared<Sai2Primitives::PosOriTask>(robot.get(), left_hand_link_name, left_hand_pos_in_link);
+	auto left_hand_posori_task = sf::safe_ptr<Sai2Primitives::PosOriTask>(robot.get_obj_ptr(), left_hand_link_name, left_hand_pos_in_link);
 	VectorXd left_hand_posori_task_torques = VectorXd::Zero(dof);
-	auto right_hand_posori_task = make_shared<Sai2Primitives::PosOriTask>(robot.get(), right_hand_link_name, right_hand_pos_in_link);
+	auto right_hand_posori_task = sf::safe_ptr<Sai2Primitives::PosOriTask>(robot.get_obj_ptr(), right_hand_link_name, right_hand_pos_in_link);
 	VectorXd right_hand_posori_task_torques = VectorXd::Zero(dof);
 	right_hand_posori_task->_kp_pos = 200.0;
 	right_hand_posori_task->_kv_pos = 30.0;
@@ -353,6 +355,11 @@ int main() {
 		
 
 		// send to redis
+		// if(isnan(command_torques(0)))
+		// {
+		// 	cout << "nan" << endl;
+		// }
+
 		redis_client.setEigenMatrixJSON(TORQUES_COMMANDED_KEY, command_torques);
 
 		controller_counter++;
@@ -371,10 +378,10 @@ int main() {
 	return 0;
 }
 
-void updateModelThreadRun(shared_ptr<Sai2Model::Sai2Model> robot, 
-		shared_ptr<Sai2Primitives::JointTask> joint_task, 
-		shared_ptr<Sai2Primitives::PosOriTask> left_hand_posori_task,
-		shared_ptr<Sai2Primitives::PosOriTask> right_hand_posori_task)
+void updateModelThreadRun(sf::safe_ptr<Sai2Model::Sai2Model> robot, 
+		sf::safe_ptr<Sai2Primitives::JointTask> joint_task, 
+		sf::safe_ptr<Sai2Primitives::PosOriTask> left_hand_posori_task,
+		sf::safe_ptr<Sai2Primitives::PosOriTask> right_hand_posori_task)
 {
 
 	int dof = robot->dof();
@@ -383,7 +390,7 @@ void updateModelThreadRun(shared_ptr<Sai2Model::Sai2Model> robot,
 	// create a timer
 	LoopTimer timer;
 	timer.initializeTimer();
-	timer.setLoopFrequency(200); 
+	timer.setLoopFrequency(1000); 
 	double start_time = timer.elapsedTime(); //secs
 	bool fTimerDidSleep = true;	
 
