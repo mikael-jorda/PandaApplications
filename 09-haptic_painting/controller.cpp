@@ -133,8 +133,8 @@ vector<string> DEVICE_SENSED_TORQUE_KEYS = {
 	"sai2::ChaiHapticDevice::device1::sensors::sensed_torque",
 };
 
-const bool flag_simulation = false;
-// const bool flag_simulation = true;
+// const bool flag_simulation = false;
+const bool flag_simulation = true;
 
 const bool inertia_regularization = true;
 
@@ -402,51 +402,54 @@ int main() {
 	coriolis_from_robots.push_back(VectorXd::Zero(7));
 	coriolis_from_robots.push_back(VectorXd::Zero(7));
 
-	redis_client.addEigenToRead(JOINT_ANGLES_KEYS[0], robots[0]->_q);
-	redis_client.addEigenToRead(JOINT_VELOCITIES_KEYS[0], robots[0]->_dq);
-	redis_client.addEigenToRead(JOINT_ANGLES_KEYS[1], robots[1]->_q);
-	redis_client.addEigenToRead(JOINT_VELOCITIES_KEYS[1], robots[1]->_dq);
+	redis_client.createReadCallback(0);
+	redis_client.createWriteCallback(0);
 
-	// redis_client.addEigenToRead(FORCE_SENSED_KEYS[0], f_sensed_palette);
-	redis_client.addEigenToRead(FORCE_SENSED_KEYS[1], f_sensed_brush);
+	redis_client.addEigenToReadCallback(0, JOINT_ANGLES_KEYS[0], robots[0]->_q);
+	redis_client.addEigenToReadCallback(0, JOINT_VELOCITIES_KEYS[0], robots[0]->_dq);
+	redis_client.addEigenToReadCallback(0, JOINT_ANGLES_KEYS[1], robots[1]->_q);
+	redis_client.addEigenToReadCallback(0, JOINT_VELOCITIES_KEYS[1], robots[1]->_dq);
 
-	redis_client.addEigenToRead(DEVICE_POSITION_KEYS[0], palette_teleop_task->_current_position_device);
-	redis_client.addEigenToRead(DEVICE_ROTATION_KEYS[0], palette_teleop_task->_current_rotation_device);
-	redis_client.addEigenToRead(DEVICE_TRANS_VELOCITY_KEYS[0], palette_teleop_task->_current_trans_velocity_device);
-	redis_client.addEigenToRead(DEVICE_ROT_VELOCITY_KEYS[0], palette_teleop_task->_current_rot_velocity_device);
-	redis_client.addEigenToRead(DEVICE_SENSED_FORCE_KEYS[0], palette_teleop_task->_sensed_force_device);
-	redis_client.addEigenToRead(DEVICE_SENSED_TORQUE_KEYS[0], palette_teleop_task->_sensed_torque_device);
-	redis_client.addDoubleToRead(DEVICE_GRIPPER_POSITION_KEYS[0], palette_teleop_task->_current_position_gripper_device);
-	redis_client.addDoubleToRead(DEVICE_GRIPPER_VELOCITY_KEYS[0], palette_teleop_task->_current_gripper_velocity_device);
+	// redis_client.addEigenToReadCallback(0, FORCE_SENSED_KEYS[0], f_sensed_palette);
+	redis_client.addEigenToReadCallback(0, FORCE_SENSED_KEYS[1], f_sensed_brush);
 
-	redis_client.addEigenToRead(DEVICE_POSITION_KEYS[1], brush_teleop_task->_current_position_device);
-	redis_client.addEigenToRead(DEVICE_ROTATION_KEYS[1], brush_teleop_task->_current_rotation_device);
-	redis_client.addEigenToRead(DEVICE_TRANS_VELOCITY_KEYS[1], brush_teleop_task->_current_trans_velocity_device);
-	redis_client.addEigenToRead(DEVICE_ROT_VELOCITY_KEYS[1], brush_teleop_task->_current_rot_velocity_device);
-	redis_client.addEigenToRead(DEVICE_SENSED_FORCE_KEYS[1], brush_teleop_task->_sensed_force_device);
-	redis_client.addEigenToRead(DEVICE_SENSED_TORQUE_KEYS[1], brush_teleop_task->_sensed_torque_device);
-	redis_client.addDoubleToRead(DEVICE_GRIPPER_POSITION_KEYS[1], brush_teleop_task->_current_position_gripper_device);
-	redis_client.addDoubleToRead(DEVICE_GRIPPER_VELOCITY_KEYS[1], brush_teleop_task->_current_gripper_velocity_device);
+	redis_client.addEigenToReadCallback(0, DEVICE_POSITION_KEYS[0], palette_teleop_task->_current_position_device);
+	redis_client.addEigenToReadCallback(0, DEVICE_ROTATION_KEYS[0], palette_teleop_task->_current_rotation_device);
+	redis_client.addEigenToReadCallback(0, DEVICE_TRANS_VELOCITY_KEYS[0], palette_teleop_task->_current_trans_velocity_device);
+	redis_client.addEigenToReadCallback(0, DEVICE_ROT_VELOCITY_KEYS[0], palette_teleop_task->_current_rot_velocity_device);
+	redis_client.addEigenToReadCallback(0, DEVICE_SENSED_FORCE_KEYS[0], palette_teleop_task->_sensed_force_device);
+	redis_client.addEigenToReadCallback(0, DEVICE_SENSED_TORQUE_KEYS[0], palette_teleop_task->_sensed_torque_device);
+	redis_client.addDoubleToReadCallback(0, DEVICE_GRIPPER_POSITION_KEYS[0], palette_teleop_task->_current_position_gripper_device);
+	redis_client.addDoubleToReadCallback(0, DEVICE_GRIPPER_VELOCITY_KEYS[0], palette_teleop_task->_current_gripper_velocity_device);
 
-	redis_client.addIntToRead(REMOTE_ENABLED_KEY, remote_enabled);
-	redis_client.addIntToRead(RESTART_CYCLE_KEY, restart_cycle);
+	redis_client.addEigenToReadCallback(0, DEVICE_POSITION_KEYS[1], brush_teleop_task->_current_position_device);
+	redis_client.addEigenToReadCallback(0, DEVICE_ROTATION_KEYS[1], brush_teleop_task->_current_rotation_device);
+	redis_client.addEigenToReadCallback(0, DEVICE_TRANS_VELOCITY_KEYS[1], brush_teleop_task->_current_trans_velocity_device);
+	redis_client.addEigenToReadCallback(0, DEVICE_ROT_VELOCITY_KEYS[1], brush_teleop_task->_current_rot_velocity_device);
+	redis_client.addEigenToReadCallback(0, DEVICE_SENSED_FORCE_KEYS[1], brush_teleop_task->_sensed_force_device);
+	redis_client.addEigenToReadCallback(0, DEVICE_SENSED_TORQUE_KEYS[1], brush_teleop_task->_sensed_torque_device);
+	redis_client.addDoubleToReadCallback(0, DEVICE_GRIPPER_POSITION_KEYS[1], brush_teleop_task->_current_position_gripper_device);
+	redis_client.addDoubleToReadCallback(0, DEVICE_GRIPPER_VELOCITY_KEYS[1], brush_teleop_task->_current_gripper_velocity_device);
+
+	redis_client.addIntToReadCallback(0, REMOTE_ENABLED_KEY, remote_enabled);
+	redis_client.addIntToReadCallback(0, RESTART_CYCLE_KEY, restart_cycle);
 
 	if(!flag_simulation)
 	{
-		redis_client.addEigenToRead(MASSMATRIX_KEYS[0], mass_from_robots[0]);
-		redis_client.addEigenToRead(MASSMATRIX_KEYS[1], mass_from_robots[1]);
-		redis_client.addEigenToRead(CORIOLIS_KEYS[0], coriolis_from_robots[0]);
-		redis_client.addEigenToRead(CORIOLIS_KEYS[1], coriolis_from_robots[1]);
+		redis_client.addEigenToReadCallback(0, MASSMATRIX_KEYS[0], mass_from_robots[0]);
+		redis_client.addEigenToReadCallback(0, MASSMATRIX_KEYS[1], mass_from_robots[1]);
+		redis_client.addEigenToReadCallback(0, CORIOLIS_KEYS[0], coriolis_from_robots[0]);
+		redis_client.addEigenToReadCallback(0, CORIOLIS_KEYS[1], coriolis_from_robots[1]);
 	}
 
 	// objects to write to redis
-	redis_client.addEigenToWrite(JOINT_TORQUES_COMMANDED_KEYS[0], command_torques[0]);
-	redis_client.addEigenToWrite(DEVICE_COMMANDED_FORCE_KEYS[0], command_force_device_plus_damping_palette);
-	redis_client.addDoubleToWrite(DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[0], palette_teleop_task->_commanded_gripper_force_device);
+	redis_client.addEigenToWriteCallback(0, JOINT_TORQUES_COMMANDED_KEYS[0], command_torques[0]);
+	redis_client.addEigenToWriteCallback(0, DEVICE_COMMANDED_FORCE_KEYS[0], command_force_device_plus_damping_palette);
+	redis_client.addDoubleToWriteCallback(0, DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[0], palette_teleop_task->_commanded_gripper_force_device);
 
-	redis_client.addEigenToWrite(JOINT_TORQUES_COMMANDED_KEYS[1], command_torques[1]);
-	redis_client.addEigenToWrite(DEVICE_COMMANDED_FORCE_KEYS[1], command_force_device_plus_damping_brush);
-	redis_client.addDoubleToWrite(DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[1], brush_teleop_task->_commanded_gripper_force_device);
+	redis_client.addEigenToWriteCallback(0, JOINT_TORQUES_COMMANDED_KEYS[1], command_torques[1]);
+	redis_client.addEigenToWriteCallback(0, DEVICE_COMMANDED_FORCE_KEYS[1], command_force_device_plus_damping_brush);
+	redis_client.addDoubleToWriteCallback(0, DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[1], brush_teleop_task->_commanded_gripper_force_device);
 
 	// create a timer
 	LoopTimer timer;
@@ -464,7 +467,7 @@ int main() {
 		current_time = timer.elapsedTime() - start_time;
 		dt = current_time - prev_time;
 
-		redis_client.readAllSetupValues();
+		redis_client.executeReadCallback(0);
 
 		// read robot state from redis and update robot model
 		for(int i=0 ; i<n_robots ; i++)
@@ -791,7 +794,7 @@ int main() {
 		// 
 		// command_force_device_plus_damping_brush.setZero();
 		// command_force_device_plus_damping_palette.setZero();
-		redis_client.writeAllSetupValues();
+		redis_client.executeWriteCallback(0);
 
 		prev_time = current_time;
 		controller_counter++;

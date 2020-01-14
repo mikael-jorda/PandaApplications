@@ -79,8 +79,8 @@ const string bias_file = "../../00-force_sensor_calibration/calibration_files/Cl
 const string object_mas_cm_file = "../../00-force_sensor_calibration/calibration_files/friday0510.xml";
 const string object_name = "right_hand_fist_pos";
 
-const bool flag_simulation = false;
-// const bool flag_simulation = true;
+// const bool flag_simulation = false;
+const bool flag_simulation = true;
 
 const bool inertia_regularization = true;
 

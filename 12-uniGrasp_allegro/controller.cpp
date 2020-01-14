@@ -113,8 +113,8 @@ int state = GO_TO_INIT_CONFIG;
 
 bool flagcout = true;
 
-const bool flag_simulation = false;
-// const bool flag_simulation = true;
+// const bool flag_simulation = false;
+const bool flag_simulation = true;
 
 int main() {
 
@@ -293,6 +293,7 @@ int main() {
 
 	allegro_commanded_positons = allegro_init_config;
 	redis_client.setEigenMatrixJSON(ALLEGRO_COMMANDED_JOINT_POSITIONS, allegro_commanded_positons);
+	redis_client.setEigenMatrixJSON(ALLEGRO_DESIRED_JOINT_POSITIONS_FROM_IK, allegro_grasp_config);
 
 	Matrix3d R_palm = Matrix3d::Identity();
 	robots[0]->rotation(R_palm, link_names[0]);
@@ -302,17 +303,6 @@ int main() {
 
 	VectorXd allegro_grasp_position_offset = VectorXd::Zero(16);
 	allegro_grasp_position_offset << 0, 0.35, 0.15, 0, 0, 0.35, 0.15, 0, 0, 0, 0, 0, 0, 0, 0.35, 0.05;
-
-
-
-	// VectorXd svh_init_config = VectorXd::Zero(9);
-	// VectorXd svh_pre_grasp_config = VectorXd::Zero(9);
-	// svh_init_config << 0, 0, 0, 0, 0, 0, 0, 0, 10;
-	// svh_pre_grasp_config << 0, 55, 5, 5, 5, 5, 5, 5, 10;
-	// redis_client.setEigenMatrixJSON(SVH_HAND_COMMAND_POSITIONS_KEY, svh_init_config);
-
-	// VectorXd hand_position_offset = VectorXd::Zero(9);
-	// hand_position_offset << 0, 0, 0, 50, 0, 15, 10, 10, 0;
 
 	int grasp_wait_counter = 0;
 
@@ -344,44 +334,50 @@ int main() {
 	Vector3d desired_palm_position_from_ik = Vector3d::Zero();
 	Matrix3d desired_palm_orientation_from_ik = Matrix3d::Identity();
 
+	redis_client.setEigenMatrixJSON(DESIRED_PALM_POSITION_FROM_IK_KEY, desired_palm_position_from_ik);
+	redis_client.setEigenMatrixJSON(DESIRED_PALM_ORIENTATION_FROM_IK_KEY, desired_palm_orientation_from_ik);
+
 	Matrix3d R_world_camera = Matrix3d::Identity();
 	Vector3d p_world_camera = Vector3d::Zero();
 	// prepare redis things to read and write
+	redis_client.createReadCallback(0);
+	redis_client.createWriteCallback(0);
+
 	for(int i=0 ; i<n_robots ; i++)
 	{
 
-		redis_client.addEigenToRead(JOINT_ANGLES_KEYS[i], robots[i]->_q);
-		redis_client.addEigenToRead(JOINT_VELOCITIES_KEYS[i], robots[i]->_dq);
+		redis_client.addEigenToReadCallback(0, JOINT_ANGLES_KEYS[i], robots[i]->_q);
+		redis_client.addEigenToReadCallback(0, JOINT_VELOCITIES_KEYS[i], robots[i]->_dq);
 
 		if(!flag_simulation)
 		{
-			redis_client.addEigenToRead(MASSMATRIX_KEYS[i], robots[i]->_M);
-			redis_client.addEigenToRead(CORIOLIS_KEYS[i], coriolis[i]);
+			redis_client.addEigenToReadCallback(0, MASSMATRIX_KEYS[i], robots[i]->_M);
+			redis_client.addEigenToReadCallback(0, CORIOLIS_KEYS[i], coriolis[i]);
 		}
 	}
 	redis_client.set(CAMERA_FINISHED_KEY, "0");
 
-	redis_client.addIntToRead(CAMERA_FINISHED_KEY, camera_finished);
-	redis_client.addEigenToRead(DESIRED_FINGERTIP_POS_IN_CAMERA_FRAME_KEY, desired_fingertip_pos_in_camera_frame);
+	redis_client.addIntToReadCallback(0, CAMERA_FINISHED_KEY, camera_finished);
+	redis_client.addEigenToReadCallback(0, DESIRED_FINGERTIP_POS_IN_CAMERA_FRAME_KEY, desired_fingertip_pos_in_camera_frame);
 
-	redis_client.addEigenToRead(ALLEGRO_DESIRED_JOINT_POSITIONS_FROM_IK, allegro_grasp_config);
+	redis_client.addEigenToReadCallback(0, ALLEGRO_DESIRED_JOINT_POSITIONS_FROM_IK, allegro_grasp_config);
 
-	redis_client.addEigenToRead(DESIRED_PALM_POSITION_FROM_IK_KEY, desired_palm_position_from_ik);
-	redis_client.addEigenToRead(DESIRED_PALM_ORIENTATION_FROM_IK_KEY, desired_palm_orientation_from_ik);
+	redis_client.addEigenToReadCallback(0, DESIRED_PALM_POSITION_FROM_IK_KEY, desired_palm_position_from_ik);
+	redis_client.addEigenToReadCallback(0, DESIRED_PALM_ORIENTATION_FROM_IK_KEY, desired_palm_orientation_from_ik);
 	
 	// write
-	redis_client.addEigenToWrite(ALLEGRO_PALM_ORIENTATION_KEY, R_palm);
+	redis_client.addEigenToWriteCallback(0, ALLEGRO_PALM_ORIENTATION_KEY, R_palm);
 
-	redis_client.addEigenToWrite(ALLEGRO_COMMANDED_JOINT_POSITIONS, allegro_commanded_positons);
-	redis_client.addEigenToWrite(DESIRED_FINGERTIP_POS_IN_WORLD_FRAME_KEY , desired_fingertip_pos_in_world_frame);
+	redis_client.addEigenToWriteCallback(0, ALLEGRO_COMMANDED_JOINT_POSITIONS, allegro_commanded_positons);
+	redis_client.addEigenToWriteCallback(0, DESIRED_FINGERTIP_POS_IN_WORLD_FRAME_KEY , desired_fingertip_pos_in_world_frame);
 
 	for(int i=0 ; i<n_robots ; i++)
 	{
-		redis_client.addEigenToWrite(JOINT_TORQUES_COMMANDED_KEYS[i], command_torques[i]);
+		redis_client.addEigenToWriteCallback(0, JOINT_TORQUES_COMMANDED_KEYS[i], command_torques[i]);
 	}
 
-	redis_client.addEigenToWrite(CAMERA_POS_IN_WORLD_KEY, p_world_camera);
-	redis_client.addEigenToWrite(CAMERA_ROT_IN_WORLD_KEY, R_world_camera);
+	redis_client.addEigenToWriteCallback(0, CAMERA_POS_IN_WORLD_KEY, p_world_camera);
+	redis_client.addEigenToWriteCallback(0, CAMERA_ROT_IN_WORLD_KEY, R_world_camera);
 
 	// start update_model thread
 	thread model_update_thread(updateModelThread, robots, joint_tasks, posori_tasks);
@@ -404,7 +400,7 @@ int main() {
 		dt = current_time - prev_time;
 
 		// read redis
-		redis_client.readAllSetupValues();
+		redis_client.executeReadCallback(0);
 
 		// for(int i=0 ; i<n_robots ; i++)
 		// {
@@ -756,7 +752,7 @@ int main() {
 			// redis_client.setEigenMatrixJSON(JOINT_TORQUES_COMMANDED_KEYS[i], command_torques[i]);
 		}
 
-		redis_client.writeAllSetupValues();
+		redis_client.executeWriteCallback(0);
 
 		prev_time = current_time;
 		controller_counter++;

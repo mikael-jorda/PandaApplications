@@ -94,8 +94,8 @@ unsigned long long controller_counter = 0;
 
 int state = GO_TO_INIT_CONFIG;
 
-const bool flag_simulation = false;
-// const bool flag_simulation = true;
+// const bool flag_simulation = false;
+const bool flag_simulation = true;
 
 int main() {
 
@@ -585,6 +585,8 @@ int main() {
 		prev_time = current_time;
 		controller_counter++;
 	}
+
+	model_update_thread.join();
 
 	for(int i=0 ; i<n_robots ; i++)
 	{

@@ -48,8 +48,8 @@ std::string MASSMATRIX_KEY;
 std::string CORIOLIS_KEY;
 std::string ROBOT_GRAVITY_KEY;
 
-const bool flag_simulation = false;
-// const bool flag_simulation = true;
+// const bool flag_simulation = false;
+const bool flag_simulation = true;
 
 const bool inertia_regularization = false;
 
@@ -204,17 +204,20 @@ int main() {
 	int current_dry_via_point = -2;
 
 	// setup redis exchanges
-	redis_client.addEigenToRead(JOINT_ANGLES_KEY, robot->_q);
-	redis_client.addEigenToRead(JOINT_VELOCITIES_KEY, robot->_dq);
-	redis_client.addEigenToRead(FORCE_SENSED_KEY, sensed_force_moment);
+	redis_client.createReadCallback(0);
+	redis_client.createWriteCallback(0);
+
+	redis_client.addEigenToReadCallback(0, JOINT_ANGLES_KEY, robot->_q);
+	redis_client.addEigenToReadCallback(0, JOINT_VELOCITIES_KEY, robot->_dq);
+	redis_client.addEigenToReadCallback(0, FORCE_SENSED_KEY, sensed_force_moment);
 	if(!flag_simulation)
 	{
-		redis_client.addEigenToRead(MASSMATRIX_KEY, robot->_M);
-		redis_client.addEigenToRead(CORIOLIS_KEY, coriolis);
+		redis_client.addEigenToReadCallback(0, MASSMATRIX_KEY, robot->_M);
+		redis_client.addEigenToReadCallback(0, CORIOLIS_KEY, coriolis);
 
 	}
 
-	redis_client.addEigenToWrite(JOINT_TORQUES_COMMANDED_KEY, command_torques);
+	redis_client.addEigenToWriteCallback(0, JOINT_TORQUES_COMMANDED_KEY, command_torques);
 
 	// create a timer
 	LoopTimer timer;
@@ -229,7 +232,7 @@ int main() {
 		double time = timer.elapsedTime() - start_time;
 
 		// read robot state from redis
-		redis_client.readAllSetupValues();
+		redis_client.executeReadCallback(0);
 
 		// update robot model
 		if(flag_simulation)
@@ -569,7 +572,7 @@ int main() {
 		}
 
 		// send to redis
-		redis_client.writeAllSetupValues();
+		redis_client.executeWriteCallback(0);
 
 		controller_counter++;
 
