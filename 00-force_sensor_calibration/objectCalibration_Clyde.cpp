@@ -43,26 +43,27 @@ string ROBOT_GRAVITY_KEY;
 const string ALLGERO_PALM_ORIENTATION_KEY = "sai2::allegroHand::controller::palm_orientation";
 
 VectorXd readBiasXML(const string path_to_bias_file);
-// void writeCalibrationXml(const string file_name, const string tool_name, const Vector3d object_com, const double object_mass);
+void writeCalibrationXml(const string file_name, const string tool_name, const Vector3d object_com, const double object_mass);
 
 unsigned long long controller_counter = 0;
 
 const bool flag_simulation = false;
-// const bool flag_simulation = true; 
+// const bool flag_simulation = true;
 
 const bool inertia_regularization = true;
 
 int main(int argc, char** argv) 
 {
 
-	// if(argc < 3)
-	// {
-	//     std::cout << "Usage :\nobjectCalibration_Clyde [calibration_file_name] [tool_name]" << std::endl;
-	//     return 0;
-	// }
-	// const string calibration_file_name_tmp = argv[1];
-	// const string calibration_file_name = "../../00-force_sensor_calibration/calibration_files/" + calibration_file_name_tmp + ".xml";
-	// const string tool_name = argv[2];
+	if(argc < 2)
+	{
+	    std::cout << "Usage :\nobjectCalibration_Clyde [calibration_file_name]" << std::endl;
+	    return 0;
+	}
+	const string calibration_file_name_tmp = argv[1];
+	const string calibration_file_name = "../../00-force_sensor_calibration/calibration_files/" + calibration_file_name_tmp + ".xml";
+	string tool_name = "tool";
+
 
 	if(flag_simulation)
 	{
@@ -299,7 +300,7 @@ int main(int argc, char** argv)
 
 	estimated_com = A.colPivHouseholderQr().solve(b);
 
-	// writeCalibrationXml(calibration_file_name, tool_name, estimated_com, estimated_mass);
+	writeCalibrationXml(calibration_file_name, tool_name, estimated_com, estimated_mass);
 
 	cout << endl;
 	cout << "estimated mass : " << estimated_mass << endl;
@@ -316,29 +317,29 @@ int main(int argc, char** argv)
 	return 0;
 }
 
-// void writeCalibrationXml(const string file_name, const string tool_name, const Vector3d object_com, const double object_mass)
-// {
-// 	cout << "write tool properties to file " << file_name << endl;
+void writeCalibrationXml(const string file_name, const string tool_name, const Vector3d object_com, const double object_mass)
+{
+	cout << "write tool properties to file " << file_name << endl;
 
-// 	ofstream file;
-// 	file.open(file_name);
+	ofstream file;
+	file.open(file_name);
 
-// 	if(file.is_open())
-// 	{
-// 		file << "<?xml version=\"1.0\" ?>\n\n";
-// 		file << "<tool name=\"" << tool_name << "\">\n";
-// 		file << "\t<inertial>\n";
-// 		file << "\t\t<origin xyz=\"" << object_com.transpose() << "\"/>\n";
-// 		file << "\t\t<mass value=\"" << object_mass << "\"/>\n";
-// 		file << "\t</inertial>\n";
-// 		file << "</tool>" << endl;
-// 		file.close();
-// 	}
-// 	else
-// 	{
-// 		cout << "could not create xml file" << endl;
-// 	}
-// }
+	if(file.is_open())
+	{
+		file << "<?xml version=\"1.0\" ?>\n\n";
+		file << "<tool name=\"" << tool_name << "\">\n";
+		file << "\t<inertial>\n";
+		file << "\t\t<origin xyz=\"" << object_com.transpose() << "\" rpy=\"0 0 0\"/>\n";
+		file << "\t\t<mass value=\"" << object_mass << "\"/>\n";
+		file << "\t</inertial>\n";
+		file << "</tool>" << endl;
+		file.close();
+	}
+	else
+	{
+		cout << "could not create xml file" << endl;
+	}
+}
 
 VectorXd readBiasXML(const string path_to_bias_file)
 {

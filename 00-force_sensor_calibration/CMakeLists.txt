@@ -5,6 +5,7 @@ ADD_EXECUTABLE (objectCalibration_Clyde objectCalibration_Clyde.cpp ${PANDA_APPL
 ADD_EXECUTABLE (bias_Bonnie bias_Bonnie.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
 ADD_EXECUTABLE (objectCalibration_Bonnie objectCalibration_Bonnie.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
 ADD_EXECUTABLE (simviz00 simviz.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
+ADD_EXECUTABLE (example_parse_calibration example_parse_calibration.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
 
 # and link the library against the executable
 TARGET_LINK_LIBRARIES (bias_Bonnie ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
@@ -12,6 +13,7 @@ TARGET_LINK_LIBRARIES (objectCalibration_Bonnie ${PANDA_APPLICATIONS_COMMON_LIBR
 TARGET_LINK_LIBRARIES (bias_Clyde ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
 TARGET_LINK_LIBRARIES (objectCalibration_Clyde ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
 TARGET_LINK_LIBRARIES (simviz00 ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (example_parse_calibration ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
 
 # export resources such as model files.
 # NOTE: this requires an install build
