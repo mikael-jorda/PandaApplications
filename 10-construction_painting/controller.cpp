@@ -79,8 +79,8 @@ const string bias_file = "../../00-force_sensor_calibration/calibration_files/Cl
 const string object_mas_cm_file = "../../00-force_sensor_calibration/calibration_files/friday0510.xml";
 const string object_name = "right_hand_fist_pos";
 
-const bool flag_simulation = false;
-// const bool flag_simulation = true;
+// const bool flag_simulation = false;
+const bool flag_simulation = true;
 
 const bool inertia_regularization = true;
 
@@ -275,7 +275,7 @@ int main() {
 						  0.0, 0.8, 0.0,
 						  0.0, 0.0, 0.8;
 
-	haptic_controller_brush->setForceFeedbackCtrlGains(k_pos_brush, d_pos_brush, k_ori_brush, d_ori_brush, Red_factor_rot_brush, Red_factor_trans_brush);
+	haptic_controller_brush->setForceFeedbackCtrlGains(k_pos_brush, d_pos_brush, k_ori_brush, d_ori_brush, 1.0/50, 1.0/5, Red_factor_rot_brush, Red_factor_trans_brush);
 	VectorXd f_task_sensed = VectorXd::Zero(6);
 	// const VectorXd force_bias_global = readBiasXML("../../09-haptic_painting/Clyde_fsensor_bias.xml");
 	VectorXd force_bias_global = VectorXd::Zero(6);
@@ -300,7 +300,7 @@ int main() {
 	}
 	// write task force in redis
 	redis_client.setEigenMatrixJSON(FORCE_SENSED_KEYS[0],f_task_sensed);
-	usleep(10000);
+	// usleep(10000);
 	f_task_sensed = redis_client.getEigenMatrixJSON(FORCE_SENSED_KEYS[0]); /////////////////////////////////////////////////
 	f_task_sensed -= force_bias_global;
 

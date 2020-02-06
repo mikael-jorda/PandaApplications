@@ -8,6 +8,7 @@
 #include <dynamics3d.h>
 #include "redis/RedisClient.h"
 #include "timer/LoopTimer.h"
+#include "force_sensor/ForceSensorSim.h"
 
 #include <GLFW/glfw3.h> //must be loaded after loading opengl/glew
 
@@ -22,82 +23,24 @@ using namespace std;
 using namespace Eigen;
 
 const string world_file = "./resources/world.urdf";
-const vector<string> robot_files = {
-	"./resources/panda_arm_hand.urdf",
-	"./resources/panda_arm_hand.urdf",
-};
-const vector<string> robot_names = {
-	"PANDA1",
-	"PANDA2",
-};
-const vector<string> object_names = {
-	"tray",
-};
+const string robot_file = "./resources/panda_arm.urdf";
+// const string robot_file = "./resources/panda_arm_hand.urdf";
+const string robot_name = "PANDA";
 const string camera_name = "camera_fixed";
-
-const int n_robots = robot_names.size();
-const int n_objects = object_names.size();
 
 // redis keys:
 // - write:
-const string TIMESTAMP_KEY = "sai2::WarehouseSimulation::simulation::timestamp";
-const vector<string> JOINT_ANGLES_KEYS  = {
-	"sai2::WarehouseSimulation::panda1::sensors::q",
-	"sai2::WarehouseSimulation::panda2::sensors::q",
-};
-const vector<string> JOINT_VELOCITIES_KEYS = {
-	"sai2::WarehouseSimulation::panda1::sensors::dq",
-	"sai2::WarehouseSimulation::panda2::sensors::dq",
-};
-
+std::string JOINT_ANGLES_KEY  = "sai2::PandaApplication::sensors::q";
+std::string JOINT_VELOCITIES_KEY = "sai2::PandaApplication::sensors::dq";
+std::string SENSED_FORCE_KEY = "sai2::PandaApplication::sensors::force";
+std::string SENSED_MOMENT_KEY = "sai2::PandaApplication::sensors::moment";
 // - read
-const vector<string> TORQUES_COMMANDED_KEYS = {
-	"sai2::WarehouseSimulation::panda1::actuators::fgc",
-	"sai2::WarehouseSimulation::panda2::actuators::fgc",
-};
-
-// - gripper
-const vector<string> GRIPPER_MODE_KEYS = {   // m for move and g for graps
-	"sai2::WarehouseSimulation::panda1::gripper::mode",
-	"sai2::WarehouseSimulation::panda2::gripper::mode",
-};
-const vector<string> GRIPPER_CURRENT_WIDTH_KEYS = {
-	"sai2::WarehouseSimulation::panda1::gripper::current_width",
-	"sai2::WarehouseSimulation::panda2::gripper::current_width",
-};
-const vector<string> GRIPPER_DESIRED_WIDTH_KEYS = {
-	"sai2::WarehouseSimulation::panda1::gripper::desired_width",
-	"sai2::WarehouseSimulation::panda2::gripper::desired_width",
-};
-const vector<string> GRIPPER_DESIRED_SPEED_KEYS = {
-	"sai2::WarehouseSimulation::panda1::gripper::desired_speed",
-	"sai2::WarehouseSimulation::panda2::gripper::desired_speed",
-};
-const vector<string> GRIPPER_DESIRED_FORCE_KEYS = {
-	"sai2::WarehouseSimulation::panda1::gripper::desired_force",
-	"sai2::WarehouseSimulation::panda2::gripper::desired_force",
-};
-
-const vector<double> gripper_max_widths = {
-	0.08,
-	0.08,
-};
-vector<double> gripper_widths = {
-	0,
-	0,
-};
-
+const std::string TORQUES_COMMANDED_KEY  = "sai2::PandaApplication::actuators::fgc";
 
 RedisClient redis_client;
-vector<Vector3d> object_positions;
-vector<Quaterniond> object_orientations;
 
 // simulation function prototype
-void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation* sim);
-// void simulation(vector<Sai2Model::Sai2Model*> robots, Sai2Model::Sai2Model* objects, Simulation::Sai2Simulation* sim);
-
-// function to perform gripper control from redis info for a given robot number
-Vector2d gripperControl(const int robot_index, vector<Sai2Model::Sai2Model*> robots);
+void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim);
 
 // callback to print glfw errors
 void glfwError(int error, const char* description);
@@ -117,8 +60,17 @@ bool fTransZp = false;
 bool fTransZn = false;
 bool fRotPanTilt = false;
 
+// const bool flag_simulation = false;
+const bool flag_simulation = true;
+
 int main() {
 	cout << "Loading URDF world model file: " << world_file << endl;
+
+	if(!flag_simulation)
+	{
+		JOINT_ANGLES_KEY = "sai2::FrankaPanda::sensors::q";
+		JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::sensors::dq";
+	}
 
 	// start redis client
 	redis_client = RedisClient();
@@ -130,34 +82,18 @@ int main() {
 	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
 
 	// load robots
-	vector<Sai2Model::Sai2Model*> robots;
-	for(int i=0 ; i<n_robots ; i++)
-	{
-		robots.push_back(new Sai2Model::Sai2Model(robot_files[i], false));
-	}
+	auto robot = new Sai2Model::Sai2Model(robot_file, false);
+	robot->updateKinematics();
 
 	// load simulation world
 	auto sim = new Simulation::Sai2Simulation(world_file, false);
 	sim->setCollisionRestitution(0);
-	sim->setCoeffFrictionStatic(0.8);
+	sim->setCoeffFrictionStatic(0.6);
 
 	// read joint positions, velocities, update model
-	for(int i=0 ; i<n_robots ; i++)
-	{
-		sim->getJointPositions(robot_names[i], robots[i]->_q);
-		sim->getJointVelocities(robot_names[i], robots[i]->_dq);
-		robots[i]->updateKinematics();
-	}
-
-	// read objects initial positions
-	for(int i=0 ; i< n_objects ; i++)
-	{
-		Vector3d obj_pos = Vector3d::Zero();
-		Quaterniond obj_ori = Quaterniond::Identity();
-		sim->getObjectPosition(object_names[i], obj_pos, obj_ori);
-		object_positions.push_back(obj_pos);
-		object_orientations.push_back(obj_ori);
-	}
+	sim->getJointPositions(robot_name, robot->_q);
+	sim->getJointVelocities(robot_name, robot->_dq);
+	robot->updateKinematics();
 
 	/*------- Set up visualization -------*/
 	// set up error callback
@@ -194,22 +130,22 @@ int main() {
 	double last_cursorx, last_cursory;
 
 	fSimulationRunning = true;
-	thread sim_thread(simulation, robots, sim);
+	thread sim_thread(simulation, robot, sim);
 
 	// while window is open:
 	while (!glfwWindowShouldClose(window))
 	{
+		if(!flag_simulation)
+		{
+			robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
+			robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
+			robot->updateKinematics();
+		}
+
 		// update graphics. this automatically waits for the correct amount of time
 		int width, height;
 		glfwGetFramebufferSize(window, &width, &height);
-		for(int i=0 ; i<n_robots ; i++)
-		{
-			graphics->updateGraphics(robot_names[i], robots[i]);
-		}
-		for(int i=0 ; i< n_objects ; i++)
-		{
-			graphics->updateObjectGraphics(object_names[i], object_positions[i], object_orientations[i]);
-		}
+		graphics->updateGraphics(robot_name, robot);
 		graphics->render(camera_name, width, height);
 
 		// swap buffers
@@ -296,85 +232,79 @@ int main() {
 }
 
 //------------------------------------------------------------------------------
-void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation* sim) {
+void simulation_dummy(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {}
 
-	// initialize redis values
-	for(int i=0 ; i<n_robots ; i++)
+//------------------------------------------------------------------------------
+void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {
+
+	VectorXd command_torques = VectorXd::Zero(robot->dof());
+	redis_client.setEigenMatrixJSON(TORQUES_COMMANDED_KEY, command_torques);
+
+	// create a force sensor
+	const string link_name = "link7";
+	Affine3d T_link_sensor = Affine3d::Identity();
+	T_link_sensor.translation() = Vector3d(0, 0, 0.11);
+	ForceSensorSim* fsensor = new ForceSensorSim(robot_name, link_name, T_link_sensor, robot);
+	Vector3d sensed_force = Vector3d::Zero();
+	Vector3d sensed_moment = Vector3d::Zero();
+
+	const int introduced_delay = 50; // timesteps
+	vector<Vector3d> force_buffer;
+	vector<Vector3d> moment_buffer;
+	int buffer_counter = 0;
+	for(int i=0 ; i<introduced_delay ; i++)
 	{
-		redis_client.setEigenMatrixJSON(TORQUES_COMMANDED_KEYS[i], VectorXd::Zero(robots[i]->dof()-2));
-		redis_client.set(GRIPPER_DESIRED_WIDTH_KEYS[i], to_string(0.04));
-		redis_client.set(GRIPPER_DESIRED_SPEED_KEYS[i], to_string(0));
-		redis_client.set(GRIPPER_DESIRED_FORCE_KEYS[i], to_string(0));
-		redis_client.set(GRIPPER_MODE_KEYS[i], "m");
+		force_buffer.push_back(Vector3d::Zero());
+		moment_buffer.push_back(Vector3d::Zero());
 	}
 
 	// create a timer
-	double simulation_freq = 1500.0;
 	LoopTimer timer;
 	timer.initializeTimer();
-	timer.setLoopFrequency(simulation_freq); 
+	timer.setLoopFrequency(2000); 
+	double last_time = timer.elapsedTime(); //secs
 	bool fTimerDidSleep = true;
-	double start_time = timer.elapsedTime(); //secs
-	double last_time = start_time;
 
 	unsigned long long simulation_counter = 0;
 
 	while (fSimulationRunning) {
 		fTimerDidSleep = timer.waitForNextLoop();
 
-		for(int i=0 ; i<n_robots ; i++)
-		{
-			int dof = robots[i]->dof();
-			VectorXd command_torques = VectorXd::Zero(dof);
-			// read arm torques from redis
-			command_torques.head(dof-2) = redis_client.getEigenMatrixJSON(TORQUES_COMMANDED_KEYS[i]);
+		// read arm torques from redis
+		command_torques = redis_client.getEigenMatrixJSON(TORQUES_COMMANDED_KEY);
 
-			// compute gripper torques
-			Vector2d gripper_torques = gripperControl(i, robots);
-			// cout << "gripper torques " << gripper_torques.transpose() << endl;
-
-			command_torques(dof-2) = gripper_torques(0);
-			command_torques(dof-1) = gripper_torques(1);
-
-			// set robot torques to simulation
-			VectorXd gravity_torques = VectorXd::Zero(dof);
-			robots[i]->gravityVector(gravity_torques);
-			sim->setJointTorques(robot_names[i], command_torques + gravity_torques);
-		}
+		// set torques to simulation
+		sim->setJointTorques(robot_name, command_torques);
 
 		// integrate forward
 		double curr_time = timer.elapsedTime();
 		double loop_dt = curr_time - last_time; 
-		// sim->integrate(loop_dt);
-		sim->integrate(1/simulation_freq);
+		sim->integrate(loop_dt);
+
+		// update force sensor and read values
+		fsensor->update(sim);
+		fsensor->getForceLocalFrame(sensed_force);
+		fsensor->getMomentLocalFrame(sensed_moment);
+		force_buffer[buffer_counter] = sensed_force;
+		moment_buffer[buffer_counter] = sensed_moment;
 
 		// read joint positions, velocities, update model
-		for(int i=0 ; i<n_robots ; i++)
-		{
-			sim->getJointPositions(robot_names[i], robots[i]->_q);
-			sim->getJointVelocities(robot_names[i], robots[i]->_dq);
-			robots[i]->updateKinematics();
-		}
-
-		// get object positions from simulation
-		for(int i=0 ; i< n_objects ; i++)
-		{
-			sim->getObjectPosition(object_names[i], object_positions[i], object_orientations[i]);
-		}
+		sim->getJointPositions(robot_name, robot->_q);
+		sim->getJointVelocities(robot_name, robot->_dq);
+		robot->updateKinematics();
 
 		// write new robot state to redis
-		for(int i=0 ; i<n_robots ; i++)
-		{
-			redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEYS[i], robots[i]->_q.head<7>());
-			redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEYS[i], robots[i]->_dq.head<7>());
-			redis_client.set(GRIPPER_CURRENT_WIDTH_KEYS[i], to_string(gripper_widths[i]));
-		}
-		redis_client.set(TIMESTAMP_KEY, to_string(curr_time));
+		redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEY, robot->_q);
+		redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEY, robot->_dq);
+		redis_client.setEigenMatrixJSON(SENSED_FORCE_KEY, -force_buffer[(buffer_counter - 0) % introduced_delay]);
+		redis_client.setEigenMatrixJSON(SENSED_MOMENT_KEY, -moment_buffer[(buffer_counter - 0) % introduced_delay]);
 
 		//update last time
 		last_time = curr_time;
 
 		simulation_counter++;
+
+		buffer_counter = (buffer_counter + 1) % introduced_delay;
 	}
 
 	double end_time = timer.elapsedTime();
@@ -382,76 +312,6 @@ void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation
 	std::cout << "Simulation Loop run time  : " << end_time << " seconds\n";
 	std::cout << "Simulation Loop updates   : " << timer.elapsedCycles() << "\n";
 	std::cout << "Simulation Loop frequency : " << timer.elapsedCycles()/end_time << "Hz\n";
-}
-
-//------------------------------------------------------------------------------
-Vector2d gripperControl(const int robot_index, vector<Sai2Model::Sai2Model*> robots)
-{
-	int i = robot_index;
-	Vector2d gripper_torques = Vector2d::Zero();
-
-	// controller gains and force
-	double kp_gripper = 400.0;
-	double kv_gripper = 40.0;
-	double gripper_behavior_force = 0;
-
-	// gripper state
-	double gripper_center_point = (robots[i]->_q(7) + robots[i]->_q(8))/2.0;
-	double gripper_center_point_velocity = (robots[i]->_dq(7) + robots[i]->_dq(8))/2.0;
-
-	gripper_widths[i] = (robots[i]->_q(7) - robots[i]->_q(8))/2;
-	double gripper_opening_speed = (robots[i]->_dq(7) - robots[i]->_dq(8))/2;
-
-	// compute gripper torques
-	double gripper_desired_width = stod(redis_client.get(GRIPPER_DESIRED_WIDTH_KEYS[i]));
-	double gripper_desired_speed = stod(redis_client.get(GRIPPER_DESIRED_SPEED_KEYS[i]));
-	double gripper_desired_force = stod(redis_client.get(GRIPPER_DESIRED_FORCE_KEYS[i]));
-	string gripper_mode = redis_client.get(GRIPPER_MODE_KEYS[i]);
-	if(gripper_desired_width > gripper_max_widths[i])
-	{
-		gripper_desired_width = gripper_max_widths[i];
-		redis_client.setCommandIs(GRIPPER_DESIRED_WIDTH_KEYS[i], std::to_string(gripper_max_widths[i]));
-		std::cout << "WARNING : Desired gripper " << i << " width higher than max width. saturating to max width\n" << std::endl;
-	}
-	if(gripper_desired_width < 0)
-	{
-		gripper_desired_width = 0;
-		redis_client.setCommandIs(GRIPPER_DESIRED_WIDTH_KEYS[i], std::to_string(0));
-		std::cout << "WARNING : Desired gripper " << i << " width lower than 0. saturating to 0\n" << std::endl;
-	}
-	if(gripper_desired_speed < 0)
-	{
-		gripper_desired_speed = 0;
-		redis_client.setCommandIs(GRIPPER_DESIRED_SPEED_KEYS[i], std::to_string(0));
-		std::cout << "WARNING : Desired gripper " << i << " speed lower than 0. saturating to 0\n" << std::endl;
-	} 
-	if(gripper_desired_force < 0)
-	{
-		gripper_desired_force = 0;
-		redis_client.setCommandIs(GRIPPER_DESIRED_FORCE_KEYS[i], std::to_string(0));
-		std::cout << "WARNING : Desired gripper " << i << " force lower than 0. saturating to 0\n" << std::endl;
-	}
-
-	double gripper_constraint_force = -400.0*gripper_center_point - 40.0*gripper_center_point_velocity;
-
-	if(gripper_mode == "m")
-	{
-		gripper_behavior_force = -kp_gripper*(gripper_widths[i] - gripper_desired_width) - kv_gripper*(gripper_opening_speed - gripper_desired_speed);
-	}
-	else if(gripper_mode == "g")
-	{
-		gripper_behavior_force = -gripper_desired_force;
-	}
-	else
-	{
-		cout << "gripper mode not recognized\n" << endl;
-	}
-
-	gripper_torques(0) = gripper_constraint_force + gripper_behavior_force;
-	gripper_torques(1) = gripper_constraint_force - gripper_behavior_force;
-
-	return gripper_torques;
-
 }
 
 //------------------------------------------------------------------------------

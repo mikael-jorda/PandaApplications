@@ -134,7 +134,6 @@ int main() {
 	Eigen::Vector3d camera_pos, camera_lookat, camera_vertical;
 	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
 
-
 	// load robots
 	vector<Sai2Model::Sai2Model*> robots;
 	for(int i=0 ; i<n_robots ; i++)
@@ -324,7 +323,6 @@ void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation
 	Vector3d sensed_force_left = Vector3d::Zero();
 	Vector3d sensed_moment_left = Vector3d::Zero();
 
-
 	// create a timer
 	LoopTimer timer;
 	timer.initializeTimer();
@@ -406,7 +404,6 @@ void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation
 
 		simulation_counter++;
 	}
-
 
 
 	double end_time = timer.elapsedTime();

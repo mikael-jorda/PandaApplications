@@ -25,12 +25,10 @@ using namespace Eigen;
 
 const string world_file = "./resources/world.urdf";
 const vector<string> robot_files = {
-	"./resources/panda_arm_hand.urdf",
 	"./resources/panda_arm.urdf",
 };
 const vector<string> robot_names = {
 	"PANDA_LEFT",
-	"PANDA_RIGHT",
 };
 const vector<string> object_names = {
 };
@@ -41,46 +39,37 @@ const int n_objects = object_names.size();
 
 // redis keys:
 // - write:
-const string TIMESTAMP_KEY = "sai2::WarehouseSimulation::simulation::timestamp";
+const string TIMESTAMP_KEY = "sai2::PandaApplications::simulation::timestamp";
 const vector<string> JOINT_ANGLES_KEYS  = {
-	"sai2::WarehouseSimulation::panda1::sensors::q",
-	"sai2::WarehouseSimulation::panda2::sensors::q",
+	"sai2::PandaApplications::panda1::sensors::q",
 };
 const vector<string> JOINT_VELOCITIES_KEYS = {
-	"sai2::WarehouseSimulation::panda1::sensors::dq",
-	"sai2::WarehouseSimulation::panda2::sensors::dq",
+	"sai2::PandaApplications::panda1::sensors::dq",
 };
 const vector<string> FORCE_SENSED_KEYS = {
-	"sai2::WarehouseSimulation::panda1::sensors::f_op",
-	"sai2::WarehouseSimulation::panda2::sensors::f_op",
+	"sai2::PandaApplications::panda1::sensors::f_op",
 };
 
 // - read
 const vector<string> TORQUES_COMMANDED_KEYS = {
-	"sai2::WarehouseSimulation::panda1::actuators::fgc",
-	"sai2::WarehouseSimulation::panda2::actuators::fgc",
+	"sai2::PandaApplications::panda1::actuators::fgc",
 };
 
 // - gripper
 const vector<string> GRIPPER_MODE_KEYS = {   // m for move and g for graps
-	"sai2::WarehouseSimulation::panda1::gripper::mode",
-	"sai2::WarehouseSimulation::panda2::gripper::mode",
+	"sai2::PandaApplications::panda1::gripper::mode",
 };
 const vector<string> GRIPPER_CURRENT_WIDTH_KEYS = {
-	"sai2::WarehouseSimulation::panda1::gripper::current_width",
-	"sai2::WarehouseSimulation::panda2::gripper::current_width",
+	"sai2::PandaApplications::panda1::gripper::current_width",
 };
 const vector<string> GRIPPER_DESIRED_WIDTH_KEYS = {
-	"sai2::WarehouseSimulation::panda1::gripper::desired_width",
-	"sai2::WarehouseSimulation::panda2::gripper::desired_width",
+	"sai2::PandaApplications::panda1::gripper::desired_width",
 };
 const vector<string> GRIPPER_DESIRED_SPEED_KEYS = {
-	"sai2::WarehouseSimulation::panda1::gripper::desired_speed",
-	"sai2::WarehouseSimulation::panda2::gripper::desired_speed",
+	"sai2::PandaApplications::panda1::gripper::desired_speed",
 };
 const vector<string> GRIPPER_DESIRED_FORCE_KEYS = {
-	"sai2::WarehouseSimulation::panda1::gripper::desired_force",
-	"sai2::WarehouseSimulation::panda2::gripper::desired_force",
+	"sai2::PandaApplications::panda1::gripper::desired_force",
 };
 
 const vector<double> gripper_max_widths = {
@@ -318,16 +307,10 @@ void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation
 	string link_name = "link7";
 	Affine3d transform_in_link = Affine3d::Identity();
 	transform_in_link.translation() = Vector3d(0.0,0.0,0.12);
-	auto force_sensor_right = new ForceSensorSim(robot_names[0], link_name, transform_in_link, robots[0]);
-	VectorXd f_sensed_right = VectorXd::Zero(6);
-	Vector3d sensed_force_right = Vector3d::Zero();
-	Vector3d sensed_moment_right = Vector3d::Zero();
-
-	auto force_sensor_left = new ForceSensorSim(robot_names[1], link_name, transform_in_link, robots[1]);
-	VectorXd f_sensed_left = VectorXd::Zero(6);
-	Vector3d sensed_force_left = Vector3d::Zero();
-	Vector3d sensed_moment_left = Vector3d::Zero();
-
+	auto force_sensor = new ForceSensorSim(robot_names[0], link_name, transform_in_link, robots[0]);
+	VectorXd f_sensed = VectorXd::Zero(6);
+	Vector3d sensed_force = Vector3d::Zero();
+	Vector3d sensed_moment = Vector3d::Zero();
 
 	// create a timer
 	LoopTimer timer;
@@ -342,26 +325,21 @@ void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation
 	while (fSimulationRunning) {
 		fTimerDidSleep = timer.waitForNextLoop();
 
-		VectorXd command_torques_left = VectorXd::Zero(9);
-		VectorXd command_torques_right = VectorXd::Zero(7);
+		VectorXd command_torques_left = VectorXd::Zero(7);
 		// read arm torques from redis
-		command_torques_left.head<7>() = redis_client.getEigenMatrixJSON(TORQUES_COMMANDED_KEYS[0]);
-		command_torques_right = redis_client.getEigenMatrixJSON(TORQUES_COMMANDED_KEYS[1]);
+		command_torques_left = redis_client.getEigenMatrixJSON(TORQUES_COMMANDED_KEYS[0]);
 
 		// compute gripper torques
-		Vector2d gripper_torques = gripperControl(0, robots);
+		// Vector2d gripper_torques = gripperControl(0, robots);
 		// cout << "gripper torques " << gripper_torques.transpose() << endl;
 
-		command_torques_left(7) = gripper_torques(0);
-		command_torques_left(8) = gripper_torques(1);
+		// command_torques_left(7) = gripper_torques(0);
+		// command_torques_left(8) = gripper_torques(1);
 
 		// set robot torques to simulation
-		VectorXd gravity_torques_left = VectorXd::Zero(9);
-		VectorXd gravity_torques_right = VectorXd::Zero(7);
+		VectorXd gravity_torques_left = VectorXd::Zero(7);
 		robots[0]->gravityVector(gravity_torques_left);
-		robots[1]->gravityVector(gravity_torques_right);
 		sim->setJointTorques(robot_names[0], command_torques_left + gravity_torques_left);
-		sim->setJointTorques(robot_names[1], command_torques_right + gravity_torques_right);
 
 		// integrate forward
 		double curr_time = timer.elapsedTime();
@@ -392,19 +370,14 @@ void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation
 		redis_client.set(TIMESTAMP_KEY, to_string(curr_time));
 
 		// read end-effector task forces from the force sensor simulation
-		force_sensor_right->update(sim);
-		force_sensor_right->getForceLocalFrame(sensed_force_right);
-		force_sensor_right->getMomentLocalFrame(sensed_moment_right);
-		f_sensed_right << sensed_force_right, sensed_moment_right;
+		force_sensor->update(sim);
+		force_sensor->getForceLocalFrame(sensed_force);
+		force_sensor->getMomentLocalFrame(sensed_moment);
+		f_sensed << sensed_force, sensed_moment;
 
-		force_sensor_left->update(sim);
-		force_sensor_left->getForceLocalFrame(sensed_force_left);
-		force_sensor_left->getMomentLocalFrame(sensed_moment_left);
-		f_sensed_left << sensed_force_left, sensed_moment_left;
 
 		// write task force in redis
-		redis_client.setEigenMatrixJSON(FORCE_SENSED_KEYS[0], -f_sensed_right);
-		redis_client.setEigenMatrixJSON(FORCE_SENSED_KEYS[1], -f_sensed_left);
+		redis_client.setEigenMatrixJSON(FORCE_SENSED_KEYS[0], -f_sensed);
 
 		//update last time
 		last_time = curr_time;
