@@ -1,0 +1,15 @@
+# create an executable
+set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PANDA_APPLICATIONS_BINARY_DIR}/18-haptic_local_force_loop)
+ADD_EXECUTABLE (controller18 controller.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
+ADD_EXECUTABLE (simviz18 simviz.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
+
+# and link the library against the executable
+TARGET_LINK_LIBRARIES (controller18 ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (simviz18 ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
+
+# export resources such as model files.
+# NOTE: this requires an install build
+SET(APP_RESOURCE_DIR ${CMAKE_RUNTIME_OUTPUT_DIRECTORY}/resources)
+FILE(MAKE_DIRECTORY ${APP_RESOURCE_DIR})
+FILE(COPY world.urdf DESTINATION ${APP_RESOURCE_DIR})
+FILE(COPY panda_arm.urdf DESTINATION ${APP_RESOURCE_DIR})

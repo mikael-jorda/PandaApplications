@@ -55,6 +55,17 @@ const string KV_ORI_KEY = "sai2::PandaApplication::controller:kv_ori";
 
 // desired force
 const string DESIRED_EE_FORCE_KEY = "sai2::PandaApplication::controller:desried_ee_force";
+// sensed force
+const string SENSED_EE_FORCE_KEY = "sai2::PandaApplication::controller:sensed_ee_force";
+
+// sogging
+const string RC_KEY = "sai2::PandaApplication::controller:Rc";
+const string FORWARD_PO_KEY = "sai2::PandaApplication::controller:forward_PO";
+const string BACKWARD_PO_KEY = "sai2::PandaApplication::controller:backward_PO";
+const string STORED_ENERGY_KEY = "sai2::PandaApplication::controller:E_stored";
+const string CORRECTION_ENERGY_KEY = "sai2::PandaApplication::controller:E_correction";
+const string VC_KEY = "sai2::PandaApplication::controller:vc";
+
 
 
 unsigned long long controller_counter = 0;
@@ -140,6 +151,26 @@ int main() {
 	Vector3d sensed_force = Vector3d::Zero();
 	Vector3d sensed_moment = Vector3d::Zero();
 
+	// setup redis exchange
+	redis_client.createReadCallback(0);
+	redis_client.createWriteCallback(0);
+
+	redis_client.addEigenToReadCallback(0, JOINT_ANGLES_KEY, robot->_q);
+	redis_client.addEigenToReadCallback(0, JOINT_VELOCITIES_KEY, robot->_dq);
+	redis_client.addEigenToReadCallback(0, SENSED_FORCE_KEY, sensed_force);
+	redis_client.addEigenToReadCallback(0, SENSED_MOMENT_KEY, sensed_moment);
+
+	double Rc = 1;
+	redis_client.addEigenToWriteCallback(0, JOINT_TORQUES_COMMANDED_KEY, command_torques);
+	redis_client.addEigenToWriteCallback(0, SENSED_EE_FORCE_KEY, posori_task->_sensed_force);
+	redis_client.addEigenToWriteCallback(0, DESIRED_EE_FORCE_KEY, posori_task->_desired_force);
+	redis_client.addEigenToWriteCallback(0, VC_KEY, posori_task->_vc);
+	redis_client.addDoubleToWriteCallback(0, RC_KEY, Rc);
+	redis_client.addDoubleToWriteCallback(0, STORED_ENERGY_KEY, posori_task->_stored_energy_force);
+	redis_client.addDoubleToWriteCallback(0, BACKWARD_PO_KEY, posori_task->_passivity_observer_force);
+	redis_client.addDoubleToWriteCallback(0, CORRECTION_ENERGY_KEY, posori_task->_E_correction_force);
+	redis_client.addDoubleToWriteCallback(0, FORWARD_PO_KEY, posori_task->_passivity_observer_force_forward);
+
 	// create a timer
 	LoopTimer timer;
 	timer.initializeTimer();
@@ -152,12 +183,13 @@ int main() {
 	timer.waitForNextLoop();
 	double time = timer.elapsedTime() - start_time;
 
-	// read robot state from redis
-	robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
-	robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
+	// // read robot state from redis
+	redis_client.executeReadCallback(0);
+	// robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
+	// robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
 
-	sensed_force = redis_client.getEigenMatrixJSON(SENSED_FORCE_KEY);
-	sensed_moment = redis_client.getEigenMatrixJSON(SENSED_MOMENT_KEY);
+	// sensed_force = redis_client.getEigenMatrixJSON(SENSED_FORCE_KEY);
+	// sensed_moment = redis_client.getEigenMatrixJSON(SENSED_MOMENT_KEY);
 
 	// update robot model
 	if(flag_simulation)
@@ -199,8 +231,8 @@ int main() {
 		{
 			joint_task->_kp = 0.0;
 			joint_task->_kv = 5.0;
-			redis_client.set(KP_JOINT_KEY, to_string(joint_task->_kp));
-			redis_client.set(KV_JOINT_KEY, to_string(joint_task->_kv));
+			// redis_client.set(KP_JOINT_KEY, to_string(joint_task->_kp));
+			// redis_client.set(KV_JOINT_KEY, to_string(joint_task->_kv));
 			posori_task->reInitializeTask();
 			posori_task->_desired_position += Vector3d(0,0,-0.1);
 			state = MOVE_TO_CONTACT;
@@ -227,14 +259,17 @@ int main() {
 		{
 			cout << "open loop force control start" << endl;
 			posori_task->setForceAxis(Vector3d(0,0,1));
-			posori_task->_desired_force = Vector3d(0,0,-5);
-			redis_client.set(DESIRED_EE_FORCE_KEY, to_string(-5));
+			posori_task->_desired_force = Vector3d(0,0,-10);
+			// posori_task->_desired_force = Vector3d(0,0,0);
+			// redis_client.set(DESIRED_EE_FORCE_KEY, to_string(-5));
 			// posori_task->setClosedLoopForceControl();
 			state = FORCE_CONTROL;
 		}
 	}
 	else if(state == FORCE_CONTROL)
 	{
+
+		posori_task->_desired_force = Vector3d(0,0,-10); 
 
 		posori_task->updateSensedForceAndMoment(sensed_force, sensed_moment);
 
@@ -244,8 +279,10 @@ int main() {
 		joint_task->updateTaskModel(N_prec);
 
 		// compute torques
-		posori_task->_desired_force(2) = stod(redis_client.get(DESIRED_EE_FORCE_KEY));
+		// posori_task->_desired_force(2) = stod(redis_client.get(DESIRED_EE_FORCE_KEY));
 		posori_task->computeTorques(posori_task_torques);
+		// posori_task_torques *= 0.9;
+		Rc = posori_task->_Rc_inv_force;
 
 		joint_task->computeTorques(joint_task_torques);
 
@@ -255,18 +292,36 @@ int main() {
 		{
 			cout << "closed loop force control start" << endl;
 			posori_task->setClosedLoopForceControl();
+			posori_task->_passivity_enabled = true;
+			// posori_task->_passivity_enabled = false;
 			olfc_counter--;
-			posori_task->_kp_force = 100.0;
-			posori_task->_ki_force = 1.7;
+			posori_task->_kp_force = 5.0;
+			posori_task->_ki_force = 5.0;
+			posori_task->_kv_force = 15.0;
 		}	
 		else
 		{
 			olfc_counter--;
 		}
+
+		// cout << posori_task->_Rc_mean << endl;
+
+		// if(controller_counter % 2000 == 0)
+		// {
+		// 	posori_task->_desired_position(1) += 0.1;
+		// }
+		// if(controller_counter % 2000 == 1000)
+		// {
+		// 	posori_task->_desired_position(1) -= 0.1;
+		// }
+
 	}
 
-	// send to redis
-	redis_client.setEigenMatrixJSON(JOINT_TORQUES_COMMANDED_KEY, command_torques);
+	// // send to redis
+	redis_client.executeWriteCallback(0);
+	// redis_client.set(RC_KEY, to_string(posori_task->_Rc_inv_force));
+	// redis_client.setEigenMatrixJSON(SENSED_EE_FORCE_KEY, posori_task->_sensed_force);
+	// redis_client.setEigenMatrixJSON(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 
 	controller_counter++;
 

@@ -131,36 +131,12 @@
           <mesh filename="../../../Model/meshes/visual/link7.obj"/>
         </geometry>
       </visual>
-<!--       <visual>
-        <origin xyz="0 0 0.12" rpy="0 0 0" />
+      <visual>
+        <origin xyz="0 0 0.15" rpy="0 -0 0" />
         <geometry>
-          <box size="0.07 0.07 0.04"/>
+          <sphere radius="0.04"/>
         </geometry>
-        <material name="material_blue">
-            <color rgba="0.50 0.92 1.00 1.0" />
-          </material>
       </visual>
-      <collision >
-        <origin xyz="0 0 0.12" rpy="0 0 0" />
-        <geometry>
-          <box size="0.07 0.07 0.04"/>
-        </geometry>
-      </collision> -->
-       <visual>
-        <origin xyz="0 0 0.12" rpy="0 0 0" />
-        <geometry>
-          <sphere radius="0.02"/>
-        </geometry>
-        <material name="material_blue">
-            <color rgba="0.50 0.92 1.00 1.0" />
-          </material>
-      </visual>
-      <collision >
-        <origin xyz="0 0 0.12" rpy="0 0 0" />
-        <geometry>
-          <sphere radius="0.02"/>
-        </geometry>
-      </collision>
       <!-- <collision>
         <geometry>
           <mesh filename="../../../Model/meshes/collision/link7.obj"/>
@@ -181,7 +157,7 @@
       <parent link="link1"/>
       <child link="link2"/>
       <axis xyz="0 0 1"/>
-      <calibration falling="30.0" />
+      <calibration falling="-45.0" />
       <limit effort="87" lower="-1.7628" upper="1.7628" velocity="2.1750"/>
     </joint>
     <joint name="joint3" type="revolute">
@@ -198,7 +174,7 @@
       <parent link="link3"/>
       <child link="link4"/>
       <axis xyz="0 0 1"/>
-      <calibration falling="-90.0" />
+      <calibration falling="-125.0" />
       <limit effort="87" lower="-3.0718" upper="-0.0698" velocity="2.1750"/>
     </joint>
     <joint name="joint5" type="revolute">
@@ -215,7 +191,7 @@
       <parent link="link5"/>
       <child link="link6"/>
       <axis xyz="0 0 1"/>
-      <calibration falling="120.0" />
+      <calibration falling="80.0" />
       <limit effort="12" lower="-0.0175" upper="3.7525" velocity="2.6100"/>
     </joint>
     <joint name="joint7" type="revolute">

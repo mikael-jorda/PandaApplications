@@ -8,7 +8,8 @@
 #include <dynamics3d.h>
 #include "redis/RedisClient.h"
 #include "timer/LoopTimer.h"
-#include "uiforce/UIForceWidget.h"
+
+#include "force_sensor/ForceSensorSim.h" 
 
 #include <GLFW/glfw3.h> //must be loaded after loading opengl/glew
 
@@ -23,32 +24,74 @@ using namespace std;
 using namespace Eigen;
 
 const string world_file = "./resources/world.urdf";
-// const string robot_file = "./resources/panda_arm.urdf";
-const string robot_file = "./resources/panda_arm_hand.urdf";
-const string robot_name = "PANDA";
+const vector<string> robot_files = {
+	"./resources/panda_arm.urdf",
+};
+const vector<string> robot_names = {
+	"PANDA_RIGHT",
+};
+const vector<string> object_names = {
+};
 const string camera_name = "camera_fixed";
+
+const int n_robots = robot_names.size();
+const int n_objects = object_names.size();
 
 // redis keys:
 // - write:
-std::string JOINT_ANGLES_KEY  = "sai2::PandaApplication::sensors::q";
-std::string JOINT_VELOCITIES_KEY = "sai2::PandaApplication::sensors::dq";
+const string TIMESTAMP_KEY = "sai2::PandaApplications::simulation::timestamp";
+const vector<string> JOINT_ANGLES_KEYS  = {
+	"sai2::PandaApplications::panda1::sensors::q",
+};
+const vector<string> JOINT_VELOCITIES_KEYS = {
+	"sai2::PandaApplications::panda1::sensors::dq",
+};
+const vector<string> FORCE_SENSED_KEYS = {
+	"sai2::PandaApplications::panda1::sensors::f_op",
+};
+
 // - read
-const std::string TORQUES_COMMANDED_KEY  = "sai2::PandaApplication::actuators::fgc";
+const vector<string> TORQUES_COMMANDED_KEYS = {
+	"sai2::PandaApplications::panda1::actuators::fgc",
+};
 
 // - gripper
-const std::string GRIPPER_MODE_KEY  = "sai2::PandaApplication::gripper::mode"; // m for move and g for graps
-const std::string GRIPPER_MAX_WIDTH_KEY  = "sai2::PandaApplication::gripper::max_width";
-const std::string GRIPPER_CURRENT_WIDTH_KEY  = "sai2::PandaApplication::gripper::current_width";
-const std::string GRIPPER_DESIRED_WIDTH_KEY  = "sai2::PandaApplication::gripper::desired_width";
-const std::string GRIPPER_DESIRED_SPEED_KEY  = "sai2::PandaApplication::gripper::desired_speed";
-const std::string GRIPPER_DESIRED_FORCE_KEY  = "sai2::PandaApplication::gripper::desired_force";
+const vector<string> GRIPPER_MODE_KEYS = {   // m for move and g for graps
+	"sai2::PandaApplications::panda1::gripper::mode",
+};
+const vector<string> GRIPPER_CURRENT_WIDTH_KEYS = {
+	"sai2::PandaApplications::panda1::gripper::current_width",
+};
+const vector<string> GRIPPER_DESIRED_WIDTH_KEYS = {
+	"sai2::PandaApplications::panda1::gripper::desired_width",
+};
+const vector<string> GRIPPER_DESIRED_SPEED_KEYS = {
+	"sai2::PandaApplications::panda1::gripper::desired_speed",
+};
+const vector<string> GRIPPER_DESIRED_FORCE_KEYS = {
+	"sai2::PandaApplications::panda1::gripper::desired_force",
+};
+
+const vector<double> gripper_max_widths = {
+	0.08,
+	0.08,
+};
+vector<double> gripper_widths = {
+	0,
+	0,
+};
 
 
 RedisClient redis_client;
+vector<Vector3d> object_positions;
+vector<Quaterniond> object_orientations;
 
 // simulation function prototype
-void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, UIForceWidget *ui_force_widget);
-void simulation_dummy(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim);
+void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation* sim);
+// void simulation(vector<Sai2Model::Sai2Model*> robots, Sai2Model::Sai2Model* objects, Simulation::Sai2Simulation* sim);
+
+// function to perform gripper control from redis info for a given robot number
+Vector2d gripperControl(const int robot_index, vector<Sai2Model::Sai2Model*> robots);
 
 // callback to print glfw errors
 void glfwError(int error, const char* description);
@@ -68,22 +111,8 @@ bool fTransZp = false;
 bool fTransZn = false;
 bool fRotPanTilt = false;
 
-// flags for ui widget click
-bool fRobotLinkSelect = false;
-Eigen::Vector3d ui_force;
-Eigen::VectorXd ui_force_command_torques;
-
-// const bool flag_simulation = false;
-const bool flag_simulation = true;
-
 int main() {
 	cout << "Loading URDF world model file: " << world_file << endl;
-
-	if(!flag_simulation)
-	{
-		JOINT_ANGLES_KEY = "sai2::FrankaPanda::sensors::q";
-		JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::sensors::dq";
-	}
 
 	// start redis client
 	redis_client = RedisClient();
@@ -94,31 +123,36 @@ int main() {
 	Eigen::Vector3d camera_pos, camera_lookat, camera_vertical;
 	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
 
+
 	// load robots
-	auto robot = new Sai2Model::Sai2Model(robot_file, false);
-	robot->updateKinematics();
+	vector<Sai2Model::Sai2Model*> robots;
+	for(int i=0 ; i<n_robots ; i++)
+	{
+		robots.push_back(new Sai2Model::Sai2Model(robot_files[i], false));
+	}
 
 	// load simulation world
 	auto sim = new Simulation::Sai2Simulation(world_file, false);
 	sim->setCollisionRestitution(0);
-	sim->setCoeffFrictionStatic(0.6);
+	sim->setCoeffFrictionStatic(0.8);
 
 	// read joint positions, velocities, update model
-	sim->getJointPositions(robot_name, robot->_q);
-	sim->getJointVelocities(robot_name, robot->_dq);
-	robot->updateKinematics();
+	for(int i=0 ; i<n_robots ; i++)
+	{
+		sim->getJointPositions(robot_names[i], robots[i]->_q);
+		sim->getJointVelocities(robot_names[i], robots[i]->_dq);
+		robots[i]->updateKinematics();
+	}
 
-	// init click force widget 
-	auto ui_force_widget = new UIForceWidget(robot_name, robot, graphics);
-	ui_force_widget->setEnable(false);
-
-	ui_force_widget->_spring_k = 50.0;
-	ui_force_widget->_max_force = 100.0;
-
-	int dof = robot->dof();
-	ui_force.setZero();
-	ui_force_command_torques.setZero(dof);
-
+	// read objects initial positions
+	for(int i=0 ; i< n_objects ; i++)
+	{
+		Vector3d obj_pos = Vector3d::Zero();
+		Quaterniond obj_ori = Quaterniond::Identity();
+		sim->getObjectPosition(object_names[i], obj_pos, obj_ori);
+		object_positions.push_back(obj_pos);
+		object_orientations.push_back(obj_ori);
+	}
 
 	/*------- Set up visualization -------*/
 	// set up error callback
@@ -155,39 +189,22 @@ int main() {
 	double last_cursorx, last_cursory;
 
 	fSimulationRunning = true;
-	thread sim_thread(simulation_dummy, robot, sim);
-	if(flag_simulation)
-	{
-		// start the simulation thread first
-		thread sim_thread_bis(simulation, robot, sim, ui_force_widget);
-		sim_thread.swap(sim_thread_bis);
-		sim_thread_bis.join();
-	}
-
-
-	// if(!redis_client.exists(JOINT_ANGLES_KEY))
-	// {
-	// 	redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEY, VectorXd::Zero(robot->dof()));
-	// }
-	// if(!redis_client.exists(JOINT_VELOCITIES_KEY))
-	// {
-	// 	redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEY, VectorXd::Zero(robot->dof()));
-	// }
+	thread sim_thread(simulation, robots, sim);
 
 	// while window is open:
 	while (!glfwWindowShouldClose(window))
 	{
-		if(!flag_simulation)
-		{
-			robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
-			robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
-			robot->updateKinematics();
-		}
-
 		// update graphics. this automatically waits for the correct amount of time
 		int width, height;
 		glfwGetFramebufferSize(window, &width, &height);
-		graphics->updateGraphics(robot_name, robot);
+		for(int i=0 ; i<n_robots ; i++)
+		{
+			graphics->updateGraphics(robot_names[i], robots[i]);
+		}
+		for(int i=0 ; i< n_objects ; i++)
+		{
+			graphics->updateObjectGraphics(object_names[i], object_positions[i], object_orientations[i]);
+		}
 		graphics->render(camera_name, width, height);
 
 		// swap buffers
@@ -203,31 +220,6 @@ int main() {
 
 		// poll for events
 		glfwPollEvents();
-
-	    // detect click to the link
-		ui_force_widget->setEnable(fRobotLinkSelect);
-		if (fRobotLinkSelect)
-		{
-			double cursorx, cursory;
-			int wwidth_scr, wheight_scr;
-			int wwidth_pix, wheight_pix;
-			std::string ret_link_name;
-			Eigen::Vector3d ret_pos;
-
-			// get current cursor position
-			glfwGetCursorPos(window, &cursorx, &cursory);
-
-			glfwGetWindowSize(window, &wwidth_scr, &wheight_scr);
-			glfwGetFramebufferSize(window, &wwidth_pix, &wheight_pix);
-
-			int viewx = floor(cursorx / wwidth_scr * wwidth_pix);
-			int viewy = floor(cursory / wheight_scr * wheight_pix);
-
-			if(!ui_force_widget->setInteractionParams(camera_name, viewx, wheight_pix - viewy, wwidth_pix, wheight_pix))
-			{
-				fRobotLinkSelect = false;
-			}
-		}
 
 		// move scene camera as required
 		// graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
@@ -299,116 +291,48 @@ int main() {
 }
 
 //------------------------------------------------------------------------------
-void simulation_dummy(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {}
+void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation* sim) {
 
-//------------------------------------------------------------------------------
-void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, UIForceWidget *ui_force_widget) {
+	// initialize redis values
+	for(int i=0 ; i<n_robots ; i++)
+	{
+		redis_client.setEigenMatrixJSON(TORQUES_COMMANDED_KEYS[i], VectorXd::Zero(robots[i]->dof()));
+	}
 
-	int dof = robot->dof();
-	VectorXd command_torques = VectorXd::Zero(robot->dof());
-	redis_client.setEigenMatrixJSON(TORQUES_COMMANDED_KEY, command_torques.head<7>());
-
-	double kp_gripper = 50.0;
-	double kv_gripper = 14.0;
-	double gripper_width = (robot->_q(7) - robot->_q(8));
-	double gripper_opening_speed = 0;
-	double gripper_center_point = (robot->_q(7) + robot->_q(8));
-	double gripper_center_point_velocity = 0;
-	double gripper_constraint_force, gripper_behavior_force;
-
-	double gripper_desired_width, gripper_desired_speed, gripper_desired_force;
-	string gripper_mode = "m";
-
-	double gripper_max_width = 0.08;
-
-	redis_client.set(GRIPPER_MAX_WIDTH_KEY, to_string(gripper_max_width));
-	redis_client.set(GRIPPER_DESIRED_WIDTH_KEY, to_string(gripper_width));
-	redis_client.set(GRIPPER_DESIRED_SPEED_KEY, to_string(gripper_desired_speed));
-	redis_client.set(GRIPPER_DESIRED_FORCE_KEY, to_string(0));
-	redis_client.set(GRIPPER_MODE_KEY, gripper_mode);
+	// Add force sensor to the end-effector
+	string link_name = "end_effector";
+	Affine3d transform_in_link = Affine3d::Identity();
+	transform_in_link.translation() = Vector3d(0.0,0.0,0.0);
+	auto force_sensor_right = new ForceSensorSim(robot_names[0], link_name, transform_in_link, robots[0]);
+	VectorXd f_sensed_right = VectorXd::Zero(6);
+	Vector3d sensed_force_right = Vector3d::Zero();
+	Vector3d sensed_moment_right = Vector3d::Zero();
 
 	// create a timer
 	LoopTimer timer;
 	timer.initializeTimer();
-	timer.setLoopFrequency(2000); 
-	double last_time = timer.elapsedTime(); //secs
+	timer.setLoopFrequency(1000); 
 	bool fTimerDidSleep = true;
+	double start_time = timer.elapsedTime(); //secs
+	double last_time = start_time;
 
 	unsigned long long simulation_counter = 0;
 
 	while (fSimulationRunning) {
 		fTimerDidSleep = timer.waitForNextLoop();
 
-		// read arm torques from redis
-		command_torques.head<7>() = redis_client.getEigenMatrixJSON(TORQUES_COMMANDED_KEY);
+		for(int i=0 ; i<n_robots ; i++)
+		{
+			int dof = robots[i]->dof();
+			VectorXd command_torques = VectorXd::Zero(dof);
+			// read arm torques from redis
+			command_torques = redis_client.getEigenMatrixJSON(TORQUES_COMMANDED_KEYS[i]);
 
-		// compute gripper torques
-		gripper_desired_width = stod(redis_client.get(GRIPPER_DESIRED_WIDTH_KEY));
-		gripper_desired_speed = stod(redis_client.get(GRIPPER_DESIRED_SPEED_KEY));
-		gripper_desired_force = stod(redis_client.get(GRIPPER_DESIRED_FORCE_KEY));
-		gripper_mode = redis_client.get(GRIPPER_MODE_KEY);
-		if(gripper_desired_width > gripper_max_width)
-		{
-			gripper_desired_width = gripper_max_width;
-			redis_client.setCommandIs(GRIPPER_DESIRED_WIDTH_KEY, std::to_string(gripper_max_width));
-			std::cout << "WARNING : Desired gripper width higher than max width. saturating to max width\n" << std::endl;
+			// set robot torques to simulation
+			VectorXd gravity_torques = VectorXd::Zero(dof);
+			robots[i]->gravityVector(gravity_torques);
+			sim->setJointTorques(robot_names[i], command_torques + gravity_torques);
 		}
-		if(gripper_desired_width < 0)
-		{
-			gripper_desired_width = 0;
-			redis_client.setCommandIs(GRIPPER_DESIRED_WIDTH_KEY, std::to_string(0));
-			std::cout << "WARNING : Desired gripper width lower than 0. saturating to max 0\n" << std::endl;
-		}
-		if(gripper_desired_speed < 0)
-		{
-			gripper_desired_speed = 0;
-			redis_client.setCommandIs(GRIPPER_DESIRED_SPEED_KEY, std::to_string(0));
-			std::cout << "WARNING : Desired gripper speed lower than 0. saturating to max 0\n" << std::endl;
-		} 
-		if(gripper_desired_force < 0)
-		{
-			gripper_desired_force = 0;
-			redis_client.setCommandIs(GRIPPER_DESIRED_FORCE_KEY, std::to_string(0));
-			std::cout << "WARNING : Desired gripper speed lower than 0. saturating to max 0\n" << std::endl;
-		}
-
-		gripper_constraint_force = -400.0*gripper_center_point - 40.0*gripper_center_point_velocity;
-		if(gripper_mode == "m")
-		{
-			// cout << "switching to motion mode\n" << endl;
-			gripper_behavior_force = -kp_gripper*(gripper_width - gripper_desired_width) - kv_gripper*(gripper_opening_speed - gripper_desired_speed);
-			// cout << "gripper width : " << gripper_width << endl;
-			// cout << "gripper desired width : " << gripper_desired_width << endl;
-			// cout << "gripper closing force : " << gripper_behavior_force << endl;
-		}
-		else if(gripper_mode == "g")
-		{
-			gripper_behavior_force = -gripper_desired_force;
-		}
-		else
-		{
-			cout << "gripper mode not recognized\n" << endl;
-		}
-
-		command_torques(7) = gripper_constraint_force + gripper_behavior_force;
-		command_torques(8) = gripper_constraint_force - gripper_behavior_force;
-
-		// get ui force and torques
-		if(ui_force_widget->getState() == UIForceWidget::UIForceWidgetState::Active)
-		{
-			ui_force_widget->getUIForce(ui_force);
-			ui_force_widget->getUIJointTorques(ui_force_command_torques);
-		}
-		else
-		{
-			ui_force.setZero();
-			ui_force_command_torques.setZero(dof);
-		}
-
-		command_torques += ui_force_command_torques;
-
-		// set torques to simulation
-		sim->setJointTorques(robot_name, command_torques);
 
 		// integrate forward
 		double curr_time = timer.elapsedTime();
@@ -416,21 +340,36 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, UI
 		sim->integrate(loop_dt);
 
 		// read joint positions, velocities, update model
-		sim->getJointPositions(robot_name, robot->_q);
-		sim->getJointVelocities(robot_name, robot->_dq);
-		robot->updateKinematics();
-		gripper_center_point = (robot->_q(7) + robot->_q(8));
-		gripper_width = (robot->_q(7) - robot->_q(8));
-		gripper_center_point_velocity = (robot->_dq(7) + robot->_dq(8));
-		gripper_opening_speed = (robot->_dq(7) - robot->_dq(8));
+		for(int i=0 ; i<n_robots ; i++)
+		{
+			sim->getJointPositions(robot_names[i], robots[i]->_q);
+			sim->getJointVelocities(robot_names[i], robots[i]->_dq);
+			robots[i]->updateKinematics();
+		}
 
-		// cout << "joint 7 : " << robot->_q(7) << endl;
-		// cout << "joint 8 : " << robot->_q(8) << endl;
+		// get object positions from simulation
+		for(int i=0 ; i< n_objects ; i++)
+		{
+			sim->getObjectPosition(object_names[i], object_positions[i], object_orientations[i]);
+		}
 
 		// write new robot state to redis
-		redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEY, robot->_q.head<7>());
-		redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEY, robot->_dq.head<7>());
-		redis_client.set(GRIPPER_CURRENT_WIDTH_KEY, to_string(gripper_width));
+		for(int i=0 ; i<n_robots ; i++)
+		{
+			redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEYS[i], robots[i]->_q.head<7>());
+			redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEYS[i], robots[i]->_dq.head<7>());
+			redis_client.set(GRIPPER_CURRENT_WIDTH_KEYS[i], to_string(gripper_widths[i]));
+		}
+		redis_client.set(TIMESTAMP_KEY, to_string(curr_time));
+
+		// read end-effector task forces from the force sensor simulation
+		force_sensor_right->update(sim);
+		force_sensor_right->getForceLocalFrame(sensed_force_right);
+		force_sensor_right->getMomentLocalFrame(sensed_moment_right);
+		f_sensed_right << sensed_force_right, sensed_moment_right;
+
+		// write task force in redis
+		redis_client.setEigenMatrixJSON(FORCE_SENSED_KEYS[0], -f_sensed_right);
 
 		//update last time
 		last_time = curr_time;
@@ -438,11 +377,83 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, UI
 		simulation_counter++;
 	}
 
+
+
 	double end_time = timer.elapsedTime();
 	std::cout << "\n";
 	std::cout << "Simulation Loop run time  : " << end_time << " seconds\n";
 	std::cout << "Simulation Loop updates   : " << timer.elapsedCycles() << "\n";
 	std::cout << "Simulation Loop frequency : " << timer.elapsedCycles()/end_time << "Hz\n";
+}
+
+//------------------------------------------------------------------------------
+Vector2d gripperControl(const int robot_index, vector<Sai2Model::Sai2Model*> robots)
+{
+	int i = robot_index;
+	Vector2d gripper_torques = Vector2d::Zero();
+
+	// controller gains and force
+	double kp_gripper = 400.0;
+	double kv_gripper = 40.0;
+	double gripper_behavior_force = 0;
+
+	// gripper state
+	double gripper_center_point = (robots[i]->_q(7) + robots[i]->_q(8))/2.0;
+	double gripper_center_point_velocity = (robots[i]->_dq(7) + robots[i]->_dq(8))/2.0;
+
+	gripper_widths[i] = (robots[i]->_q(7) - robots[i]->_q(8))/2;
+	double gripper_opening_speed = (robots[i]->_dq(7) - robots[i]->_dq(8))/2;
+
+	// compute gripper torques
+	double gripper_desired_width = stod(redis_client.get(GRIPPER_DESIRED_WIDTH_KEYS[i]));
+	double gripper_desired_speed = stod(redis_client.get(GRIPPER_DESIRED_SPEED_KEYS[i]));
+	double gripper_desired_force = stod(redis_client.get(GRIPPER_DESIRED_FORCE_KEYS[i]));
+	string gripper_mode = redis_client.get(GRIPPER_MODE_KEYS[i]);
+	if(gripper_desired_width > gripper_max_widths[i])
+	{
+		gripper_desired_width = gripper_max_widths[i];
+		redis_client.setCommandIs(GRIPPER_DESIRED_WIDTH_KEYS[i], std::to_string(gripper_max_widths[i]));
+		std::cout << "WARNING : Desired gripper " << i << " width higher than max width. saturating to max width\n" << std::endl;
+	}
+	if(gripper_desired_width < 0)
+	{
+		gripper_desired_width = 0;
+		redis_client.setCommandIs(GRIPPER_DESIRED_WIDTH_KEYS[i], std::to_string(0));
+		std::cout << "WARNING : Desired gripper " << i << " width lower than 0. saturating to 0\n" << std::endl;
+	}
+	if(gripper_desired_speed < 0)
+	{
+		gripper_desired_speed = 0;
+		redis_client.setCommandIs(GRIPPER_DESIRED_SPEED_KEYS[i], std::to_string(0));
+		std::cout << "WARNING : Desired gripper " << i << " speed lower than 0. saturating to 0\n" << std::endl;
+	} 
+	if(gripper_desired_force < 0)
+	{
+		gripper_desired_force = 0;
+		redis_client.setCommandIs(GRIPPER_DESIRED_FORCE_KEYS[i], std::to_string(0));
+		std::cout << "WARNING : Desired gripper " << i << " force lower than 0. saturating to 0\n" << std::endl;
+	}
+
+	double gripper_constraint_force = -400.0*gripper_center_point - 40.0*gripper_center_point_velocity;
+
+	if(gripper_mode == "m")
+	{
+		gripper_behavior_force = -kp_gripper*(gripper_widths[i] - gripper_desired_width) - kv_gripper*(gripper_opening_speed - gripper_desired_speed);
+	}
+	else if(gripper_mode == "g")
+	{
+		gripper_behavior_force = -gripper_desired_force;
+	}
+	else
+	{
+		cout << "gripper mode not recognized\n" << endl;
+	}
+
+	gripper_torques(0) = gripper_constraint_force + gripper_behavior_force;
+	gripper_torques(1) = gripper_constraint_force - gripper_behavior_force;
+
+	return gripper_torques;
+
 }
 
 //------------------------------------------------------------------------------
@@ -504,7 +515,7 @@ void mouseClick(GLFWwindow* window, int button, int action, int mods) {
 			break;
 		// if right click: don't handle. this is for menu selection
 		case GLFW_MOUSE_BUTTON_RIGHT:
-			fRobotLinkSelect = set;
+			//TODO: menu
 			break;
 		// if middle click: don't handle. doesn't work well on laptops
 		case GLFW_MOUSE_BUTTON_MIDDLE:

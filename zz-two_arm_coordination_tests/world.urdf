@@ -1,0 +1,97 @@
+<?xml version="1.0" ?>
+
+<!-- <world name="demo_world" gravity="0.0 0.0 0.0"> -->
+<world name="demo_world" gravity="0.0 0.0 -9.81">
+
+	<robot name="PANDA1">
+		<model dir="./resources" path="panda_arm_flat_ee.urdf" name="panda" />
+		<origin xyz="0 -0.5 0.0" rpy="0 0 0.3010693" />
+		<!-- <origin xyz="0 -0.0 0.0" rpy="0 0 0.3010693" /> -->
+	</robot>
+	<robot name="PANDA2">
+		<model dir="./resources" path="panda_arm_flat_ee.urdf" name="panda" />
+		<origin xyz="-0.06 0.57 0.0" rpy="0 0 -1.0864675" />
+	</robot>
+
+<!-- 	<robot name="Plate">
+		<model dir="./resources" path="plate.urdf" name="plate" />
+		<origin xyz="0.55 0.0 0.2" rpy="0 0 0" />
+	</robot> -->
+
+	<static_object name="Floor">
+		<origin xyz="0.0 0.0 -0.05" rpy="0 0 0" />
+		<collision>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <box size="3.0 3.0 0.1" />
+	        </geometry>
+	    </collision>
+	    <visual>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <box size="3.0 3.0 0.1" />
+	        </geometry>
+	        <material name="material_gray">
+		        <color rgba="0.3 0.3 0.3 1.0" />
+	        </material>
+	    </visual>
+	</static_object>
+
+<!-- 	<static_object name="Floor_bis">
+		<origin xyz="0.55 0.0 0.05" rpy="0 0 0" />
+		<collision>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <box size="0.4 0.4 0.1" />
+	        </geometry>
+	    </collision>
+	    <visual>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <box size="0.4 0.4 0.1" />
+	        </geometry>
+	        <material name="material_red">
+		        <color rgba="0.6 0.3 0.3 1.0" />
+	        </material>
+	    </visual>
+	</static_object> -->
+
+	<dynamic_object name="box">
+		<origin xyz="0.2 -0.0 0.15" rpy="0 0 0" />
+		<inertial>
+	        <origin xyz="0 0 0" rpy="0 0 0" />
+	        <mass value="1.0" />
+	        <inertia ixx="0.1" iyy="0.1" izz="0.1" ixy="0" ixz="0" iyz="0" />
+		</inertial>
+		<visual>
+	        <geometry>
+	            <box size="0.2 0.3 0.25" />
+	        </geometry>
+	        <material name="material_green">
+		        <color rgba="0.6 0.9 0.6 1.0" />
+	        </material>
+	    </visual>
+		<collision>
+	        <geometry>
+	            <box size="0.2 0.3 0.25" />
+	        </geometry>
+	    </collision>
+	</dynamic_object>
+
+	<light name="light1" type="directional">
+		<position xyz="2.0 -2.0 2.0" />
+		<lookat xyz="0.0 0.0 0.0" />
+	</light>
+
+	<light name="light2" type="directional">
+		<position xyz="2.0 2.0 2.0" />
+		<lookat xyz="0.0 0.0 0.0" />
+	</light>
+
+	<camera name="camera_fixed">
+		<position xyz="2.0 0.0 1.0" />
+		<vertical xyz="0.0 0.0 1.0" />
+		<lookat xyz="0.0 0.0 0.5" />
+	</camera>
+
+</world>
