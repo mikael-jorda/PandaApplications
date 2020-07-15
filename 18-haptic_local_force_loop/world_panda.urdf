@@ -1,7 +1,7 @@
 <?xml version="1.0" ?>
 
-<!-- <world name="demo_world" gravity="0.0 0.0 0.0"> -->
-<world name="demo_world" gravity="0.0 0.0 -9.81">
+<world name="demo_world" gravity="0.0 0.0 0.0">
+<!-- <world name="demo_world" gravity="0.0 0.0 -9.81"> -->
 
 	<robot name="PANDA_RIGHT">
 		<model dir="./resources" path="panda_arm.urdf" name="panda" />
@@ -46,6 +46,25 @@
 	    </visual>
 	</static_object>
 
+	<static_object name="Wall">
+		<origin xyz="0.286731 0.1 0.482709" rpy="0 0 0" />
+		<collision>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <box size="0.8 0.1 0.8" />
+	        </geometry>
+	    </collision>
+	    <visual>
+	        <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+	        <geometry>
+	            <box size="0.8 0.1 0.8" />
+	        </geometry>
+	        <material name="material_blue">
+		        <color rgba="0.0 0.2 0.6 1.0" />
+	        </material>
+	    </visual>
+	</static_object>
+
 	<light name="light1" type="directional">
 		<position xyz="2.0 -2.0 2.0" />
 		<lookat xyz="0.0 0.0 0.0" />
@@ -56,7 +75,7 @@
 		<lookat xyz="0.0 0.0 0.0" />
 	</light>
 
-	<camera name="camera_fixed">
+	<camera name="camera">
 		<position xyz="2.0 0.0 1.0" />
 		<vertical xyz="0.0 0.0 1.0" />
 		<lookat xyz="0.0 0.0 0.5" />
