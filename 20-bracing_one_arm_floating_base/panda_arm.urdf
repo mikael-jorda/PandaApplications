@@ -1,6 +1,14 @@
 <?xml version='1.0' encoding='utf-8'?>
 <robot name="panda">
 
+    <link name="base_link">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0" />
+        <mass value="0.1" />
+        <inertia ixx="0.001" iyy="0..01" izz="0..01" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
     <link name="link0">
       <inertial>
         <origin xyz="0 0 0.05" rpy="0 0 0" />
@@ -80,6 +88,21 @@
           <mesh filename="../../../Model/meshes/visual/link4.obj"/>
         </geometry>
       </visual>
+<!--       <visual>
+        <origin xyz="-0.085 0.065 0" rpy="0 0 0" />
+        <geometry>
+          <sphere radius="0.05"/>
+        </geometry>
+        <material name="material_green">
+          <color rgba="0.3 0.7 0.3 1.0" />
+        </material>
+      </visual>   -->  
+      <collision>
+        <origin xyz="-0.085 0.065 0" rpy="0 0 0" />
+        <geometry>
+          <sphere radius="0.05"/>
+        </geometry>
+      </collision>         
 <!--       <collision>
         <geometry>
           <mesh filename="../../../Model/meshes/collision/link4.obj"/>
@@ -131,48 +154,45 @@
           <mesh filename="../../../Model/meshes/visual/link7.obj"/>
         </geometry>
       </visual>
-<!--       <visual>
-        <origin xyz="0 0 0.12" rpy="0 0 0" />
-        <geometry>
-          <box size="0.07 0.07 0.04"/>
-        </geometry>
-        <material name="material_blue">
-            <color rgba="0.50 0.92 1.00 1.0" />
-          </material>
-      </visual>
-      <collision >
-        <origin xyz="0 0 0.12" rpy="0 0 0" />
-        <geometry>
-          <box size="0.07 0.07 0.04"/>
-        </geometry>
-      </collision> -->
-       <visual>
-        <origin xyz="0 0 0.12" rpy="0 0 0" />
-        <geometry>
-          <sphere radius="0.02"/>
-        </geometry>
-        <material name="material_blue">
-            <color rgba="0.50 0.92 1.00 1.0" />
-          </material>
-      </visual>
-      <collision >
-        <origin xyz="0 0 0.12" rpy="0 0 0" />
-        <geometry>
-          <sphere radius="0.02"/>
-        </geometry>
-      </collision>
       <!-- <collision>
         <geometry>
           <mesh filename="../../../Model/meshes/collision/link7.obj"/>
         </geometry>
       </collision> -->
     </link>
+    <link name="end-effector">
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 -0 0" />
+        <mass value="0.2" />
+        <inertia ixx="0.01" iyy="0.01" izz="0.01" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+      <visual>
+        <geometry>
+          <sphere radius="0.04" />
+        </geometry>
+      </visual>
+      <collision>
+        <geometry>
+          <sphere radius="0.04" />
+        </geometry>
+      </collision>
+    </link>
+
+     <joint name="base_joint" type="prismatic">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin xyz="0.0 0.0 0.8" rpy="1.57079632679 0 1.57079632679" />
+      <parent link="base_link"/>
+      <child link="link0"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="87" lower="-2.8973" upper="2.8973" velocity="2.1750"/>
+    </joint>   
     <joint name="joint1" type="revolute">
       <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
       <origin rpy="0 0 0" xyz="0 0 0.333"/>
       <parent link="link0"/>
       <child link="link1"/>
       <axis xyz="0 0 1"/>
+      <calibration falling="45.0" />
       <limit effort="87" lower="-2.8973" upper="2.8973" velocity="2.1750"/>
     </joint>
     <joint name="joint2" type="revolute">
@@ -181,7 +201,7 @@
       <parent link="link1"/>
       <child link="link2"/>
       <axis xyz="0 0 1"/>
-      <calibration falling="30.0" />
+      <calibration falling="-45.0" />
       <limit effort="87" lower="-1.7628" upper="1.7628" velocity="2.1750"/>
     </joint>
     <joint name="joint3" type="revolute">
@@ -198,7 +218,7 @@
       <parent link="link3"/>
       <child link="link4"/>
       <axis xyz="0 0 1"/>
-      <calibration falling="-90.0" />
+      <calibration falling="-70.0" />
       <limit effort="87" lower="-3.0718" upper="-0.0698" velocity="2.1750"/>
     </joint>
     <joint name="joint5" type="revolute">
@@ -207,6 +227,7 @@
       <parent link="link4"/>
       <child link="link5"/>
       <axis xyz="0 0 1"/>
+      <calibration falling="-105.0" />
       <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
     </joint>
     <joint name="joint6" type="revolute">
@@ -215,7 +236,7 @@
       <parent link="link5"/>
       <child link="link6"/>
       <axis xyz="0 0 1"/>
-      <calibration falling="120.0" />
+      <calibration falling="90.0" />
       <limit effort="12" lower="-0.0175" upper="3.7525" velocity="2.6100"/>
     </joint>
     <joint name="joint7" type="revolute">
@@ -225,5 +246,13 @@
       <child link="link7"/>
       <axis xyz="0 0 1"/>
       <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+    <joint name="joint_ee" type="fixed">
+      <!-- <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/> -->
+      <origin rpy="0 0 0" xyz="0 0 0.15"/>
+      <parent link="link7"/>
+      <child link="end-effector"/>
+      <!-- <axis xyz="0 0 1"/> -->
+      <!-- <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/> -->
     </joint>
 </robot>

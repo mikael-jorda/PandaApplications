@@ -24,24 +24,55 @@ using namespace std;
 using namespace Eigen;
 
 const string world_file = "./resources/world.urdf";
-const string robot_file = "./resources/panda_arm.urdf";
-// const string robot_file = "./resources/panda_arm_hand.urdf";
-const string robot_name = "PANDA";
+const vector<string> robot_files = {
+	"./resources/panda_arm_flat_ee.urdf",
+	"./resources/panda_arm_flat_ee.urdf",
+};
+const vector<string> robot_names = {
+	"PANDA1",
+	"PANDA2",
+};
+const vector<string> object_names = {
+	"box",
+};
 const string camera_name = "camera_fixed";
+
+const int n_robots = robot_names.size();
+const int n_objects = object_names.size();
+
 
 // redis keys:
 // - write:
-std::string JOINT_ANGLES_KEY  = "sai2::PandaApplication::sensors::q";
-std::string JOINT_VELOCITIES_KEY = "sai2::PandaApplication::sensors::dq";
-std::string SENSED_FORCE_KEY = "sai2::PandaApplication::sensors::force";
-std::string SENSED_MOMENT_KEY = "sai2::PandaApplication::sensors::moment";
+const string TIMESTAMP_KEY = "sai2::PandaApplications::simulation::timestamp";
+const vector<string> JOINT_ANGLES_KEYS  = {
+	"sai2::PandaApplications::panda1::sensors::q",
+	"sai2::PandaApplications::panda2::sensors::q",
+};
+const vector<string> JOINT_VELOCITIES_KEYS = {
+	"sai2::PandaApplications::panda1::sensors::dq",
+	"sai2::PandaApplications::panda2::sensors::dq",
+};
+
+const vector<string> SENSED_FORCES_KEYS = {
+	"sai2::PandaApplications::panda1::sensors::wrist_force_moment",
+	"sai2::PandaApplications::panda2::sensors::wrist_force_moment",
+};
+
+const string OBJECT_POSITION_KEY = "sai2::PandaApplications::object_position";
+
 // - read
-const std::string TORQUES_COMMANDED_KEY  = "sai2::PandaApplication::actuators::fgc";
+const vector<string> TORQUES_COMMANDED_KEYS = {
+	"sai2::PandaApplications::panda1::actuators::fgc",
+	"sai2::PandaApplications::panda2::actuators::fgc",
+};
+
 
 RedisClient redis_client;
+vector<Vector3d> object_positions;
+vector<Quaterniond> object_orientations;
 
 // simulation function prototype
-void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, UIForceWidget *ui_force_widget);
+void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation* sim, vector<UIForceWidget*> ui_force_widgets);
 
 // callback to print glfw errors
 void glfwError(int error, const char* description);
@@ -60,23 +91,10 @@ bool fTransYn = false;
 bool fTransZp = false;
 bool fTransZn = false;
 bool fRotPanTilt = false;
-
-// flags for ui widget click
-bool fRobotLinkSelect = false;
-Eigen::Vector3d ui_force;
-Eigen::VectorXd ui_force_command_torques;
-
-// const bool flag_simulation = false;
-const bool flag_simulation = true;
+vector<bool> fRobotLinkSelect(n_robots, false);
 
 int main() {
 	cout << "Loading URDF world model file: " << world_file << endl;
-
-	if(!flag_simulation)
-	{
-		JOINT_ANGLES_KEY = "sai2::FrankaPanda::sensors::q";
-		JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::sensors::dq";
-	}
 
 	// start redis client
 	redis_client = RedisClient();
@@ -87,30 +105,44 @@ int main() {
 	Eigen::Vector3d camera_pos, camera_lookat, camera_vertical;
 	graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
 
-	// load robots
-	auto robot = new Sai2Model::Sai2Model(robot_file, false);
-	robot->updateKinematics();
-
 	// load simulation world
 	auto sim = new Simulation::Sai2Simulation(world_file, false);
 	sim->setCollisionRestitution(0);
-	sim->setCoeffFrictionStatic(0.6);
+	sim->setCoeffFrictionStatic(0.8);
+	Eigen::Vector3d world_gravity = sim->_world->getGravity().eigen();
+
+	// load robots
+	vector<Sai2Model::Sai2Model*> robots;
+	for(int i=0 ; i<n_robots ; i++)
+	{
+		robots.push_back(new Sai2Model::Sai2Model(robot_files[i], false, sim->getRobotBaseTransform(robot_names[i]), world_gravity));
+	}
 
 	// read joint positions, velocities, update model
-	sim->getJointPositions(robot_name, robot->_q);
-	sim->getJointVelocities(robot_name, robot->_dq);
-	robot->updateKinematics();
+	for(int i=0 ; i<n_robots ; i++)
+	{
+		sim->getJointPositions(robot_names[i], robots[i]->_q);
+		sim->getJointVelocities(robot_names[i], robots[i]->_dq);
+		robots[i]->updateKinematics();
+	}
 
-	// init click force widget 
-	auto ui_force_widget = new UIForceWidget(robot_name, robot, graphics);
-	ui_force_widget->setEnable(false);
+	// read objects initial positions
+	for(int i=0 ; i< n_objects ; i++)
+	{
+		Vector3d obj_pos = Vector3d::Zero();
+		Quaterniond obj_ori = Quaterniond::Identity();
+		sim->getObjectPosition(object_names[i], obj_pos, obj_ori);
+		object_positions.push_back(obj_pos);
+		object_orientations.push_back(obj_ori);
+	}
 
-	ui_force_widget->_spring_k = 50.0;
-	ui_force_widget->_max_force = 100.0;
-
-	int dof = robot->dof();
-	ui_force.setZero();
-	ui_force_command_torques.setZero(dof);
+	// init click force widget
+	vector<UIForceWidget*> ui_force_widgets;
+	for(int i=0 ; i<n_robots ; i++)
+	{
+		ui_force_widgets.push_back(new UIForceWidget(robot_names[i], robots[i], graphics));
+		ui_force_widgets[i]->setEnable(false);
+	}
 
 	/*------- Set up visualization -------*/
 	// set up error callback
@@ -147,22 +179,24 @@ int main() {
 	double last_cursorx, last_cursory;
 
 	fSimulationRunning = true;
-	thread sim_thread(simulation, robot, sim, ui_force_widget);
+	// thread sim_thread(simulation, robots, plate, sim);
+	thread sim_thread(simulation, robots, sim, ui_force_widgets);
 
 	// while window is open:
 	while (!glfwWindowShouldClose(window))
 	{
-		if(!flag_simulation)
-		{
-			robot->_q = redis_client.getEigenMatrixJSON(JOINT_ANGLES_KEY);
-			robot->_dq = redis_client.getEigenMatrixJSON(JOINT_VELOCITIES_KEY);
-			robot->updateKinematics();
-		}
-
 		// update graphics. this automatically waits for the correct amount of time
 		int width, height;
 		glfwGetFramebufferSize(window, &width, &height);
-		graphics->updateGraphics(robot_name, robot);
+		for(int i=0 ; i<n_robots ; i++)
+		{
+			graphics->updateGraphics(robot_names[i], robots[i]);
+		}
+		// graphics->updateGraphics(plate_name, plate);
+		for(int i=0 ; i< n_objects ; i++)
+		{
+			graphics->updateObjectGraphics(object_names[i], object_positions[i], object_orientations[i]);
+		}
 		graphics->render(camera_name, width, height);
 
 		// swap buffers
@@ -178,32 +212,6 @@ int main() {
 
 		// poll for events
 		glfwPollEvents();
-
-	    // detect click to the link
-		ui_force_widget->setEnable(fRobotLinkSelect);
-		if (fRobotLinkSelect)
-		{
-			double cursorx, cursory;
-			int wwidth_scr, wheight_scr;
-			int wwidth_pix, wheight_pix;
-			std::string ret_link_name;
-			Eigen::Vector3d ret_pos;
-
-			// get current cursor position
-			glfwGetCursorPos(window, &cursorx, &cursory);
-
-			glfwGetWindowSize(window, &wwidth_scr, &wheight_scr);
-			glfwGetFramebufferSize(window, &wwidth_pix, &wheight_pix);
-
-			int viewx = floor(cursorx / wwidth_scr * wwidth_pix);
-			int viewy = floor(cursory / wheight_scr * wheight_pix);
-
-			if(!ui_force_widget->setInteractionParams(camera_name, viewx, wheight_pix - viewy, wwidth_pix, wheight_pix))
-			{
-				fRobotLinkSelect = false;
-			}
-		}
-
 
 		// move scene camera as required
 		// graphics->getCameraPose(camera_name, camera_pos, camera_vertical, camera_lookat);
@@ -259,6 +267,36 @@ int main() {
 		}
 		graphics->setCameraPose(camera_name, camera_pos, cam_up_axis, camera_lookat);
 		glfwGetCursorPos(window, &last_cursorx, &last_cursory);
+
+		// detect click to the link
+		for(int i=0 ; i<n_robots ; i++)
+		{
+			ui_force_widgets[i]->setEnable(fRobotLinkSelect[i]);
+			if(fRobotLinkSelect[i])
+			{
+				double cursorx, cursory;
+				int wwidth_scr, wheight_scr;
+				int wwidth_pix, wheight_pix;
+				std::string ret_link_name;
+				Eigen::Vector3d ret_pos;
+
+				// get current cursor position
+				glfwGetCursorPos(window, &cursorx, &cursory);
+
+				glfwGetWindowSize(window, &wwidth_scr, &wheight_scr);
+				glfwGetFramebufferSize(window, &wwidth_pix, &wheight_pix);
+
+				int viewx = floor(cursorx / wwidth_scr * wwidth_pix);
+				int viewy = floor(cursory / wheight_scr * wheight_pix);
+
+				if(!ui_force_widgets[i]->setInteractionParams(camera_name, viewx, wheight_pix - viewy, wwidth_pix, wheight_pix))
+				{
+					fRobotLinkSelect[i] = false;
+				}
+			}
+		}
+
+
 	}
 
 	// stop simulation
@@ -275,107 +313,101 @@ int main() {
 }
 
 //------------------------------------------------------------------------------
-void simulation_dummy(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim) {}
+void simulation(vector<Sai2Model::Sai2Model*> robots, Simulation::Sai2Simulation* sim, vector<UIForceWidget*>ui_force_widgets) {
 
-//------------------------------------------------------------------------------
-void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, UIForceWidget *ui_force_widget) {
-
-	int dof = robot->dof();
-	VectorXd command_torques = VectorXd::Zero(robot->dof());
-	redis_client.setEigenMatrixJSON(TORQUES_COMMANDED_KEY, command_torques);
-
-	// create a force sensor
-	const string link_name = "link7";
-	Affine3d T_link_sensor = Affine3d::Identity();
-	T_link_sensor.translation() = Vector3d(0, 0, 0.11);
-	ForceSensorSim* fsensor = new ForceSensorSim(robot_name, link_name, T_link_sensor, robot);
-	Vector3d sensed_force = Vector3d::Zero();
-	Vector3d sensed_moment = Vector3d::Zero();
-
-	const int introduced_delay = 1; // timesteps
-	vector<Vector3d> force_buffer;
-	vector<Vector3d> moment_buffer;
-	int buffer_counter = 0;
-	force_buffer.push_back(Vector3d::Zero());
-	moment_buffer.push_back(Vector3d::Zero());
-	for(int i=0 ; i<introduced_delay-1 ; i++)
+	// initialize redis values
+	for(int i=0 ; i<n_robots ; i++)
 	{
-		force_buffer.push_back(Vector3d::Zero());
-		moment_buffer.push_back(Vector3d::Zero());
+		redis_client.setEigenMatrixJSON(TORQUES_COMMANDED_KEYS[i], VectorXd::Zero(robots[i]->dof()));
+	}
+
+	// create virtual force sensors
+	string sensor_link_name = "link7";
+	Affine3d T_link_sensor = Affine3d::Identity();
+	T_link_sensor.translation() = Vector3d(0, 0, 0.113);
+	vector<ForceSensorSim*> fsensors;
+	vector<VectorXd> sensed_forces_moments;
+
+	for(int i=0 ; i<n_robots ; i++)
+	{
+		fsensors.push_back(new ForceSensorSim(robot_names[i], sensor_link_name, T_link_sensor, robots[i]));
+		fsensors[i]->enableFilter(0.01);
+		sensed_forces_moments.push_back(VectorXd::Zero(6));
 	}
 
 	// create a timer
+	double simulation_freq = 1000.0;
 	LoopTimer timer;
 	timer.initializeTimer();
-	timer.setLoopFrequency(1200); 
-	double last_time = timer.elapsedTime(); //secs
+	timer.setLoopFrequency(simulation_freq); 
 	bool fTimerDidSleep = true;
+	double start_time = timer.elapsedTime(); //secs
+	double last_time = start_time;
 
 	unsigned long long simulation_counter = 0;
 
 	while (fSimulationRunning) {
 		fTimerDidSleep = timer.waitForNextLoop();
 
-		// read arm torques from redis
-		command_torques = redis_client.getEigenMatrixJSON(TORQUES_COMMANDED_KEY);
+		double time = timer.elapsedTime() - start_time;
 
-		// get ui force and torques
-		if(ui_force_widget->getState() == UIForceWidget::UIForceWidgetState::Active)
+		for(int i=0 ; i<n_robots ; i++)
 		{
-			ui_force_widget->getUIForce(ui_force);
-			ui_force_widget->getUIJointTorques(ui_force_command_torques);
-		}
-		else
-		{
-			ui_force.setZero();
-			ui_force_command_torques.setZero(dof);
-		}
+			int dof = robots[i]->dof();
+			VectorXd command_torques = VectorXd::Zero(dof);
+			// read arm torques from redis
+			command_torques = redis_client.getEigenMatrixJSON(TORQUES_COMMANDED_KEYS[i]);
 
-		command_torques += ui_force_command_torques;
+			// get ui force and torques
+			VectorXd ui_widget_torques = VectorXd::Zero(robots[i]->dof());
+			if(ui_force_widgets[i]->getState() == UIForceWidget::UIForceWidgetState::Active)
+			{
+				ui_force_widgets[i]->getUIJointTorques(ui_widget_torques);
+			}
 
-		// set torques to simulation
-		sim->setJointTorques(robot_name, command_torques);
+			// set robot torques to simulation
+			VectorXd gravity_torques = VectorXd::Zero(dof);
+			robots[i]->gravityVector(gravity_torques);
+			sim->setJointTorques(robot_names[i], command_torques + gravity_torques + ui_widget_torques);
+		}
 
 		// integrate forward
 		double curr_time = timer.elapsedTime();
 		double loop_dt = curr_time - last_time; 
-		sim->integrate(loop_dt);
+		// sim->integrate(loop_dt);
+		sim->integrate(1/simulation_freq);
 
-		// update force sensor and read values
-		fsensor->update(sim);
-		fsensor->getForceLocalFrame(sensed_force);
-		fsensor->getMomentLocalFrame(sensed_moment);
-		force_buffer[buffer_counter] = sensed_force;
-		moment_buffer[buffer_counter] = sensed_moment;
+		// read joint positions, velocities, update model, read sensor forces
+		for(int i=0 ; i<n_robots ; i++)
+		{
+			sim->getJointPositions(robot_names[i], robots[i]->_q);
+			sim->getJointVelocities(robot_names[i], robots[i]->_dq);
+			robots[i]->updateKinematics();
 
-		// read joint positions, velocities, update model
-		sim->getJointPositions(robot_name, robot->_q);
-		sim->getJointVelocities(robot_name, robot->_dq);
-		robot->updateKinematics();
+			fsensors[i]->update(sim);
+			fsensors[i]->getForceMomentLocalFrame(sensed_forces_moments[i]);
+		}
+
+		// get object positions from simulation
+		for(int i=0 ; i< n_objects ; i++)
+		{
+			sim->getObjectPosition(object_names[i], object_positions[i], object_orientations[i]);
+		}
 
 		// write new robot state to redis
-		redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEY, robot->_q);
-		redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEY, robot->_dq);
-		if(introduced_delay > 0)
+		for(int i=0 ; i<n_robots ; i++)
 		{
-			redis_client.setEigenMatrixJSON(SENSED_FORCE_KEY, -force_buffer[(buffer_counter - introduced_delay) % introduced_delay]);
-			redis_client.setEigenMatrixJSON(SENSED_MOMENT_KEY, -moment_buffer[(buffer_counter - introduced_delay) % introduced_delay]);
+			redis_client.setEigenMatrixJSON(JOINT_ANGLES_KEYS[i], robots[i]->_q);
+			redis_client.setEigenMatrixJSON(JOINT_VELOCITIES_KEYS[i], robots[i]->_dq);
+
+			redis_client.setEigenMatrixJSON(SENSED_FORCES_KEYS[i], -sensed_forces_moments[i]);
 		}
-		else
-		{
-			redis_client.setEigenMatrixJSON(SENSED_FORCE_KEY, -force_buffer[buffer_counter]);
-			redis_client.setEigenMatrixJSON(SENSED_MOMENT_KEY, -moment_buffer[buffer_counter]);
-		}
+		redis_client.set(TIMESTAMP_KEY, to_string(curr_time));
 
 		//update last time
 		last_time = curr_time;
 
 		simulation_counter++;
-
-		if(introduced_delay > 0)
-		{
-			buffer_counter = (buffer_counter + 1) % introduced_delay;
-		}
 	}
 
 	double end_time = timer.elapsedTime();
@@ -444,7 +476,10 @@ void mouseClick(GLFWwindow* window, int button, int action, int mods) {
 			break;
 		// if right click: don't handle. this is for menu selection
 		case GLFW_MOUSE_BUTTON_RIGHT:
-			fRobotLinkSelect = set;
+		for(int i=0 ; i<n_robots ; i++)
+		{
+			fRobotLinkSelect[i] = set;
+		}
 			break;
 		// if middle click: don't handle. doesn't work well on laptops
 		case GLFW_MOUSE_BUTTON_MIDDLE:
