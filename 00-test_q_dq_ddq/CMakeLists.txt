@@ -1,6 +1,6 @@
 # create an executable
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PANDA_APPLICATIONS_BINARY_DIR}/00-test_q_dq_ddq)
-ADD_EXECUTABLE (controller00-test_q_dq_ddq controller.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
+ADD_EXECUTABLE (controller00-test_q_dq_ddq controller.cpp KalmanFilter.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
 # ADD_EXECUTABLE (simviz00-test_q_dq_ddq simviz.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
 
 # and link the library against the executable
