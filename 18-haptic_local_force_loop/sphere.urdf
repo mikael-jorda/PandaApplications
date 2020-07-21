@@ -68,6 +68,7 @@
       <parent link="link2"/>
       <child link="end_effector"/>
       <axis xyz="0 0 1"/>
+      <calibration rising="-0.05"/>
       <limit effort="87" lower="-2.8973" upper="2.8973" velocity="2.1750"/>
     </joint>
 
