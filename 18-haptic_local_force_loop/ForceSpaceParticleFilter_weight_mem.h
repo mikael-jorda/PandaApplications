@@ -69,6 +69,8 @@ public:
 	double _mean_scatter;
 	double _std_scatter;
 
+	double _memory_coefficient;
+
 	double _coeff_friction;
 
 };

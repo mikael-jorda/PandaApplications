@@ -1,15 +1,23 @@
 #include "ForceSpaceParticleFilter_weight_mem.h"
 
+#include <iostream>
+
+using namespace Eigen;
+using namespace std;
+
 ForceSpaceParticleFilter_weight_mem::ForceSpaceParticleFilter_weight_mem(const int n_particles)
 {
 	_n_particles = n_particles;
 	for(int i=0 ; i<_n_particles ; i++)
 	{
 		_particles.push_back(Vector3d::Zero());
+		_particles_with_weight.push_back(make_pair(Vector3d::Zero(),1));
 	}
 
 	_mean_scatter = 0.0;
 	_std_scatter = 0.005;
+
+	_memory_coefficient = 0.5;
 
 	_coeff_friction = 0.0;
 }
@@ -53,13 +61,13 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter_weight_mem::motionUpdate
 	augmented_particles.push_back(Vector3d::Zero());
 
 	// add particles in the direction of the motion control if there is no velocity in that direction
-	double prob_add_particle = (1 - abs(tanh(5.0*velocity_measured.dot(motion_control_normalized)))) * (tanh(motion_control_normalized.dot(force_measured)));
+	double prob_add_particle = (1 - abs(tanh(25.0*velocity_measured.dot(motion_control_normalized)))) * (tanh(motion_control_normalized.dot(0.1*force_measured)));
 	// double prob_add_particle = (1 - abs(tanh(velocity_measured.dot(motion_control_normalized))));
 	if(prob_add_particle < 0)
 	{
 		prob_add_particle = 0;
 	}
-	int n_added_particles = prob_add_particle * _n_particles;
+	int n_added_particles = 0.3 * prob_add_particle * _n_particles;
 	for(int i=0 ; i<n_added_particles ; i++)
 	{
 		double alpha = (double) (i + 0.5) / (double)n_added_particles; // add particles on the arc betwen the motion and force control
@@ -71,8 +79,8 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter_weight_mem::motionUpdate
 	int n_new_particles = 1 + n_added_particles;
 
 	// prepare weights
-	vector<pair<Vector3d, double>> weighted_particles;
-	double cumulative_weight = 0;
+	vector<pair<Vector3d, double>> augmented_weighted_particles;
+	// double cumulative_weight = 0;
 
 	for(int i=0 ; i< _n_particles + n_new_particles ; i++)
 	{
@@ -97,7 +105,7 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter_weight_mem::motionUpdate
 		}
 		else
 		{
-			weight_force = 1.3 * tanh(current_particle.dot(force_measured));
+			weight_force = 1.3 * tanh(0.2*current_particle.dot(force_measured));
 		}
 
 		if(weight_force < 0)
@@ -110,26 +118,49 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter_weight_mem::motionUpdate
 		}
 
 		// measurement update : compute weight due to velocity measurement
-		double weight_velocity = 1 - abs(tanh(15.0*velocity_measured.dot(current_particle)));
+		double weight_velocity = 0.5;
+		if(current_particle.norm() > 1e-3)
+		{
+			weight_velocity = 1 - abs(tanh(25.0*velocity_measured.dot(current_particle)));
+		}
 
 		// final weight
 		double weight = weight_force * weight_velocity;
-		cumulative_weight += weight;
+		if(i < _n_particles)
+		{
+			weight *= (1 - _memory_coefficient);
+			weight += _memory_coefficient * _particles_with_weight[i].second;
+		}
+		
 
-		weighted_particles.push_back(make_pair(current_particle, cumulative_weight));
+		// cumulative_weight += weight;
+		augmented_weighted_particles.push_back(make_pair(current_particle, weight));
 	}
 
-	for(int i=0 ; i< _n_particles + n_new_particles ; i++)
-	{
-		weighted_particles[i].second /= cumulative_weight;
-	}
+	// for(int i=0 ; i< _n_particles + n_new_particles ; i++)
+	// {
+	// 	augmented_weighted_particles[i].second /= cumulative_weight;
+	// }
 
-	return weighted_particles;
+	return augmented_weighted_particles;
 }
 
-void ForceSpaceParticleFilter_weight_mem::resamplingLowVariance(vector<pair<Vector3d, double>> weighted_particles)
+void ForceSpaceParticleFilter_weight_mem::resamplingLowVariance(vector<pair<Vector3d, double>> augmented_weighted_particles)
 {
-	int n_weighted_particles = weighted_particles.size();
+	int n_augmented_weighted_particles = augmented_weighted_particles.size();
+	vector<double> cumulative_weights;
+
+	double sum_of_weights = 0;
+	for(int i=0 ; i<n_augmented_weighted_particles ; i++)
+	{
+		sum_of_weights += augmented_weighted_particles[i].second;
+		cumulative_weights.push_back(sum_of_weights);
+	}
+
+	for(int i=0 ; i<n_augmented_weighted_particles ; i++)
+	{
+		cumulative_weights[i] /= sum_of_weights;
+	}
 
 	double n_inv = 1.0/(double)_n_particles;
 	double r = sampleUniformDistribution(0,n_inv);
@@ -137,11 +168,15 @@ void ForceSpaceParticleFilter_weight_mem::resamplingLowVariance(vector<pair<Vect
 
 	for(int i=0 ; i<_n_particles ; i++)
 	{
-		while(r > weighted_particles[k].second)
+		while(r > cumulative_weights[k])
 		{
 			k++;
 		}
-		_particles[i] = weighted_particles[k].first;
+		_particles[i] = augmented_weighted_particles[k].first;
+
+		_particles_with_weight[i].first = augmented_weighted_particles[k].first;
+		_particles_with_weight[i].second = augmented_weighted_particles[k].second;
+
 		r += n_inv;
 	}
 }

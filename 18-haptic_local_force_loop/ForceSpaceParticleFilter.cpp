@@ -53,13 +53,13 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter::motionUpdateAndWeightin
 	augmented_particles.push_back(Vector3d::Zero());
 
 	// add particles in the direction of the motion control if there is no velocity in that direction
-	double prob_add_particle = (1 - abs(tanh(25.0*velocity_measured.dot(motion_control_normalized)))) * (tanh(motion_control_normalized.dot(force_measured)));
+	double prob_add_particle = (1 - abs(tanh(25.0*velocity_measured.dot(motion_control_normalized)))) * (tanh(motion_control_normalized.dot(0.1*force_measured)));
 	// double prob_add_particle = (1 - abs(tanh(velocity_measured.dot(motion_control_normalized))));
 	if(prob_add_particle < 0)
 	{
 		prob_add_particle = 0;
 	}
-	int n_added_particles = prob_add_particle * _n_particles;
+	int n_added_particles = 0.2 * prob_add_particle * _n_particles;
 	for(int i=0 ; i<n_added_particles ; i++)
 	{
 		double alpha = (double) (i + 0.5) / (double)n_added_particles; // add particles on the arc betwen the motion and force control
@@ -93,7 +93,7 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter::motionUpdateAndWeightin
 		double weight_force = 0;
 		if(current_particle.norm() < 1e-3)
 		{
-			weight_force = 1 - tanh(force_measured.norm());
+			weight_force = 1 - tanh(0.1*force_measured.norm());
 		}
 		else
 		{
@@ -110,7 +110,11 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter::motionUpdateAndWeightin
 		}
 
 		// measurement update : compute weight due to velocity measurement
-		double weight_velocity = 1 - abs(tanh(15.0*velocity_measured.dot(current_particle)));
+		double weight_velocity = 0.5;
+		if(current_particle.norm() > 1e-3)
+		{
+			weight_velocity = 1 - abs(tanh(25.0*velocity_measured.dot(current_particle)));
+		}
 
 		// final weight
 		double weight = weight_force * weight_velocity;

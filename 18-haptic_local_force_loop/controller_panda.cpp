@@ -9,7 +9,7 @@
 #include "filters/ButterworthFilter.h"
 #include "Logger.h"
 
-#include "ForceSpaceParticleFilter.h"
+#include "ForceSpaceParticleFilter_weight_mem.h"
 
 #include <GLFW/glfw3.h> //must be loaded after loading opengl/glew
 
@@ -33,7 +33,7 @@ const string link_name = "end_effector"; //robot end-effector
 // Set sensor frame transform in end-effector frame
 Affine3d sensor_transform_in_link = Affine3d::Identity();
 const Vector3d sensor_pos_in_link = Eigen::Vector3d(0.0,0.0,0.0);
-const Vector3d pos_in_link = Vector3d(0.0,0.0,0.0);
+const Vector3d pos_in_link = Vector3d(0.0,0.0,0.07);
 
 // redis keys:
 //// Haptic device related keys ////
@@ -109,6 +109,8 @@ string PARTICLE_POSITIONS_KEY = "sai2::PandaApplications::18::simviz_panda::part
 string MASSMATRIX_KEY;
 string CORIOLIS_KEY;
 
+string DEBUG_SENSED_FORCE_WORLD_FRAME = "sai2::PandaApplications::18::debug::sensed_force_world_frame";
+
 RedisClient redis_client;
 
 // simulation function prototype
@@ -140,7 +142,7 @@ MatrixXd particle_positions_to_redis;
 // const double percent_chance_contact_appears = 0.01;
 const double percent_chance_contact_disapears = 0.95;
 const double mean_scatter = 0.0;
-const double std_scatter = 0.005;
+const double std_scatter = 0.01;
 
 const double coeff_friction = 0.0;
 
@@ -172,6 +174,8 @@ Vector3d log_eigenvector_2 = Vector3d::Zero();
 Vector3d log_force_axis = Vector3d::Zero();
 Vector3d log_motion_axis = Vector3d::Zero();
 
+VectorXd log_force_space_dimension = VectorXd::Zero(1);
+
 
 // Get current date/time, format is YYYY-MM-DD.HH:mm:ss
 const std::string currentDateTime() {
@@ -186,8 +190,8 @@ const std::string currentDateTime() {
 	return buf;
 }
 
-// const bool flag_simulation = false;
-const bool flag_simulation = true;
+const bool flag_simulation = false;
+// const bool flag_simulation = true;
 
 int main() {
 
@@ -246,15 +250,25 @@ int main() {
 	posori_task->_use_interpolation_flag = false;
 	posori_task->_use_velocity_saturation_flag = false;
 
+	haptic_position_global = posori_task->_current_position;
+
 	posori_task->_kp_pos = 100.0;
 	posori_task->_kv_pos = 20.0;
+
+	posori_task->_kp_ori = 400.0;
+	posori_task->_kv_ori = 35.0;
 
 	sensor_transform_in_link.translation() = sensor_pos_in_link;
 	posori_task->setForceSensorFrame(link_name, sensor_transform_in_link);
 
 	posori_task->setOpenLoopForceControl();
+	// posori_task->setClosedLoopForceControl();
 
-	double k_vir_robot = 200.0;
+	posori_task->_kp_force = 0.5;
+	posori_task->_ki_force = 1.3;
+	posori_task->_kv_force = 15.0;
+
+	double k_vir_robot = 500.0;
 	const double k_vir_haptic_goal = 200.0;
 	double k_vir_haptic = k_vir_haptic_goal;
 	// Matrix3d k_vir_haptic = k_vir_haptic_goal * Matrix3d::Ones();
@@ -263,8 +277,8 @@ int main() {
 
 	double haptic_PO = 0;
 
-	const double max_force_diff_robot = 1.0;
-	const double max_force_diff_haptic = 0.3;
+	const double max_force_diff_robot = 0.1;
+	const double max_force_diff_haptic = 0.1;
 	Vector3d prev_desired_force_robot = Vector3d::Zero();
 	Vector3d prev_desired_force_haptic = Vector3d::Zero();
 
@@ -281,11 +295,14 @@ int main() {
 	double tool_mass = 0;
 	Vector3d tool_com = Vector3d::Zero();
 
+	Vector3d init_force = Vector3d::Zero();
+	bool first_loop = true;
+
 	if(!flag_simulation)
 	{
-		force_bias << -0.133241,   0.413947,    15.3625, -0.0922695, 0.00362847, 0.00647149;
-		tool_mass = 0.0;
-		tool_com = Vector3d(-6.19239e-05,  -0.00452189,    0.0777715);
+		force_bias << -0.434879,    1.99348,  -0.195705, -0.0886675,   0.394051,  0.0285245;
+		tool_mass = 0.361898;
+		tool_com = Vector3d(-4.76184e-05, -0.000655773,    0.0354622);
 	}
 
 	// haptic task
@@ -306,6 +323,13 @@ int main() {
 	double kv_haptic = 15.0;
 
 	int contact_transition_counter = 50;
+
+	// particle filter buffers
+	double freq_ratio_filter_control = 0.1;
+	queue<Vector3d> pfilter_motion_control_buffer;
+	queue<Vector3d> pfilter_force_control_buffer;
+	queue<Vector3d> pfilter_sensed_force_buffer;
+	queue<Vector3d> pfilter_sensed_velocity_buffer;
 
 	// // Center of the haptic device workspace
 	// Vector3d HomePos_op;
@@ -352,8 +376,8 @@ int main() {
 
     redis_client.addEigenToReadCallback(0, ROBOT_SENSED_FORCE_KEY, sensed_force_moment_local_frame);
 
-    MatrixXd mass_from_robot;
-    VectorXd coriolis_from_robot;
+    MatrixXd mass_from_robot = MatrixXd::Identity(dof,dof);
+    VectorXd coriolis_from_robot = VectorXd::Zero(dof);
 	if(!flag_simulation)
 	{
 		redis_client.addEigenToReadCallback(0, MASSMATRIX_KEY, mass_from_robot);
@@ -367,6 +391,9 @@ int main() {
 	redis_client.addDoubleToWriteCallback(0, DEVICE_COMMANDED_GRIPPER_FORCE_KEYS[0], teleop_task->_commanded_gripper_force_device);
 
 	redis_client.addEigenToWriteCallback(0, ROBOT_COMMAND_TORQUES_KEY, command_torques);
+
+	Vector3d debug_force_world_frame = Vector3d::Zero();
+	redis_client.addEigenToWriteCallback(0, DEBUG_SENSED_FORCE_WORLD_FRAME, debug_force_world_frame);
 
 	// logger
 	string folder = "../../18-haptic_local_force_loop/data_logging/data/";
@@ -390,6 +417,8 @@ int main() {
 
 	logger->addVectorToLog(&log_force_axis, "force_axis");
 	logger->addVectorToLog(&log_motion_axis, "motion_axis");
+
+	logger->addVectorToLog(&log_force_space_dimension, "force_space_dimension");
 
 	logger->start();
 
@@ -439,10 +468,21 @@ int main() {
 		sensed_force_moment_local_frame.head(3) += p_tool_local_frame;
 		sensed_force_moment_local_frame.tail(3) += tool_com.cross(p_tool_local_frame);
 
+		if(first_loop)
+		{
+			init_force = sensed_force_moment_local_frame.head(3);
+			first_loop = false;
+		}
+		sensed_force_moment_local_frame.head(3) -= init_force;
+
 		posori_task->updateSensedForceAndMoment(sensed_force_moment_local_frame.head(3), sensed_force_moment_local_frame.tail(3));
 
 		sensed_force_moment_world_frame.head(3) = R_world_sensor * sensed_force_moment_local_frame.head(3);
 		sensed_force_moment_world_frame.tail(3) = R_world_sensor * sensed_force_moment_local_frame.tail(3);
+
+		debug_force_world_frame = sensed_force_moment_world_frame.head(3);
+
+
 
 		// cout << "sensed force moment local frame after ee compensation : " << sensed_force_moment_local_frame.transpose() << endl;
 		// cout << "sensed force moment world frame : " << sensed_force_moment_world_frame.transpose() << endl;
@@ -453,6 +493,17 @@ int main() {
 
 		posori_task->updateTaskModel(N_prec);
 		N_prec = posori_task->_N;
+
+		if(!flag_simulation)
+		{
+			double coupling_correction = 1.0;
+			posori_task->_Lambda_modified(0,2) += coupling_correction;
+			posori_task->_Lambda_modified(2,0) += coupling_correction;
+		}
+
+		// 
+		// posori_task->_Lambda_modified(0,2) = 0;
+		// posori_task->_Lambda_modified(2,0) = 0;
 
 		joint_task->updateTaskModel(N_prec);
 
@@ -483,7 +534,7 @@ int main() {
 				teleop_task->reInitializeTask();
 
 				posori_task->_desired_position = posori_task->_current_position;
-				delayed_haptic_position = posori_task->_current_position;
+				// delayed_haptic_position = posori_task->_current_position;
 
 
 				posori_task->_kp_pos = 200.0;
@@ -500,21 +551,26 @@ int main() {
 
 			if(force_space_dimension == 1)
 			{
-				posori_task->setForceAxis(force_axis);
+				// posori_task->setForceAxis(force_axis);
+				sigma_force_global = force_axis * force_axis.transpose();
 			}
 			else if(force_space_dimension == 2)
 			{
-				posori_task->setLinearMotionAxis(motion_axis);
+				// posori_task->setLinearMotionAxis(motion_axis);
+				sigma_force_global = Matrix3d::Identity() - motion_axis * motion_axis.transpose();
 			}
 			else if(force_space_dimension == 3)
 			{
-				posori_task->setFullForceControl();
+				// posori_task->setFullForceControl();
+				sigma_force_global.setIdentity();
 			}
 			else
 			{
-				posori_task->setFullLinearMotionControl();
+				// posori_task->setFullLinearMotionControl();
+				sigma_force_global.setZero();
 			}
-			sigma_force_global = posori_task->_sigma_force;
+
+			// sigma_force_global = posori_task->_sigma_force;
 
 
 			Vector3d desired_position = Vector3d::Zero();
@@ -531,12 +587,15 @@ int main() {
 			// cout << endl;
 
 			posori_task->_desired_position = delayed_haptic_position;
+			// cout << posori_task->_desired_position.transpose() << endl;
+			// cout << posori_task->_current_position.transpose() << endl;
+			// cout << endl;
 			// posori_task->_desired_velocity = delayed_haptic_velocity;
 
 			robot_proxy_diff = posori_task->_current_position - posori_task->_desired_position;
 			Vector3d desired_force_robot = - k_vir_robot * robot_proxy_diff;
 
-			cout << "desired force robot : " << desired_force_robot.transpose() << endl;
+			// cout << "desired force robot : " << desired_force_robot.transpose() << endl;
 
 			// Vector3d desired_force_robot = posori_task->_sigma_force * k_vir_robot * robot_proxy_diff;
 			Vector3d force_diff_robot = desired_force_robot - prev_desired_force_robot;
@@ -556,7 +615,7 @@ int main() {
 			// integrated_force_error += force_error * 0.001;
 
 			// desired_force_robot -= posori_task->_sigma_force * (kp_force * force_error + ki_force * integrated_force_error);
-			// posori_task->_desired_force = filter_force_command_robot->update(-desired_force_robot);
+			// posori_task->_desired_force = filter_force_command_robot->update(desired_force_robot);
 			posori_task->_desired_force = desired_force_robot;
 
 			posori_task->computeTorques(posori_task_torques);
@@ -631,12 +690,31 @@ int main() {
 		}
 
 		// particle filter
-		motion_control_pfilter = posori_task->_sigma_position * posori_task->_linear_motion_control;
-		// motion_control_pfilter += posori_task->_sigma_motion * posori_task->_motion_control / control_loop_freq;
-		// motion_control_pfilter = posori_task->_sigma_motion * motion_control_pfilter;
-		force_control_pfilter = posori_task->_sigma_force * posori_task->_linear_force_control;
-		measured_velocity_pfilter = posori_task->_current_velocity;
-		measured_force_pfilter = sensed_force_moment_world_frame.head(3);
+		Matrix3d sigma_position_global = Matrix3d::Identity() - sigma_force_global;
+		pfilter_motion_control_buffer.push(sigma_position_global * posori_task->_linear_motion_control * freq_ratio_filter_control);
+		pfilter_force_control_buffer.push(sigma_force_global * posori_task->_linear_force_control * freq_ratio_filter_control);
+		pfilter_sensed_velocity_buffer.push(posori_task->_current_velocity * freq_ratio_filter_control);
+		pfilter_sensed_force_buffer.push(sensed_force_moment_world_frame.head(3) * freq_ratio_filter_control);
+
+		motion_control_pfilter += pfilter_motion_control_buffer.back();
+		force_control_pfilter += pfilter_force_control_buffer.back();
+		measured_velocity_pfilter += pfilter_sensed_velocity_buffer.back();
+		measured_force_pfilter += pfilter_sensed_force_buffer.back();
+
+		if(pfilter_motion_control_buffer.size() > 1/freq_ratio_filter_control)
+		{
+
+			motion_control_pfilter -= pfilter_motion_control_buffer.front();
+			force_control_pfilter -= pfilter_force_control_buffer.front();
+			measured_velocity_pfilter -= pfilter_sensed_velocity_buffer.front();
+			measured_force_pfilter -= pfilter_sensed_force_buffer.front();
+
+			pfilter_motion_control_buffer.pop();
+			pfilter_force_control_buffer.pop();
+			pfilter_sensed_velocity_buffer.pop();
+			pfilter_sensed_force_buffer.pop();			
+
+		}
 
 		// if( teleop_task->_current_position_device(2) < -0.0315)
 		// {
@@ -775,9 +853,9 @@ void particle_filter()
 	unsigned long long pf_counter = 0;
 
 	// create particle filter
-	auto pfilter = new ForceSpaceParticleFilter(n_particles);
+	auto pfilter = new ForceSpaceParticleFilter_weight_mem(n_particles);
 
-	pfilter->_std_scatter = 0.01;
+	pfilter->_std_scatter = 0.015;
 
 	Vector3d evals = Vector3d::Zero();
 	Matrix3d evecs = Matrix3d::Identity();
@@ -797,10 +875,7 @@ void particle_filter()
 	{
 		timer.waitForNextLoop();
 
-		// cout << "pfilter motion control : " << motion_control_pfilter.transpose() << endl;
-		// cout << "pfilter force control : " << force_control_pfilter.transpose() << endl;
-		// cout << "pfilter meas vel : " << measured_velocity_pfilter.transpose() << endl;
-		// cout << "pfilter meas force : " << measured_force_pfilter.transpose() << endl;
+
 
 		pfilter->update(motion_control_pfilter, force_control_pfilter, measured_velocity_pfilter, measured_force_pfilter);
 		pfilter->computePCA(evals, evecs);
@@ -814,11 +889,11 @@ void particle_filter()
 		double force_space_dimension_down = 0;
 		for(int i=0 ; i<3 ; i++)
 		{
-			if(evals(i) > 0.25)
+			if(evals(i) > 0.30)
 			{
 				force_space_dimension_up++;
 			}
-			if(evals(i) > 0.05)
+			if(evals(i) > 0.1)
 			{
 				force_space_dimension_down++;
 			}
@@ -886,6 +961,48 @@ void particle_filter()
 
 		log_force_axis = force_axis;
 		log_motion_axis = motion_axis;
+
+		log_force_space_dimension(0) = force_space_dimension;
+
+
+		Vector3d prospective_particle = Vector3d::Zero();
+		if(motion_control_pfilter.norm() > 0.001)
+		{
+			prospective_particle = motion_control_pfilter.normalized();
+		}
+		double for_weight_pp = 1.3 * tanh(prospective_particle.dot(0.1*measured_force_pfilter));
+		double vel_weight_pp = 1 - abs(tanh(25.0*measured_velocity_pfilter.dot(prospective_particle)));
+
+		Vector3d center_particle = Vector3d::Zero();
+		double for_weight_cp = 1 - tanh(0.1*measured_force_pfilter.norm());;
+		double vel_weight_cp = 0.5;
+
+		Vector3d down_particle = Vector3d(0, 0, -1);
+		double for_weight_dp = 1.3 * tanh(down_particle.dot(0.1*measured_force_pfilter));
+		double vel_weight_dp = 1 - abs(tanh(25.0*measured_velocity_pfilter.dot(down_particle)));
+
+
+		if(previous_force_space_dimension != force_space_dimension)
+		{
+			cout << "********************************" << endl;
+			cout << "pf coutner : " << pf_counter << endl;
+			cout << "contact space dim : " << force_space_dimension << endl;
+			cout << "previous contact space dim : " << previous_force_space_dimension << endl;
+			cout << "eigenvectors :\n" << evecs << endl;
+			cout << "pfilter motion control : " << motion_control_pfilter.transpose() << endl;
+			cout << "pfilter force control : " << force_control_pfilter.transpose() << endl;
+			cout << "pfilter meas vel : " << measured_velocity_pfilter.transpose() << endl;
+			cout << "pfilter meas force : " << measured_force_pfilter.transpose() << endl;
+			cout << "force weight pp : " << for_weight_pp << endl; 
+			cout << "velocity weight pp : " << vel_weight_pp << endl;
+			cout << "prob add particle : " << vel_weight_pp*for_weight_pp << endl;
+			cout << "force weight cp : " << for_weight_cp << endl; 
+			cout << "velocity weight cp : " << vel_weight_cp << endl; 
+			cout << "force weight dp : " << for_weight_dp << endl; 
+			cout << "velocity weight dp : " << vel_weight_dp << endl; 
+			cout << endl;
+		}
+
 
 		// if(previous_force_space_dimension == 1 && force_space_dimension == 0)
 		// {

@@ -120,7 +120,7 @@ int main() {
 	// Add force sensor to the end-effector
 	sensor_transform_in_link.translation() = sensor_pos_in_link;
 	auto force_sensor = new ForceSensorSim(robot_name, link_name, sensor_transform_in_link, robot);
-	force_sensor->enableFilter(0.07);
+	force_sensor->enableFilter(0.01);
 	auto fsensor_display = new ForceSensorDisplay(force_sensor, graphics);
 	// fsensor_display->_force_line_scale = 10.0;
 	fsensor_display->_force_line_scale = 0.001;
