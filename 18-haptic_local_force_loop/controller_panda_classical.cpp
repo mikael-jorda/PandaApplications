@@ -33,7 +33,7 @@ const string link_name = "end_effector"; //robot end-effector
 // Set sensor frame transform in end-effector frame
 Affine3d sensor_transform_in_link = Affine3d::Identity();
 const Vector3d sensor_pos_in_link = Eigen::Vector3d(0.0,0.0,0.0);
-const Vector3d pos_in_link = Vector3d(0.0,0.0,0.07);
+const Vector3d pos_in_link = Vector3d(0.0,0.0,0.12);
 
 // redis keys:
 //// Haptic device related keys ////
@@ -190,8 +190,8 @@ const std::string currentDateTime() {
 	return buf;
 }
 
-// const bool flag_simulation = false;
-const bool flag_simulation = true;
+const bool flag_simulation = false;
+// const bool flag_simulation = true;
 
 int main() {
 
@@ -253,8 +253,8 @@ int main() {
 
 	haptic_position_global = posori_task->_current_position;
 
-	posori_task->_kp_pos = 50.0;
-	posori_task->_kv_pos = 10.0;
+	posori_task->_kp_pos = 100.0;
+	posori_task->_kv_pos = 20.0;
 
 	posori_task->_kp_ori = 400.0;
 	posori_task->_kv_ori = 35.0;
@@ -495,12 +495,12 @@ int main() {
 		posori_task->updateTaskModel(N_prec);
 		N_prec = posori_task->_N;
 
-		if(!flag_simulation)
-		{
-			double coupling_correction = 1.0;
-			posori_task->_Lambda_modified(0,2) += coupling_correction;
-			posori_task->_Lambda_modified(2,0) += coupling_correction;
-		}
+		// if(!flag_simulation)
+		// {
+		// 	double coupling_correction = 1.0;
+		// 	posori_task->_Lambda_modified(0,2) += coupling_correction;
+		// 	posori_task->_Lambda_modified(2,0) += coupling_correction;
+		// }
 
 		// 
 		// posori_task->_Lambda_modified(0,2) = 0;
@@ -794,7 +794,7 @@ int main() {
 
 void communication()
 {
-	const double communication_delay_ms = 0;
+	const double communication_delay_ms = 150;
 
 	queue<Vector3d> robot_position_buffer;
 	queue<Vector3d> haptic_position_buffer;

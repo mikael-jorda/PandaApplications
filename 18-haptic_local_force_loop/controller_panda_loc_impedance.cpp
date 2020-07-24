@@ -33,7 +33,7 @@ const string link_name = "end_effector"; //robot end-effector
 // Set sensor frame transform in end-effector frame
 Affine3d sensor_transform_in_link = Affine3d::Identity();
 const Vector3d sensor_pos_in_link = Eigen::Vector3d(0.0,0.0,0.0);
-const Vector3d pos_in_link = Vector3d(0.0,0.0,0.07);
+const Vector3d pos_in_link = Vector3d(0.0,0.0,0.12);
 
 // redis keys:
 //// Haptic device related keys ////
@@ -190,8 +190,8 @@ const std::string currentDateTime() {
 	return buf;
 }
 
-// const bool flag_simulation = false;
-const bool flag_simulation = true;
+const bool flag_simulation = false;
+// const bool flag_simulation = true;
 
 int main() {
 
@@ -249,15 +249,16 @@ int main() {
 	VectorXd posori_task_torques = VectorXd::Zero(dof);
 	posori_task->_use_interpolation_flag = false;
 	posori_task->_use_velocity_saturation_flag = false;
-	posori_task->setDynamicDecouplingNone();
+	// posori_task->setDynamicDecouplingNone();
+	posori_task->setDynamicDecouplingInertiaSaturation();
 
 	haptic_position_global = posori_task->_current_position;
 
-	posori_task->_kp_pos = 400.0;
-	posori_task->_kv_pos = 80.0;
+	posori_task->_kp_pos = 100.0;
+	posori_task->_kv_pos = 20.0;
 
-	posori_task->_kp_ori = 100.0;
-	posori_task->_kv_ori = 30.0;
+	posori_task->_kp_ori = 400.0;
+	posori_task->_kv_ori = 35.0;
 
 	sensor_transform_in_link.translation() = sensor_pos_in_link;
 	posori_task->setForceSensorFrame(link_name, sensor_transform_in_link);
@@ -269,8 +270,8 @@ int main() {
 	posori_task->_ki_force = 1.3;
 	posori_task->_kv_force = 15.0;
 
-	double k_vir_robot = 200.0;
-	const double k_vir_haptic_goal = 200.0;
+	double k_vir_robot = 500.0;
+	const double k_vir_haptic_goal = 100.0;
 	double k_vir_haptic = k_vir_haptic_goal;
 	// Matrix3d k_vir_haptic = k_vir_haptic_goal * Matrix3d::Ones();
 	Vector3d robot_proxy_diff = Vector3d::Zero();
@@ -495,12 +496,12 @@ int main() {
 		posori_task->updateTaskModel(N_prec);
 		N_prec = posori_task->_N;
 
-		if(!flag_simulation)
-		{
-			double coupling_correction = 1.0;
-			posori_task->_Lambda_modified(0,2) += coupling_correction;
-			posori_task->_Lambda_modified(2,0) += coupling_correction;
-		}
+		// if(!flag_simulation)
+		// {
+		// 	double coupling_correction = 1.0;
+		// 	posori_task->_Lambda_modified(0,2) += coupling_correction;
+		// 	posori_task->_Lambda_modified(2,0) += coupling_correction;
+		// }
 
 		// 
 		// posori_task->_Lambda_modified(0,2) = 0;
@@ -538,8 +539,8 @@ int main() {
 				// delayed_haptic_position = posori_task->_current_position;
 
 
-				posori_task->_kp_pos = 200.0;
-				posori_task->_kv_pos = 30.0;
+				// posori_task->_kp_pos = 200.0;
+				// posori_task->_kv_pos = 30.0;
 
 				state = CONTROL;
 			}
@@ -672,6 +673,28 @@ int main() {
 
 			// teleop_task->_commanded_force_device -= kv_haptic * delayed_sigma_force * teleop_task->_current_trans_velocity_device;
 
+			haptic_PO += teleop_task->_commanded_force_device.dot(teleop_task->_current_trans_velocity_device) * 0.001;
+
+			double vh_square = (delayed_sigma_force * teleop_task->_current_trans_velocity_device).squaredNorm();
+			double alpha_pc = 0;
+			if(haptic_PO > 0 && vh_square > 0.0001)
+			{
+				alpha_pc = haptic_PO / vh_square * 1000.0;
+			}
+			if(alpha_pc > 0.9 * _max_damping_device0[0] - kv_haptic)
+			{
+				alpha_pc = 0.9 * _max_damping_device0[0] - kv_haptic;
+			}
+			if(alpha_pc < 0)
+			{
+				alpha_pc = 0;
+			}
+
+			teleop_task->_commanded_force_device -= alpha_pc * delayed_sigma_force * teleop_task->_current_trans_velocity_device;
+			haptic_PO -= alpha_pc * vh_square * 0.001;
+
+
+			// teleop_task->_commanded_force_device.setZero();
 
 
 
@@ -730,6 +753,9 @@ int main() {
 		// }
 
 		// write control torques
+		// command_torques.setZero();
+		// teleop_task->_commanded_force_device.setZero();
+
 		redis_client.executeWriteCallback(0);
 
 		// logger

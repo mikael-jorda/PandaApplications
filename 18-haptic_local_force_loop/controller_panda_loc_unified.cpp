@@ -33,7 +33,7 @@ const string link_name = "end_effector"; //robot end-effector
 // Set sensor frame transform in end-effector frame
 Affine3d sensor_transform_in_link = Affine3d::Identity();
 const Vector3d sensor_pos_in_link = Eigen::Vector3d(0.0,0.0,0.0);
-const Vector3d pos_in_link = Vector3d(0.0,0.0,0.07);
+const Vector3d pos_in_link = Vector3d(0.0,0.0,0.12);
 
 // redis keys:
 //// Haptic device related keys ////
@@ -190,8 +190,8 @@ const std::string currentDateTime() {
 	return buf;
 }
 
-// const bool flag_simulation = false;
-const bool flag_simulation = true;
+const bool flag_simulation = false;
+// const bool flag_simulation = true;
 
 int main() {
 
@@ -255,21 +255,23 @@ int main() {
 	posori_task->_kp_pos = 100.0;
 	posori_task->_kv_pos = 20.0;
 
+	// posori_task->_kp_ori = 10.0;
 	posori_task->_kp_ori = 400.0;
 	posori_task->_kv_ori = 35.0;
 
 	sensor_transform_in_link.translation() = sensor_pos_in_link;
 	posori_task->setForceSensorFrame(link_name, sensor_transform_in_link);
 
-	posori_task->setOpenLoopForceControl();
-	// posori_task->setClosedLoopForceControl();
+	// posori_task->setOpenLoopForceControl();
+	posori_task->setClosedLoopForceControl();
+	posori_task->_passivity_enabled = false;
 
-	posori_task->_kp_force = 0.5;
+	posori_task->_kp_force = 0.7;
 	posori_task->_ki_force = 1.3;
 	posori_task->_kv_force = 15.0;
 
 	double k_vir_robot = 500.0;
-	const double k_vir_haptic_goal = 200.0;
+	const double k_vir_haptic_goal = 100.0;
 	double k_vir_haptic = k_vir_haptic_goal;
 	// Matrix3d k_vir_haptic = k_vir_haptic_goal * Matrix3d::Ones();
 	Vector3d robot_proxy_diff = Vector3d::Zero();
@@ -304,6 +306,13 @@ int main() {
 		tool_mass = 0.361898;
 		tool_com = Vector3d(-4.76184e-05, -0.000655773,    0.0354622);
 	}
+
+	// remove inertial forces from tool
+	Vector3d tool_velocity = Vector3d::Zero();
+	Vector3d prev_tool_velocity = Vector3d::Zero();
+	Vector3d tool_acceleration = Vector3d::Zero();
+	Vector3d tool_inertial_forces = Vector3d::Zero();
+
 
 	// haptic task
 	////Haptic teleoperation controller ////
@@ -459,6 +468,16 @@ int main() {
 			coriolis = coriolis_from_robot;
 		}
 
+		// compute tool inertial forces
+		tool_velocity = posori_task->_current_velocity + posori_task->_current_angular_velocity.cross(tool_com);
+		if(controller_counter > 100)
+		{
+			tool_acceleration = (tool_velocity - prev_tool_velocity) * control_loop_freq;
+		}
+		prev_tool_velocity = tool_velocity;
+		tool_inertial_forces = tool_mass * tool_acceleration;
+
+
 		// add bias and ee weight to sensed forces
 		// cout << "sensed force moment local frame : " << sensed_force_moment_local_frame.transpose() << endl;
 		sensed_force_moment_local_frame -= force_bias;
@@ -467,6 +486,8 @@ int main() {
 		Vector3d p_tool_local_frame = tool_mass * R_world_sensor.transpose() * Vector3d(0,0,-9.81);
 		sensed_force_moment_local_frame.head(3) += p_tool_local_frame;
 		sensed_force_moment_local_frame.tail(3) += tool_com.cross(p_tool_local_frame);
+
+		sensed_force_moment_local_frame.head(3) -= 0.7 * R_world_sensor.transpose() * tool_inertial_forces;
 
 		if(first_loop)
 		{
@@ -479,6 +500,10 @@ int main() {
 
 		sensed_force_moment_world_frame.head(3) = R_world_sensor * sensed_force_moment_local_frame.head(3);
 		sensed_force_moment_world_frame.tail(3) = R_world_sensor * sensed_force_moment_local_frame.tail(3);
+
+
+		// sensed_force_moment_local_frame.head(3) -= 0.8 * tool_inertial_forces;
+
 
 		debug_force_world_frame = sensed_force_moment_world_frame.head(3);
 
@@ -494,12 +519,12 @@ int main() {
 		posori_task->updateTaskModel(N_prec);
 		N_prec = posori_task->_N;
 
-		if(!flag_simulation)
-		{
-			double coupling_correction = 1.0;
-			posori_task->_Lambda_modified(0,2) += coupling_correction;
-			posori_task->_Lambda_modified(2,0) += coupling_correction;
-		}
+		// if(!flag_simulation)
+		// {
+		// 	double coupling_correction = 1.0;
+		// 	posori_task->_Lambda_modified(0,2) += coupling_correction;
+		// 	posori_task->_Lambda_modified(2,0) += coupling_correction;
+		// }
 
 		// 
 		// posori_task->_Lambda_modified(0,2) = 0;
@@ -537,8 +562,8 @@ int main() {
 				// delayed_haptic_position = posori_task->_current_position;
 
 
-				posori_task->_kp_pos = 200.0;
-				posori_task->_kv_pos = 30.0;
+				// posori_task->_kp_pos = 200.0;
+				// posori_task->_kv_pos = 30.0;
 
 				state = CONTROL;
 			}
@@ -693,9 +718,12 @@ int main() {
 
 
 
-			cout << "PO haptic : " << haptic_PO << endl;
-			cout << "alpha_pc : " << alpha_pc << endl;
-			cout << endl;
+			// teleop_task->_commanded_force_device.setZero();
+
+
+			// cout << "PO haptic : " << haptic_PO << endl;
+			// cout << "alpha_pc : " << alpha_pc << endl;
+			// cout << endl;
 
 			// cout << "k virtual :\n" << k_vir_haptic << endl;
 
@@ -874,7 +902,7 @@ void particle_filter()
 	// create particle filter
 	auto pfilter = new ForceSpaceParticleFilter_weight_mem(n_particles);
 
-	pfilter->_std_scatter = 0.015;
+	pfilter->_std_scatter = 0.01;
 
 	Vector3d evals = Vector3d::Zero();
 	Matrix3d evecs = Matrix3d::Identity();
@@ -898,6 +926,8 @@ void particle_filter()
 
 		pfilter->update(motion_control_pfilter, force_control_pfilter, measured_velocity_pfilter, measured_force_pfilter);
 		pfilter->computePCA(evals, evecs);
+
+		Vector3d evals_no_scaling = evals;
 
 		if(evals.sum() > 1)
 		{
@@ -989,16 +1019,20 @@ void particle_filter()
 		{
 			prospective_particle = motion_control_pfilter.normalized();
 		}
-		double for_weight_pp = 1.3 * tanh(prospective_particle.dot(0.1*measured_force_pfilter));
-		double vel_weight_pp = 1 - abs(tanh(25.0*measured_velocity_pfilter.dot(prospective_particle)));
+		double for_weight_pp = 1.3 * tanh(prospective_particle.dot(0.05*measured_force_pfilter));
+		double vel_weight_pp = 1 - abs(tanh(100.0*measured_velocity_pfilter.dot(prospective_particle)));
 
 		Vector3d center_particle = Vector3d::Zero();
-		double for_weight_cp = 1 - tanh(0.1*measured_force_pfilter.norm());;
+		double for_weight_cp = 1 - tanh(0.05*measured_force_pfilter.norm());;
 		double vel_weight_cp = 0.5;
 
 		Vector3d down_particle = Vector3d(0, 0, -1);
-		double for_weight_dp = 1.3 * tanh(down_particle.dot(0.1*measured_force_pfilter));
-		double vel_weight_dp = 1 - abs(tanh(25.0*measured_velocity_pfilter.dot(down_particle)));
+		double for_weight_dp = 1.3 * tanh(down_particle.dot(0.05*measured_force_pfilter));
+		double vel_weight_dp = 1 - abs(tanh(100.0*measured_velocity_pfilter.dot(down_particle)));
+
+		Vector3d right_particle = Vector3d(0, 1, 0);
+		double for_weight_rp = 1.3 * tanh(right_particle.dot(0.05*measured_force_pfilter));
+		double vel_weight_rp = 1 - abs(tanh(100.0*measured_velocity_pfilter.dot(right_particle)));
 
 
 		if(previous_force_space_dimension != force_space_dimension)
@@ -1008,6 +1042,8 @@ void particle_filter()
 			cout << "contact space dim : " << force_space_dimension << endl;
 			cout << "previous contact space dim : " << previous_force_space_dimension << endl;
 			cout << "eigenvectors :\n" << evecs << endl;
+			cout << "eigenvalues :\n" << evals.transpose() << endl;
+			cout << "eigenvalues before scaling :\n" << evals_no_scaling.transpose() << endl;
 			cout << "pfilter motion control : " << motion_control_pfilter.transpose() << endl;
 			cout << "pfilter force control : " << force_control_pfilter.transpose() << endl;
 			cout << "pfilter meas vel : " << measured_velocity_pfilter.transpose() << endl;
@@ -1019,6 +1055,8 @@ void particle_filter()
 			cout << "velocity weight cp : " << vel_weight_cp << endl; 
 			cout << "force weight dp : " << for_weight_dp << endl; 
 			cout << "velocity weight dp : " << vel_weight_dp << endl; 
+			cout << "force weight rp : " << for_weight_rp << endl; 
+			cout << "velocity weight rp : " << vel_weight_rp << endl; 
 			cout << endl;
 		}
 

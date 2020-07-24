@@ -17,7 +17,7 @@ ForceSpaceParticleFilter_weight_mem::ForceSpaceParticleFilter_weight_mem(const i
 	_mean_scatter = 0.0;
 	_std_scatter = 0.005;
 
-	_memory_coefficient = 0.5;
+	_memory_coefficient = 0.0;
 
 	_coeff_friction = 0.0;
 }
@@ -61,13 +61,13 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter_weight_mem::motionUpdate
 	augmented_particles.push_back(Vector3d::Zero());
 
 	// add particles in the direction of the motion control if there is no velocity in that direction
-	double prob_add_particle = (1 - abs(tanh(25.0*velocity_measured.dot(motion_control_normalized)))) * (tanh(motion_control_normalized.dot(0.1*force_measured)));
+	double prob_add_particle = (1 - abs(tanh(100.0*velocity_measured.dot(motion_control_normalized)))) * (tanh(motion_control_normalized.dot(0.05*force_measured)));
 	// double prob_add_particle = (1 - abs(tanh(velocity_measured.dot(motion_control_normalized))));
 	if(prob_add_particle < 0)
 	{
 		prob_add_particle = 0;
 	}
-	int n_added_particles = 0.3 * prob_add_particle * _n_particles;
+	int n_added_particles = 1.5 * prob_add_particle * _n_particles;
 	for(int i=0 ; i<n_added_particles ; i++)
 	{
 		double alpha = (double) (i + 0.5) / (double)n_added_particles; // add particles on the arc betwen the motion and force control
@@ -105,7 +105,7 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter_weight_mem::motionUpdate
 		}
 		else
 		{
-			weight_force = 1.3 * tanh(0.2*current_particle.dot(force_measured));
+			weight_force = 1.3 * tanh(0.1*current_particle.dot(force_measured));
 		}
 
 		if(weight_force < 0)
