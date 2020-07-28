@@ -287,6 +287,9 @@ int main() {
 	auto filter_force_command_robot = new ButterworthFilter(3,0.05);
 	auto filter_force_command_haptic = new ButterworthFilter(3,0.05);
 
+	auto filter_sensed_force = new ButterworthFilter(3, 0.05);
+	Vector3d filtered_sensed_force = Vector3d::Zero();
+
 	double kp_force = 0.0;
 	double ki_force = 0.0;
 	Vector3d integrated_force_error = Vector3d::Zero();
@@ -478,6 +481,10 @@ int main() {
 		tool_inertial_forces = tool_mass * tool_acceleration;
 
 
+		// filter sensed force
+		filtered_sensed_force = filter_sensed_force->update(sensed_force_moment_local_frame.head(3));
+		sensed_force_moment_local_frame.head(3) = filtered_sensed_force;
+
 		// add bias and ee weight to sensed forces
 		// cout << "sensed force moment local frame : " << sensed_force_moment_local_frame.transpose() << endl;
 		sensed_force_moment_local_frame -= force_bias;
@@ -618,7 +625,7 @@ int main() {
 			// posori_task->_desired_velocity = delayed_haptic_velocity;
 
 			robot_proxy_diff = posori_task->_current_position - posori_task->_desired_position;
-			Vector3d desired_force_robot = - k_vir_robot * robot_proxy_diff;
+			Vector3d desired_force_robot = - k_vir_robot * sigma_force_global * robot_proxy_diff;
 
 			// cout << "desired force robot : " << desired_force_robot.transpose() << endl;
 

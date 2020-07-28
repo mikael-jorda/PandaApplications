@@ -595,7 +595,7 @@ int main() {
 			// posori_task->_desired_velocity = delayed_haptic_velocity;
 
 			robot_proxy_diff = posori_task->_current_position - posori_task->_desired_position;
-			Vector3d desired_force_robot = - k_vir_robot * robot_proxy_diff;
+			Vector3d desired_force_robot = - k_vir_robot * sigma_force_global * robot_proxy_diff;
 
 			// cout << "desired force robot : " << desired_force_robot.transpose() << endl;
 
