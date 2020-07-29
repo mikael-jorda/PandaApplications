@@ -254,8 +254,8 @@ int main() {
 
 	haptic_position_global = posori_task->_current_position;
 
-	posori_task->_kp_pos = 100.0;
-	posori_task->_kv_pos = 20.0;
+	posori_task->_kp_pos = 150.0;
+	posori_task->_kv_pos = 22.0;
 
 	posori_task->_kp_ori = 400.0;
 	posori_task->_kv_ori = 35.0;
@@ -271,7 +271,7 @@ int main() {
 	posori_task->_kv_force = 15.0;
 
 	double k_vir_robot = 500.0;
-	const double k_vir_haptic_goal = 100.0;
+	const double k_vir_haptic_goal = 200.0;
 	double k_vir_haptic = k_vir_haptic_goal;
 	// Matrix3d k_vir_haptic = k_vir_haptic_goal * Matrix3d::Ones();
 	Vector3d robot_proxy_diff = Vector3d::Zero();
@@ -715,7 +715,8 @@ int main() {
 
 		// particle filter
 		Matrix3d sigma_position_global = Matrix3d::Identity() - sigma_force_global;
-		pfilter_motion_control_buffer.push(sigma_position_global * posori_task->_linear_motion_control * freq_ratio_filter_control);
+		// pfilter_motion_control_buffer.push(sigma_position_global * posori_task->_linear_motion_control * freq_ratio_filter_control);
+		pfilter_motion_control_buffer.push(sigma_position_global * posori_task->_Lambda_modified.block<3,3>(0,0) * posori_task->_linear_motion_control * freq_ratio_filter_control);
 		pfilter_force_control_buffer.push(sigma_force_global * posori_task->_linear_motion_control * freq_ratio_filter_control);
 		pfilter_sensed_velocity_buffer.push(posori_task->_current_velocity * freq_ratio_filter_control);
 		pfilter_sensed_force_buffer.push(sensed_force_moment_world_frame.head(3) * freq_ratio_filter_control);
@@ -882,7 +883,8 @@ void particle_filter()
 	// create particle filter
 	auto pfilter = new ForceSpaceParticleFilter_weight_mem(n_particles);
 
-	pfilter->_std_scatter = 0.015;
+	pfilter->_std_scatter = 0.010;
+	pfilter->_coeff_friction = 0.3;
 
 	Vector3d evals = Vector3d::Zero();
 	Matrix3d evecs = Matrix3d::Identity();
@@ -903,6 +905,7 @@ void particle_filter()
 		timer.waitForNextLoop();
 
 
+		pfilter->_force_space_dimension = force_space_dimension;
 
 		pfilter->update(motion_control_pfilter, force_control_pfilter, measured_velocity_pfilter, measured_force_pfilter);
 		pfilter->computePCA(evals, evecs);
@@ -997,17 +1000,20 @@ void particle_filter()
 		{
 			prospective_particle = motion_control_pfilter.normalized();
 		}
-		double for_weight_pp = 1.3 * tanh(prospective_particle.dot(0.1*measured_force_pfilter));
+		double for_weight_pp = 1.3 * tanh(prospective_particle.dot(0.5*measured_force_pfilter));
 		double vel_weight_pp = 1 - abs(tanh(25.0*measured_velocity_pfilter.dot(prospective_particle)));
 
 		Vector3d center_particle = Vector3d::Zero();
-		double for_weight_cp = 1 - tanh(0.1*measured_force_pfilter.norm());;
+		double for_weight_cp = 1 - tanh(measured_force_pfilter.norm());;
 		double vel_weight_cp = 0.5;
 
 		Vector3d down_particle = Vector3d(0, 0, -1);
-		double for_weight_dp = 1.3 * tanh(down_particle.dot(0.1*measured_force_pfilter));
+		double for_weight_dp = 1.3 * tanh(down_particle.dot(0.5*measured_force_pfilter));
 		double vel_weight_dp = 1 - abs(tanh(25.0*measured_velocity_pfilter.dot(down_particle)));
 
+		Vector3d right_particle = Vector3d(0, 1, 0);
+		double for_weight_rp = 1.3 * tanh(right_particle.dot(0.5*measured_force_pfilter));
+		double vel_weight_rp = 1 - abs(tanh(25.0*measured_velocity_pfilter.dot(right_particle)));
 
 		if(previous_force_space_dimension != force_space_dimension)
 		{
@@ -1027,6 +1033,8 @@ void particle_filter()
 			cout << "velocity weight cp : " << vel_weight_cp << endl; 
 			cout << "force weight dp : " << for_weight_dp << endl; 
 			cout << "velocity weight dp : " << vel_weight_dp << endl; 
+			cout << "force weight rp : " << for_weight_rp << endl; 
+			cout << "velocity weight rp : " << vel_weight_rp << endl; 
 			cout << endl;
 		}
 

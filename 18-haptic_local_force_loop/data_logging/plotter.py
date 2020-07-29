@@ -29,6 +29,12 @@ evec2 = file[:,31:34]
 force_axis = file[:,34:37]
 motion_axis = file[:,37:40]
 
+force_space_dimension = file[:,40]
+
+
+force_axis[force_axis[:,2]<0] *= -1
+motion_axis[motion_axis[:,0]<0] *= -1
+
 
 plt.figure(1)
 plt.subplot(3,1,1)
@@ -49,20 +55,38 @@ plt.plot(time, -robot_force[:,0], 'r')
 plt.plot(time, haptic_force[:,0], 'b--')
 plt.plot(time, sensed_force[:,0], 'g')
 # plt.plot(time, filtered_sensed_force[:,0], 'g')
-plt.ylim([-10,10])
+# plt.ylim([-10,10])
 plt.title("robot, haptic and sensed forces")
 plt.subplot(3,1,2)
 plt.plot(time, -robot_force[:,1], 'r')
 plt.plot(time, haptic_force[:,1], 'b--')
 plt.plot(time, sensed_force[:,1], 'g')
 # plt.plot(time, filtered_sensed_force[:,1], 'g')
-plt.ylim([-10,10])
+# plt.ylim([-10,10])
 plt.subplot(3,1,3)
 plt.plot(time, -robot_force[:,2], 'r')
 plt.plot(time, haptic_force[:,2], 'b--')
 plt.plot(time, sensed_force[:,2], 'g')
 # plt.plot(time, filtered_sensed_force[:,2], 'g')
-plt.ylim([-10,10])
+# plt.ylim([-10,10])
+
+
+
+plt.figure(3)
+plt.subplot(3,1,1)
+plt.plot(time, force_space_dimension)
+plt.title("force space dimension")
+plt.ylim([-0.1, 3.1])
+
+plt.subplot(3,1,2)
+plt.plot(time, force_axis)
+plt.title("force axis")
+plt.ylim([-1.1, 1.1])
+
+plt.subplot(3,1,3)
+plt.plot(time, motion_axis)
+plt.title("motion axis")
+plt.ylim([-1.1, 1.1])
 
 
 plt.show()

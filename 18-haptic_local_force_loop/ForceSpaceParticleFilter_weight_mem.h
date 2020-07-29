@@ -25,6 +25,7 @@ public:
 			const Vector3d velocity_measured, const Vector3d force_measured);
 
 	void resamplingLowVariance(vector<pair<Vector3d, double>> weighted_particles);
+	void resamplingLowVarianceProximityPenalty(vector<pair<Vector3d, double>> weighted_particles);
 
 	void computePCA(Vector3d& eigenvalues, Matrix3d& eigenvectors);
 
@@ -72,6 +73,11 @@ public:
 	double _memory_coefficient;
 
 	double _coeff_friction;
+
+	int _force_space_dimension;
+
+	Vector3d _force_axis;
+	Vector3d _motion_axis;
 
 };
 
