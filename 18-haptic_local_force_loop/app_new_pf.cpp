@@ -16,6 +16,7 @@
 
 #include "force_sensor/ForceSensorSim.h" // Add force sensor simulation and display classes
 #include "force_sensor/ForceSensorDisplay.h"
+#include "ForceSpaceParticleFilter_weight_mem.h"
 
 #include <iostream>
 #include <string>
@@ -1421,6 +1422,9 @@ void particle_filter()
 	Matrix3d sigma_force_goal = Matrix3d::Zero();
 	Matrix3d sigma_force_prev_goal = Matrix3d::Zero();
 
+	auto pfilter = new ForceSpaceParticleFilter_weight_mem(n_particles);
+
+
 	// create a timer
 	double pfilter_freq = 100.0;
 	LoopTimer timer;
@@ -1435,48 +1439,40 @@ void particle_filter()
 	while(fSimulationRunning)
 	{
 		timer.waitForNextLoop();
-		vector<pair<Vector3d, double>> weighted_particles = particleFilterMotionUpdate(particles, motion_control_pfilter, force_control_pfilter, measured_velocity_pfilter, measured_force_pfilter, force_space_dimension);
-		// vector<Vector3d> new_particles = particleFilterResampling(weighted_particles, n_particles);
-		vector<pair<Vector3d,double>> new_particles_with_weights = particleFilterResamplingLowVariance(weighted_particles, n_particles);
+		// vector<pair<Vector3d, double>> weighted_particles = particleFilterMotionUpdate(particles, motion_control_pfilter, force_control_pfilter, measured_velocity_pfilter, measured_force_pfilter, force_space_dimension);
+		// // vector<Vector3d> new_particles = particleFilterResampling(weighted_particles, n_particles);
+		// vector<pair<Vector3d,double>> new_particles_with_weights = particleFilterResamplingLowVariance(weighted_particles, n_particles);
 
-		// PCA
-		MatrixXd points_to_PCA = MatrixXd::Zero(3, 1.5*n_particles);
-		for(int i=0 ; i<n_particles ; i++)
-		{
-			points_to_PCA.col(i) = new_particles_with_weights[i].first;
-		}
-		MatrixXd centered_points_to_PCA = points_to_PCA.colwise() - points_to_PCA.rowwise().mean();
-
-		Matrix3d cov = centered_points_to_PCA * centered_points_to_PCA.transpose();
-
-		SelfAdjointEigenSolver<MatrixXd> eig(cov);
-
-		// Get the eigenvectors and eigenvalues.
-		MatrixXd evecs = eig.eigenvectors();
-		VectorXd evals = eig.eigenvalues();
-		if(evals.sum() > 1)
-		{
-			evals /= evals.sum();
-		}
-
-		// force_space_dimension = 0;
-
-
-		// if(evals(2) > 0.15)
+		// // PCA
+		// MatrixXd points_to_PCA = MatrixXd::Zero(3, 1.5*n_particles);
+		// for(int i=0 ; i<n_particles ; i++)
 		// {
-		// 	evals /= evals(2);
-		// 	force_space_dimension = 1;
-		// 	if(evals(1) > 0.3)
-		// 	{
-		// 		evals /= evals(1);
-		// 		force_space_dimension = 2;
-		// 		if(evals(0) > 0.5)
-		// 		{
-		// 			force_space_dimension = 3;
-		// 		}
-		// 	}
+		// 	points_to_PCA.col(i) = new_particles_with_weights[i].first;
+		// }
+		// MatrixXd centered_points_to_PCA = points_to_PCA.colwise() - points_to_PCA.rowwise().mean();
+
+		// Matrix3d cov = centered_points_to_PCA * centered_points_to_PCA.transpose();
+
+		// SelfAdjointEigenSolver<MatrixXd> eig(cov);
+
+		// // Get the eigenvectors and eigenvalues.
+		// MatrixXd evecs = eig.eigenvectors();
+		// VectorXd evals = eig.eigenvalues();
+		// if(evals.sum() > 1)
+		// {
+		// 	evals /= evals.sum();
 		// }
 
+
+		pfilter->_force_space_dimension = force_space_dimension;
+		pfilter->_force_axis = force_axis;
+		pfilter->_motion_axis = motion_axis;
+
+		pfilter->update(motion_control_pfilter, force_control_pfilter, measured_velocity_pfilter, measured_force_pfilter);
+
+		Matrix3d evecs = Matrix3d::Zero();
+		Vector3d evals = Vector3d::Zero();
+		pfilter->computePCA(evals, evecs);
 
 		double force_space_dimension_up = 0;
 		double force_space_dimension_down = 0;
@@ -1507,50 +1503,6 @@ void particle_filter()
 				force_space_dimension = force_space_dimension_up;
 			}
 		}
-
-		// if(force_space_dimension > previous_force_space_dimension + 1)
-		// {
-		// 	force_space_dimension = previous_force_space_dimension + 1;
-		// }
-		// if(force_space_dimension < previous_force_space_dimension - 1)
-		// {
-		// 	force_space_dimension = previous_force_space_dimension - 1;
-		// }
-
-
-		// if(abs(force_axis.dot(evecs.col(2))) < 0.5 && force_space_dimension == 1 && previous_force_space_dimension == 1)
-		// // if(force_axis.dot(evecs.col(2)) < 0.5 && force_space_dimension == 1)
-		// {
-		// 	force_space_dimension = 2;
-		// }
-		// if(abs(motion_axis.dot(evecs.col(0))) < 0.5 && force_space_dimension == 2 && previous_force_space_dimension == 2)
-		// // if(motion_axis.dot(evecs.col(0)) < 0.5 && force_space_dimension == 2)
-		// {
-		// 	force_space_dimension = 3;
-		// }
-
-		// if(force_space_dimension == 3 && previous_force_space_dimension <= 1)
-		// {
-		// 	force_space_dimension = 2;
-		// }
-
-		// if(force_control_pfilter.dot(evecs.col(2)) < 0)
-		// {
-		// 	force_axis = -evecs.col(2);
-		// }
-		// else
-		// {
-		// 	force_axis = evecs.col(2);
-		// }
-		// if(motion_control_pfilter.dot(evecs.col(0)) < 0)
-		// {
-		// 	motion_axis = -evecs.col(0);
-		// }
-		// else
-		// {
-		// 	motion_axis = evecs.col(0);
-		// }
-
 
 		Vector3d force_axis_tmp = evecs.col(2);
 		Vector3d motion_axis_tmp = evecs.col(0);
@@ -1592,136 +1544,16 @@ void particle_filter()
 
 
 
-		// vector<Vector3d> new_particles = particleFilterResamplingAfterPCA(new_particles_with_weights, n_particles, evecs);
-
-
-		// // kmeans in the force space for eventual resampling
-		// vector<Vector3d> cluster_centers;
-		// vector<Vector3d> previous_cluster_centers;
-		// double diff_in_centers = 777.7;
-		// VectorXd average_weight = VectorXd::Zero(force_space_dimension);
-		// int kmeans_steps = 15;
-		// if(force_space_dimension > 0)
-		// {
-		// 	int n_clusters = force_space_dimension;
-		// 	vector<int> cluster_number(n_particles,-1);
-
-		// 	for(int k=0 ; k<n_clusters ; k++)
-		// 	{
-		// 		cluster_centers.push_back(evecs.col(2-k));
-		// 		previous_cluster_centers.push_back(evecs.col(2-k));
-		// 	}
-
-		// 	for(int l=0 ; l<kmeans_steps ; l++)
-		// 	{
-		// 		// assign particles
-		// 		for(int i=0 ; i<n_particles ; i++)
-		// 		{
-		// 			Vector3d current_particle = new_particles_with_weights[i].first;
-		// 			double dist = current_particle.norm();
-		// 			for(int k=0 ; k<n_clusters ; k++)
-		// 			{
-		// 				if( (current_particle - cluster_centers[k]).norm() < dist )
-		// 				{
-		// 					dist = (current_particle - cluster_centers[k]).norm();
-		// 					cluster_number[i] = k;
-		// 				}
-		// 			}
-		// 		}
-
-		// 		// recompute means
-		// 		VectorXd num_particle_in_cluster = VectorXd::Zero(n_clusters);
-		// 		for(int k=0 ; k<n_clusters ; k++)
-		// 		{
-		// 			cluster_centers[k].setZero();
-		// 		}
-
-		// 		for(int i=0 ; i<n_particles ; i++)
-		// 		{
-		// 			if(cluster_number[i] >= 0)
-		// 			{
-		// 				num_particle_in_cluster(cluster_number[i]) += 1;
-		// 				cluster_centers[cluster_number[i]] += new_particles_with_weights[i].first;
-		// 				average_weight(cluster_number[i]) += new_particles_with_weights[i].second;
-		// 			}
-		// 		}
-
-		// 		diff_in_centers = 0;
-		// 		for(int k=0 ; k<n_clusters ; k++)
-		// 		{
-		// 			if(num_particle_in_cluster[k] > 0)
-		// 			{
-		// 				cluster_centers[k] /= (double) num_particle_in_cluster[k];
-		// 				average_weight(k) /= (double) num_particle_in_cluster[k];
-		// 			}
-		// 			else
-		// 			{
-		// 				cluster_centers[k] = -evecs.col(2-k);
-		// 			}
-
-		// 			diff_in_centers += (cluster_centers[k] - previous_cluster_centers[k]).norm();
-		// 			previous_cluster_centers[k] = cluster_centers[k];
-		// 		}
-
-		// 		// cout << "kmeans step : " << l << endl;
-		// 		// cout << "diff in centers : " << diff_in_centers << endl;
-
-		// 		if(diff_in_centers < 1e-3)
-		// 		{
-		// 			break;
-		// 		}
-
-
-		// 	}
-
-		// 	for(int k=0 ; k<n_clusters ; k++)
-		// 	{
-		// 		if(cluster_centers[k].norm() > 0)
-		// 		{
-		// 			cluster_centers[k].normalize();
-		// 		}
-		// 	}
-
-		// }
-
-		// if(average_weight.sum() > 0)
-		// {
-		// 	average_weight /= average_weight.sum();
-		// }
-
-
 		// final resampling
 		vector<Vector3d> new_particles;
 		// if(force_space_dimension < 1)
 		{
 			for(int i=0 ; i<n_particles ; i++)
 			{
-				new_particles.push_back(new_particles_with_weights[i].first);
+				// new_particles.push_back(new_particles_with_weights[i].first);
+				new_particles.push_back(pfilter->_particles[i]);
 			}
 		}
-		// else
-		// {
-		// 	vector<int> n_copies_of_particle(force_space_dimension,0);
-		// 	for(int k=0 ; k<force_space_dimension ; k++)
-		// 	{
-		// 		int n_copies_of_particle = floor( (double)n_particles * average_weight(k));
-		// 		for(int i=0 ; i<n_copies_of_particle ; i++)
-		// 		{
-		// 			new_particles.push_back(cluster_centers[k]);
-		// 		}
-		// 	}
-		// 	while(new_particles.size() < n_particles)
-		// 	{
-		// 		new_particles.push_back(Vector3d::Zero());
-		// 	}
-		// 	while(new_particles.size() > n_particles)
-		// 	{
-		// 		new_particles.erase(new_particles.begin());
-		// 	}
-		// }
-
-
-		// cout << force_space_dimension << endl;
 
 
 		Vector3d robot_pos_in_world = robot_position_global + Vector3d(0, 0, 0.15);

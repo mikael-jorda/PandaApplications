@@ -82,6 +82,7 @@ set(PANDA_APPLICATIONS_COMMON_LIBRARIES
 # add apps
 set (PANDA_APPLICATIONS_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 
+add_subdirectory(00-thesis_image_generation)
 # add_subdirectory(00-calibration_for_camera)
 # add_subdirectory(00-float_robot_and_allegro)
 # add_subdirectory(00-experiment_joint_control)

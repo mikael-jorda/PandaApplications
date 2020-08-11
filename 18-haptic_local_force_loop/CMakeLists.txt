@@ -1,6 +1,7 @@
 # create an executable
 set (CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PANDA_APPLICATIONS_BINARY_DIR}/18-haptic_local_force_loop)
 ADD_EXECUTABLE (app18 app.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
+ADD_EXECUTABLE (app_new_pf18 app_new_pf.cpp ForceSpaceParticleFilter_weight_mem.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
 ADD_EXECUTABLE (app_new_fsensor18 app_new_fsensor.cpp ForceSpaceParticleFilter_weight_mem.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
 # ADD_EXECUTABLE (simviz_sphere18 simviz_sphere.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
 ADD_EXECUTABLE (simviz_panda18 simviz_panda.cpp ${PANDA_APPLICATIONS_COMMON_SOURCE})
@@ -12,6 +13,7 @@ ADD_EXECUTABLE (control_panda_classical18 controller_panda_classical.cpp ForceSp
 
 # and link the library against the executable
 TARGET_LINK_LIBRARIES (app18 ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
+TARGET_LINK_LIBRARIES (app_new_pf18 ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
 TARGET_LINK_LIBRARIES (app_new_fsensor18 ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
 # TARGET_LINK_LIBRARIES (simviz_sphere18 ${PANDA_APPLICATIONS_COMMON_LIBRARIES})
 TARGET_LINK_LIBRARIES (simviz_panda18 ${PANDA_APPLICATIONS_COMMON_LIBRARIES})

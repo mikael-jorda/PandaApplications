@@ -20,6 +20,11 @@ ForceSpaceParticleFilter_weight_mem::ForceSpaceParticleFilter_weight_mem(const i
 	_memory_coefficient = 0.0;
 
 	_coeff_friction = 0.0;
+
+	_F_low = 2.0;
+	_F_high = 10.0;
+	_v_high = 0.01;
+
 }
 
 void ForceSpaceParticleFilter_weight_mem::update(const Vector3d motion_control, const Vector3d force_control,
@@ -86,15 +91,16 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter_weight_mem::motionUpdate
 	double prob_add_particle = 0;
 	if(motion_control.norm() - _coeff_friction * force_control.norm() > 0)
 	{
-		prob_add_particle = (1 - abs(tanh(100.0*velocity_measured.dot(motion_control_normalized)))) * (tanh(motion_control_normalized.dot(0.05*force_measured)));
+		// prob_add_particle = (1 - abs(tanh(100.0*velocity_measured.dot(motion_control_normalized)))) * (tanh(motion_control_normalized.dot(0.05*force_measured)));
+		// prob_add_particle = wf(motion_control_normalized, force_measured) * wv(motion_control_normalized, velocity_measured);
+		prob_add_particle = (1 - abs(tanh(5.0*velocity_measured.dot(motion_control_normalized)))) * (tanh(motion_control_normalized.dot(force_measured)));
 	}
-	// prob_add_particle *= tanh(motion_control.norm() - _coeff_friction * force_control.norm());
-	// double prob_add_particle = (1 - abs(tanh(velocity_measured.dot(motion_control_normalized))));
 	if(prob_add_particle < 0)
 	{
 		prob_add_particle = 0;
 	}
-	int n_added_particles = 1.5 * prob_add_particle * _n_particles;
+	// int n_added_particles = 0.5 * _n_particles;
+	int n_added_particles = prob_add_particle * _n_particles;
 	for(int i=0 ; i<n_added_particles ; i++)
 	{
 		double alpha = (double) (i + 0.5) / (double)n_added_particles; // add particles on the arc betwen the motion and force control
@@ -126,14 +132,17 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter_weight_mem::motionUpdate
 		}
 
 		// measurement update : compute weight due to force measurement
+		// double weight_force = wf(current_particle, force_measured);
+
 		double weight_force = 0;
 		if(current_particle.norm() < 1e-3)
 		{
-			weight_force = 1 - tanh(force_measured.norm());
+			weight_force = 1 - tanh(0.5*(force_measured.norm()));
 		}
 		else
 		{
-			weight_force = 1.3 * tanh(current_particle.dot(force_measured));
+			weight_force = 1.3 * tanh((current_particle.dot(force_measured)));
+			// weight_force = 1.3 * tanh(0.2*current_particle.dot(force_measured));
 		}
 
 		if(weight_force < 0)
@@ -146,10 +155,12 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter_weight_mem::motionUpdate
 		}
 
 		// measurement update : compute weight due to velocity measurement
+		// double weight_velocity = wv(current_particle, velocity_measured);
+
 		double weight_velocity = 0.5;
 		if(current_particle.norm() > 1e-3)
 		{
-			weight_velocity = 1 - abs(tanh(15.0*velocity_measured.dot(current_particle)));
+			weight_velocity = 1 - abs(tanh(5.0*velocity_measured.dot(current_particle)));
 		}
 
 		// final weight
@@ -304,4 +315,69 @@ void ForceSpaceParticleFilter_weight_mem::computePCA(Vector3d& eigenvalues, Matr
 	// Get the eigenvectors and eigenvalues.
 	eigenvectors = eig.eigenvectors();
 	eigenvalues = eig.eigenvalues();
+}
+
+double ForceSpaceParticleFilter_weight_mem::sampleNormalDistribution(const double mean, const double std)
+{
+	// random device class instance, source of 'true' randomness for initializing random seed
+    random_device rd; 
+    // Mersenne twister PRNG, initialized with seed from random device instance
+    mt19937 gen(rd()); 
+    // instance of class normal_distribution with specific mean and stddev
+    normal_distribution<float> d(mean, std); 
+    // get random number with normal distribution using gen as random source
+    return d(gen); 
+}
+
+double ForceSpaceParticleFilter_weight_mem::sampleUniformDistribution(const double min, const double max)
+{
+	double min_internal = min;
+	double max_internal = max;
+	if(min > max)
+	{
+		min_internal = max;
+		max_internal = min;
+	}
+	// random device class instance, source of 'true' randomness for initializing random seed
+    random_device rd; 
+    // Mersenne twister PRNG, initialized with seed from random device instance
+    mt19937 gen(rd()); 
+    // instance of class uniform_distribution with specific min and max
+    uniform_real_distribution<float> d(min_internal, max_internal); 
+    // get random number with normal distribution using gen as random source
+    return d(gen); 
+}
+
+
+double ForceSpaceParticleFilter_weight_mem::wf(Vector3d particle, Vector3d sensed_force)
+{
+	double wf = 0;
+	if(particle.norm() < 0.1)
+	{
+		wf = 1 - tanh(2 * (sensed_force.norm() - _F_low) / (_F_high - _F_low) );
+	}
+	else
+	{
+		wf = tanh(2 * (particle.dot(sensed_force) - _F_low) / (_F_high - _F_low));
+	}
+
+	if(wf > 1) {wf = 1;}
+	if(wf < 0) {wf = 0;}
+
+	return wf;
+}
+
+
+double ForceSpaceParticleFilter_weight_mem::wv(Vector3d particle, Vector3d sensed_velocity)
+{
+	double wv = 0.5;
+	if(particle.norm() > 0.1)
+	{
+		wv = 1 - abs(tanh(2 * particle.dot(sensed_velocity) / _v_high));
+	}
+
+	if(wv > 1) {wv = 1;}
+	if(wv < 0) {wv = 0;}
+
+	return wv;
 }

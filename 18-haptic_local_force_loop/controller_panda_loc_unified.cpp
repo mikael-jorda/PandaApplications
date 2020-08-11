@@ -190,8 +190,8 @@ const std::string currentDateTime() {
 	return buf;
 }
 
-const bool flag_simulation = false;
-// const bool flag_simulation = true;
+// const bool flag_simulation = false;
+const bool flag_simulation = true;
 
 int main() {
 
@@ -580,6 +580,8 @@ int main() {
 		{
 
 			// posori_task->setForceAxis(Vector3d::UnitZ());
+			// sigma_force_global = Matrix3d::Zero();
+			// sigma_force_global(2,2) = 1;
 
 			if(force_space_dimension == 1)
 			{
@@ -602,7 +604,6 @@ int main() {
 				sigma_force_global.setZero();
 			}
 
-			// sigma_force_global = posori_task->_sigma_force;
 
 
 			Vector3d desired_position = Vector3d::Zero();
@@ -722,6 +723,26 @@ int main() {
 
 			teleop_task->_commanded_force_device -= alpha_pc * delayed_sigma_force * teleop_task->_current_trans_velocity_device;
 			haptic_PO -= alpha_pc * vh_square * 0.001;
+
+
+			if(force_space_dimension > previous_force_space_dimension)
+			{
+				contact_transition_counter = 50;
+			}
+			else
+			{
+				contact_transition_counter--;
+			}
+
+			if(contact_transition_counter > 0)
+			{
+				teleop_task->_commanded_force_device = -0.9 * _max_damping_device0[0] * delayed_sigma_force * teleop_task->_current_trans_velocity_device;
+				// teleop_task->_commanded_force_device = -0.9 * _max_damping_device0[0] * teleop_task->_current_trans_velocity_device;
+			}
+			else
+			{
+				contact_transition_counter = 0;
+			}
 
 
 

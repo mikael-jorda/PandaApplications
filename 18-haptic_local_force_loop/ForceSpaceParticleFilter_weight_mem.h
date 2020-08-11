@@ -29,39 +29,39 @@ public:
 
 	void computePCA(Vector3d& eigenvalues, Matrix3d& eigenvectors);
 
+	double sampleNormalDistribution(const double mean, const double std);
+	// {
+	// 	// random device class instance, source of 'true' randomness for initializing random seed
+	//     random_device rd; 
+	//     // Mersenne twister PRNG, initialized with seed from random device instance
+	//     mt19937 gen(rd()); 
+	//     // instance of class normal_distribution with specific mean and stddev
+	//     normal_distribution<float> d(mean, std); 
+	//     // get random number with normal distribution using gen as random source
+	//     return d(gen); 
+	// }
 
-	double sampleNormalDistribution(const double mean, const double std)
-	{
-		// random device class instance, source of 'true' randomness for initializing random seed
-	    random_device rd; 
-	    // Mersenne twister PRNG, initialized with seed from random device instance
-	    mt19937 gen(rd()); 
-	    // instance of class normal_distribution with specific mean and stddev
-	    normal_distribution<float> d(mean, std); 
-	    // get random number with normal distribution using gen as random source
-	    return d(gen); 
-	}
+	double sampleUniformDistribution(const double min, const double max);
+	// {
+	// 	double min_internal = min;
+	// 	double max_internal = max;
+	// 	if(min > max)
+	// 	{
+	// 		min_internal = max;
+	// 		max_internal = min;
+	// 	}
+	// 	// random device class instance, source of 'true' randomness for initializing random seed
+	//     random_device rd; 
+	//     // Mersenne twister PRNG, initialized with seed from random device instance
+	//     mt19937 gen(rd()); 
+	//     // instance of class uniform_distribution with specific min and max
+	//     uniform_real_distribution<float> d(min_internal, max_internal); 
+	//     // get random number with normal distribution using gen as random source
+	//     return d(gen); 
+	// }
 
-	double sampleUniformDistribution(const double min, const double max)
-	{
-		double min_internal = min;
-		double max_internal = max;
-		if(min > max)
-		{
-			min_internal = max;
-			max_internal = min;
-		}
-		// random device class instance, source of 'true' randomness for initializing random seed
-	    random_device rd; 
-	    // Mersenne twister PRNG, initialized with seed from random device instance
-	    mt19937 gen(rd()); 
-	    // instance of class uniform_distribution with specific min and max
-	    uniform_real_distribution<float> d(min_internal, max_internal); 
-	    // get random number with normal distribution using gen as random source
-	    return d(gen); 
-	}
-
-
+	double wf(Vector3d particle, Vector3d sensed_force);
+	double wv(Vector3d particle, Vector3d sensed_velocity);
 
 	int _n_particles;
 	vector<Vector3d> _particles;
@@ -78,6 +78,8 @@ public:
 
 	Vector3d _force_axis;
 	Vector3d _motion_axis;
+
+	double _F_low, _F_high, _v_high;
 
 };
 
