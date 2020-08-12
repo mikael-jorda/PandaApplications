@@ -249,16 +249,23 @@ int main() {
 	VectorXd posori_task_torques = VectorXd::Zero(dof);
 	posori_task->_use_interpolation_flag = false;
 	posori_task->_use_velocity_saturation_flag = false;
-	// posori_task->setDynamicDecouplingNone();
-	posori_task->setDynamicDecouplingInertiaSaturation();
-
 	haptic_position_global = posori_task->_current_position;
 
-	posori_task->_kp_pos = 150.0;
-	posori_task->_kv_pos = 22.0;
+	// posori_task->setDynamicDecouplingInertiaSaturation();
+	// posori_task->_kp_pos = 350.0;
+	// posori_task->_kv_pos = 32.0;
+	// posori_task->_kp_ori = 600.0;
+	// posori_task->_kv_ori = 35.0;
 
-	posori_task->_kp_ori = 400.0;
-	posori_task->_kv_ori = 35.0;
+
+	posori_task->setDynamicDecouplingNone();
+	posori_task->_kp_pos = 500.0;
+	posori_task->_kv_pos = 50.0;
+	posori_task->_kp_ori = 100.0;
+	posori_task->_kv_ori = 5.5;
+
+
+
 
 	sensor_transform_in_link.translation() = sensor_pos_in_link;
 	posori_task->setForceSensorFrame(link_name, sensor_transform_in_link);
@@ -272,8 +279,9 @@ int main() {
 
 	double k_vir_robot = 500.0;
 	const double k_vir_haptic_goal = 200.0;
-	double k_vir_haptic = k_vir_haptic_goal;
-	// Matrix3d k_vir_haptic = k_vir_haptic_goal * Matrix3d::Ones();
+	// double k_vir_haptic = k_vir_haptic_goal;
+
+	Matrix3d k_vir_haptic = k_vir_haptic_goal * Matrix3d::Ones();
 	Vector3d robot_proxy_diff = Vector3d::Zero();
 	Vector3d haptic_proxy_diff = Vector3d::Zero();
 
@@ -648,6 +656,8 @@ int main() {
 			// 	k_vir_haptic = k_vir_haptic_goal;
 			// }
 
+			k_vir_haptic = posori_task->_Lambda_modified.block<3,3>(0,0) * posori_task->_kp_pos;
+
 			haptic_proxy_diff = teleop_task->_Rotation_Matrix_DeviceToRobot * (desired_position - delayed_robot_position);
 			// haptic_proxy_diff = (desired_position - delayed_robot_position);
 			// Vector3d deisred_force_haptic = delayed_sigma_force * (-k_vir_haptic * haptic_proxy_diff - kv_haptic * teleop_task->_current_trans_velocity_device);
@@ -716,8 +726,12 @@ int main() {
 		// particle filter
 		Matrix3d sigma_position_global = Matrix3d::Identity() - sigma_force_global;
 		// pfilter_motion_control_buffer.push(sigma_position_global * posori_task->_linear_motion_control * freq_ratio_filter_control);
-		pfilter_motion_control_buffer.push(sigma_position_global * posori_task->_Lambda_modified.block<3,3>(0,0) * posori_task->_linear_motion_control * freq_ratio_filter_control);
-		pfilter_force_control_buffer.push(sigma_force_global * posori_task->_linear_motion_control * freq_ratio_filter_control);
+		// pfilter_motion_control_buffer.push(sigma_position_global * posori_task->_Lambda_modified.block<3,3>(0,0) * posori_task->_linear_motion_control * freq_ratio_filter_control);
+		// pfilter_force_control_buffer.push(sigma_force_global * posori_task->_linear_motion_control * freq_ratio_filter_control);
+
+		pfilter_motion_control_buffer.push(-sigma_position_global * robot_proxy_diff * freq_ratio_filter_control);
+		pfilter_force_control_buffer.push(-sigma_force_global * robot_proxy_diff * freq_ratio_filter_control);
+
 		pfilter_sensed_velocity_buffer.push(posori_task->_current_velocity * freq_ratio_filter_control);
 		pfilter_sensed_force_buffer.push(sensed_force_moment_world_frame.head(3) * freq_ratio_filter_control);
 
@@ -883,8 +897,22 @@ void particle_filter()
 	// create particle filter
 	auto pfilter = new ForceSpaceParticleFilter_weight_mem(n_particles);
 
-	pfilter->_std_scatter = 0.010;
-	pfilter->_coeff_friction = 0.3;
+	pfilter->_mean_scatter = 0.0;
+	pfilter->_std_scatter = 0.01;
+
+	pfilter->_memory_coefficient = 0.0;
+
+	pfilter->_coeff_friction = 0.0;
+
+	pfilter->_F_low = 0.0;
+	pfilter->_F_high = 2.0;
+	pfilter->_v_low = 0.001;
+	pfilter->_v_high = 0.05;
+
+	pfilter->_F_low_add = 2.0;
+	pfilter->_F_high_add = 10.0;
+	pfilter->_v_low_add = 0.001;
+	pfilter->_v_high_add = 0.005;
 
 	Vector3d evals = Vector3d::Zero();
 	Matrix3d evecs = Matrix3d::Identity();

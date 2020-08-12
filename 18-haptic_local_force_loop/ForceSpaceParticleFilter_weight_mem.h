@@ -60,8 +60,12 @@ public:
 	//     return d(gen); 
 	// }
 
-	double wf(Vector3d particle, Vector3d sensed_force);
-	double wv(Vector3d particle, Vector3d sensed_velocity);
+	double wf(const Vector3d particle, const Vector3d sensed_force);
+	double wv(const Vector3d particle, const Vector3d sensed_velocity);
+
+	double wf_pw(const Vector3d particle, const Vector3d force_measured, const double fl, const double fh);
+	double wv_pw(const Vector3d particle, const Vector3d velocity_measured, const double vl, const double vh);
+
 
 	int _n_particles;
 	vector<Vector3d> _particles;
@@ -79,7 +83,10 @@ public:
 	Vector3d _force_axis;
 	Vector3d _motion_axis;
 
-	double _F_low, _F_high, _v_high;
+	double _F_low, _F_high, _v_high, _v_low;
+
+	double _F_low_add, _F_high_add, _v_high_add, _v_low_add;
+
 
 };
 

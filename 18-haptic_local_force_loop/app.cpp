@@ -920,7 +920,7 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 	double KsR = 1.0;
 	teleop_task->setScalingFactors(Ks, KsR);
 
-	double kv_haptic = 0.0;
+	double kv_haptic = 25.0;
 
 	int contact_transition_counter = 50;
 
@@ -1147,20 +1147,21 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 			haptic_pos_error = delayed_robot_position - desired_position;
 			Vector3d force_command_haptic = delayed_sigma_force * k_vir_robot * haptic_pos_error;
 			Vector3d force_diff_haptic = force_command_haptic - prev_force_command_haptic;
-			// if( force_diff_haptic.norm() > max_force_diff_haptic )
-			// {
+			if( force_diff_haptic.norm() > max_force_diff_haptic )
+			{
 			// 	// cout << "prev force :\n" << prev_force_command_robot.transpose() << endl;
 			// 	// cout << "new force command :\n" << force_command.transpose() << endl;
 			// 	// cout << endl;
-			// 	force_command_haptic = prev_force_command_robot + max_force_diff_haptic * force_diff_haptic/force_diff_haptic.norm();
-			// }
+				force_command_haptic = prev_force_command_haptic + max_force_diff_haptic * force_diff_haptic/force_diff_haptic.norm();
+			}
 			if(force_command_haptic.norm() > 10.0)
 			{
 				force_command_haptic *= 10.0/force_command_haptic.norm();
 			}
 
 			// teleop_task->_commanded_force_device = filter_force_command_haptic->update(force_command_haptic) - delayed_sigma_force * kv_haptic * teleop_task->_current_trans_velocity_device;
-			teleop_task->_commanded_force_device = filter_force_command_haptic->update(force_command_haptic);
+			// teleop_task->_commanded_force_device = filter_force_command_haptic->update(force_command_haptic);
+			teleop_task->_commanded_force_device = force_command_haptic - delayed_sigma_force * kv_haptic * teleop_task->_current_trans_velocity_device;
 			// teleop_task->_commanded_force_device = -sensed_force_moment.head(3)/Ks - 5.0 * teleop_task->_current_trans_velocity_device;
 			// teleop_task->_commanded_force_device = -delayed_sensed_force/Ks;
 
@@ -1168,25 +1169,25 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 
 
 
-			haptic_PO += teleop_task->_commanded_force_device.dot(teleop_task->_current_trans_velocity_device) * 0.001;
+			// haptic_PO += teleop_task->_commanded_force_device.dot(teleop_task->_current_trans_velocity_device) * 0.001;
 
-			double vh_square = (delayed_sigma_force * teleop_task->_current_trans_velocity_device).squaredNorm();
-			double alpha_pc = 0;
-			if(haptic_PO < 0 && vh_square > 0.0001)
-			{
-				alpha_pc = -haptic_PO / vh_square * 1000.0;
-			}
-			if(alpha_pc > 0.9 * _max_damping_device0[0] - kv_haptic)
-			{
-				alpha_pc = 0.9 * _max_damping_device0[0] - kv_haptic;
-			}
-			if(alpha_pc < 0)
-			{
-				alpha_pc = 0;
-			}
+			// double vh_square = (delayed_sigma_force * teleop_task->_current_trans_velocity_device).squaredNorm();
+			// double alpha_pc = 0;
+			// if(haptic_PO < 0 && vh_square > 0.0001)
+			// {
+			// 	alpha_pc -= haptic_PO / vh_square * 1000.0;
+			// }
+			// if(alpha_pc > 0.9 * _max_damping_device0[0] - kv_haptic)
+			// {
+			// 	alpha_pc = 0.9 * _max_damping_device0[0] - kv_haptic;
+			// }
+			// if(alpha_pc < 0)
+			// {
+			// 	alpha_pc = 0;
+			// }
 
-			teleop_task->_commanded_force_device -= alpha_pc * delayed_sigma_force * teleop_task->_current_trans_velocity_device;
-			haptic_PO -= alpha_pc * vh_square * 0.001;
+			// teleop_task->_commanded_force_device -= alpha_pc * delayed_sigma_force * teleop_task->_current_trans_velocity_device;
+			// haptic_PO += alpha_pc * vh_square * 0.001;
 
 
 
@@ -1221,23 +1222,23 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 			// }
 
 			// if(force_space_dimension != previous_force_space_dimension && force_space_dimension != 0)
-			if(force_space_dimension > previous_force_space_dimension)
-			{
-				contact_transition_counter = 50;
-			}
-			else
-			{
-				contact_transition_counter--;
-			}
+			// if(force_space_dimension > previous_force_space_dimension)
+			// {
+			// 	contact_transition_counter = 50;
+			// }
+			// else
+			// {
+			// 	contact_transition_counter--;
+			// }
 
-			if(contact_transition_counter > 0)
-			{
-				teleop_task->_commanded_force_device = -15.0 * delayed_sigma_force * teleop_task->_current_trans_velocity_device;
-			}
-			else
-			{
-				contact_transition_counter = 0;
-			}
+			// if(contact_transition_counter > 0)
+			// {
+			// 	teleop_task->_commanded_force_device = -15.0 * delayed_sigma_force * teleop_task->_current_trans_velocity_device;
+			// }
+			// else
+			// {
+			// 	contact_transition_counter = 0;
+			// }
 
 
 
@@ -1766,18 +1767,18 @@ void particle_filter()
 		log_force_axis = force_axis;
 		log_motion_axis = motion_axis;
 
-		if(previous_force_space_dimension == 1 && force_space_dimension == 0)
-		{
-			cout << "********************************" << endl;
-			cout << "pf coutner : " << pf_counter << endl;
-			cout << "contact space dim : " << force_space_dimension << endl;
-			cout << "previous contact space dim : " << previous_force_space_dimension << endl;
-			cout << "force spce dimension up : " << force_space_dimension_up << endl;
-			cout << "force spce dimension down : " << force_space_dimension_down << endl;
-			cout << "eigenvalues :\n" << evals.transpose() << endl;
-			cout << "eigenvectors :\n" << evecs << endl;
-			// fSimulationRunning = false;
-		}
+		// if(previous_force_space_dimension == 1 && force_space_dimension == 0)
+		// {
+		// 	cout << "********************************" << endl;
+		// 	cout << "pf coutner : " << pf_counter << endl;
+		// 	cout << "contact space dim : " << force_space_dimension << endl;
+		// 	cout << "previous contact space dim : " << previous_force_space_dimension << endl;
+		// 	cout << "force spce dimension up : " << force_space_dimension_up << endl;
+		// 	cout << "force spce dimension down : " << force_space_dimension_down << endl;
+		// 	cout << "eigenvalues :\n" << evals.transpose() << endl;
+		// 	cout << "eigenvectors :\n" << evecs << endl;
+		// 	// fSimulationRunning = false;
+		// }
 
 		previous_force_space_dimension = force_space_dimension;
 		particles = new_particles;

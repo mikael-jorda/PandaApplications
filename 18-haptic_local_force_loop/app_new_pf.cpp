@@ -661,7 +661,7 @@ int main() {
 	// Add force sensor to the end-effector
 	sensor_transform_in_link.translation() = sensor_pos_in_link;
 	auto force_sensor = new ForceSensorSim(robot_name, link_name, sensor_transform_in_link, robot);
-	force_sensor->enableFilter(0.07);
+	force_sensor->enableFilter(0.005);
 	auto fsensor_display = new ForceSensorDisplay(force_sensor, graphics);
 	// fsensor_display->_force_line_scale = 10.0;
 	fsensor_display->_force_line_scale = 0.001;
@@ -885,8 +885,8 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 	pos_task->_kp = 100.0;
 	pos_task->_kv = 20.0;
 
-	double k_vir_robot = 300.0;
-	const double k_vir_haptic_goal = 300.0;
+	double k_vir_robot = 500.0;
+	const double k_vir_haptic_goal = 200.0;
 	double k_vir_haptic = k_vir_haptic_goal;
 	// Matrix3d k_vir_haptic = k_vir_haptic_goal * Matrix3d::Ones();
 	Vector3d robot_pos_error = Vector3d::Zero();
@@ -894,8 +894,8 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 
 	double haptic_PO = 0;
 
-	const double max_force_diff_robot = 0.05;
-	const double max_force_diff_haptic = 0.05;
+	const double max_force_diff_robot = 0.1;
+	const double max_force_diff_haptic = 0.1;
 	Vector3d prev_force_command_robot = Vector3d::Zero();
 	Vector3d prev_force_command_haptic = Vector3d::Zero();
 
@@ -904,6 +904,7 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 
 	double kp_force = 0.0;
 	double ki_force = 0.0;
+	double kv_force = 15.0;
 	Vector3d integrated_force_error = Vector3d::Zero();
 
 	// haptic task
@@ -921,23 +922,9 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 	double KsR = 1.0;
 	teleop_task->setScalingFactors(Ks, KsR);
 
-	double kv_haptic = 0.0;
+	double kv_haptic = 10.0;
 
-	int contact_transition_counter = 50;
-
-	// // Center of the haptic device workspace
-	// Vector3d HomePos_op;
-	// HomePos_op << 0.0, 0.0, 0.0;
-	// Matrix3d HomeRot_op;
-	// HomeRot_op.setIdentity();
-	// teleop_task->setDeviceCenter(HomePos_op, HomeRot_op);
-
-	// double force_guidance_position_impedance = 1000.0;
-	// double force_guidance_orientation_impedance = 50.0;
-	// double force_guidance_position_damping = 5.0;
-	// double force_guidance_orientation_damping = 0.1;
-	// teleop_task->setVirtualGuidanceGains (force_guidance_position_impedance, force_guidance_position_damping,
-	// 								force_guidance_orientation_impedance, force_guidance_orientation_damping);
+	int contact_transition_counter = 0;
 
 	VectorXd _max_stiffness_device0 = redis_client.getEigenMatrixJSON(DEVICE_MAX_STIFFNESS_KEYS[0]);
 	VectorXd _max_damping_device0 = redis_client.getEigenMatrixJSON(DEVICE_MAX_DAMPING_KEYS[0]);
@@ -1056,37 +1043,22 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 
 		else if(state == CONTROL)
 		{
-			// MatrixXd next_sigma_force = Matrix3d::Zero();
-			// if(force_space_dimension == 1)
-			// {
-			// 	next_sigma_force = force_axis*force_axis.transpose();
-			// }
-			// else if(force_space_dimension == 2)
-			// {
-			// 	next_sigma_force = Matrix3d::Identity() - motion_axis*motion_axis.transpose();
-			// }
-			// else if(force_space_dimension == 3)
-			// {
-			// 	next_sigma_force = Matrix3d::Identity();
-			// }
-
-			// if( (next_sigma_force - sigma_force_global).norm() > 0.1 )
-			// {
-			// 	cout << "big increment" << endl;
-			// 	Matrix3d sigma_force_increment = 0.1 * (next_sigma_force - sigma_force_global)/(next_sigma_force - sigma_force_global).norm();
-			// 	sigma_force_global += sigma_force_increment;
-			// }
-			// else
-			// {
-			// 	sigma_force_global = next_sigma_force;
-			// }
-			// sigma_motion_global = Matrix3d::Identity() - sigma_force_global;
-
-			// pos_task->_sigma_force = sigma_force_global;
-			// pos_task->_sigma_motion = sigma_motion_global;
 
 
+			if(force_space_dimension != previous_force_space_dimension && force_space_dimension != 0)
+			// if(force_space_dimension > previous_force_space_dimension)
+			{
+				contact_transition_counter = 25;
+			}
+			else
+			{
+				contact_transition_counter--;
+			}
 
+			if(contact_transition_counter < 0)
+			{
+				contact_transition_counter = 0;
+			}
 
 
 			if(force_space_dimension == 1)
@@ -1121,25 +1093,31 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 
 			robot_pos_error = pos_task->_current_position - pos_task->_desired_position;
 
-			Vector3d force_command_robot = pos_task->_sigma_force * k_vir_robot * robot_pos_error;
+			Vector3d force_command_robot = - pos_task->_sigma_force * k_vir_robot * robot_pos_error;
 			Vector3d force_diff_robot = force_command_robot - prev_force_command_robot;
-			// if( force_diff_robot.norm() > max_force_diff_robot )
-			// {
+			if( force_diff_robot.norm() > max_force_diff_robot )
+			{
 			// 	// cout << "prev force :\n" << prev_force_command_robot.transpose() << endl;
 			// 	// cout << "new force command :\n" << force_command.transpose() << endl;
 			// 	// cout << endl;
-			// 	force_command_robot = prev_force_command_robot + max_force_diff_robot * force_diff_robot/force_diff_robot.norm();
-			// }
+				force_command_robot = prev_force_command_robot + max_force_diff_robot * force_diff_robot/force_diff_robot.norm();
+			}
 			if(force_command_robot.norm() > 10.0)
 			{
 				force_command_robot *= 10.0/force_command_robot.norm();
 			}
 
-			Vector3d force_error = pos_task->_sigma_force * (sensed_force_moment.head(3) - force_command_robot);
-			integrated_force_error += force_error * 0.001;
+			// Vector3d force_error = pos_task->_sigma_force * (sensed_force_moment.head(3) - force_command_robot);
+			// integrated_force_error += force_error * 0.001;
 
-			force_command_robot -= pos_task->_sigma_force * (kp_force * force_error + ki_force * integrated_force_error);
-			pos_task->_desired_force = filter_force_command_robot->update(-force_command_robot);
+			// force_command_robot -= pos_task->_sigma_force * (kp_force * force_error + ki_force * integrated_force_error);
+
+			// if(contact_transition_counter > 0)
+			// {
+			// 	force_command_robot.setZero();
+			// }			
+
+			pos_task->_desired_force = force_command_robot - kv_force * pos_task->_sigma_force * pos_task->_current_velocity;
 
 			pos_task->computeTorques(pos_task_torques);
 			command_torques = pos_task_torques;
@@ -1148,23 +1126,32 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 			haptic_pos_error = delayed_robot_position - desired_position;
 			Vector3d force_command_haptic = delayed_sigma_force * k_vir_robot * haptic_pos_error;
 			Vector3d force_diff_haptic = force_command_haptic - prev_force_command_haptic;
-			// if( force_diff_haptic.norm() > max_force_diff_haptic )
-			// {
+			if( force_diff_haptic.norm() > max_force_diff_haptic )
+			{
 			// 	// cout << "prev force :\n" << prev_force_command_robot.transpose() << endl;
 			// 	// cout << "new force command :\n" << force_command.transpose() << endl;
 			// 	// cout << endl;
-			// 	force_command_haptic = prev_force_command_robot + max_force_diff_haptic * force_diff_haptic/force_diff_haptic.norm();
-			// }
+				force_command_haptic = prev_force_command_haptic + max_force_diff_haptic * force_diff_haptic/force_diff_haptic.norm();
+			}
 			if(force_command_haptic.norm() > 10.0)
 			{
 				force_command_haptic *= 10.0/force_command_haptic.norm();
 			}
 
-			// teleop_task->_commanded_force_device = filter_force_command_haptic->update(force_command_haptic) - delayed_sigma_force * kv_haptic * teleop_task->_current_trans_velocity_device;
-			teleop_task->_commanded_force_device = filter_force_command_haptic->update(force_command_haptic);
-			// teleop_task->_commanded_force_device = -sensed_force_moment.head(3)/Ks - 5.0 * teleop_task->_current_trans_velocity_device;
-			// teleop_task->_commanded_force_device = -delayed_sensed_force/Ks;
 
+
+			// if(contact_transition_counter > 0)
+			// {
+			// 	force_command_haptic.setZero();
+			// }
+
+
+
+
+
+
+			// teleop_task->_commanded_force_device = filter_force_command_haptic->update(force_command_haptic);
+			teleop_task->_commanded_force_device = force_command_haptic - delayed_sigma_force * kv_haptic * teleop_task->_current_trans_velocity_device;
 
 
 
@@ -1173,9 +1160,9 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 
 			double vh_square = (delayed_sigma_force * teleop_task->_current_trans_velocity_device).squaredNorm();
 			double alpha_pc = 0;
-			if(haptic_PO < 0 && vh_square > 0.0001)
+			if(haptic_PO > 0 && vh_square > 0.0001)
 			{
-				alpha_pc = -haptic_PO / vh_square * 1000.0;
+				alpha_pc = haptic_PO / vh_square * 1000.0;
 			}
 			if(alpha_pc > 0.9 * _max_damping_device0[0] - kv_haptic)
 			{
@@ -1188,6 +1175,83 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 
 			teleop_task->_commanded_force_device -= alpha_pc * delayed_sigma_force * teleop_task->_current_trans_velocity_device;
 			haptic_PO -= alpha_pc * vh_square * 0.001;
+
+
+
+
+
+
+
+
+			// if(force_space_dimension != previous_force_space_dimension && force_space_dimension > 0)
+			// {
+			// 	contact_transition_counter = 50;
+			// }
+			// else
+			// {
+			// 	contact_transition_counter--;
+			// }
+
+
+			// // Vector3d command_force_haptic = filter_force_command_haptic->update(desired_force_haptic) - delayed_sigma_force * kv_haptic * teleop_task->_current_trans_velocity_device;
+			// Vector3d command_force_haptic = desired_force_haptic - delayed_sigma_force * kv_haptic * teleop_task->_current_trans_velocity_device;
+			// if(contact_transition_counter > 0)
+			// {
+			// 	command_force_haptic = - kv_haptic * delayed_sigma_force * teleop_task->_current_trans_velocity_device;
+			// }
+			// else
+			// {
+			// 	contact_transition_counter = 0;
+			// }
+
+
+
+			// Vector3d force_diff_haptic = command_force_haptic - prev_force_command_haptic;
+			// if( force_diff_haptic.norm() > max_force_diff_haptic )
+			// {
+			// 	command_force_haptic = prev_force_command_haptic + max_force_diff_haptic * force_diff_haptic/force_diff_haptic.norm();
+			// }
+
+
+			// teleop_task->_commanded_force_device = command_force_haptic;
+
+
+
+
+
+
+
+
+
+
+			// teleop_task->_commanded_force_device = filter_force_command_haptic->update(desired_force_haptic) - delayed_sigma_force * kv_haptic * teleop_task->_current_trans_velocity_device;
+			// teleop_task->_commanded_force_device = filter_force_command_haptic->update(desired_force_haptic);
+			// teleop_task->_commanded_force_device = -sensed_force_moment.head(3)/Ks - 5.0 * teleop_task->_current_trans_velocity_device;
+			// teleop_task->_commanded_force_device = -delayed_sensed_force/Ks;
+
+
+
+
+
+			// haptic_PO += teleop_task->_commanded_force_device.dot(teleop_task->_current_trans_velocity_device) * 0.001;
+
+			// double vh_square = (delayed_sigma_force * teleop_task->_current_trans_velocity_device).squaredNorm();
+			// double alpha_pc = 0;
+			// if(haptic_PO < 0 && vh_square > 0.0001)
+			// {
+			// 	alpha_pc = -haptic_PO / vh_square * 1000.0;
+			// }
+			// if(alpha_pc > 0.9 * _max_damping_device0[0] - kv_haptic)
+			// {
+			// 	alpha_pc = 0.9 * _max_damping_device0[0] - kv_haptic;
+			// }
+			// if(alpha_pc < 0)
+			// {
+			// 	alpha_pc = 0;
+			// }
+
+			// teleop_task->_commanded_force_device -= alpha_pc * delayed_sigma_force * teleop_task->_current_trans_velocity_device;
+			// haptic_PO -= alpha_pc * vh_square * 0.001;
 
 
 
@@ -1222,23 +1286,23 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 			// }
 
 			// if(force_space_dimension != previous_force_space_dimension && force_space_dimension != 0)
-			if(force_space_dimension > previous_force_space_dimension)
-			{
-				contact_transition_counter = 50;
-			}
-			else
-			{
-				contact_transition_counter--;
-			}
+			// if(force_space_dimension > previous_force_space_dimension)
+			// {
+			// 	contact_transition_counter = 50;
+			// }
+			// else
+			// {
+			// 	contact_transition_counter--;
+			// }
 
-			if(contact_transition_counter > 0)
-			{
-				teleop_task->_commanded_force_device = -15.0 * delayed_sigma_force * teleop_task->_current_trans_velocity_device;
-			}
-			else
-			{
-				contact_transition_counter = 0;
-			}
+			// if(contact_transition_counter > 0)
+			// {
+			// 	teleop_task->_commanded_force_device = -15.0 * delayed_sigma_force * teleop_task->_current_trans_velocity_device;
+			// }
+			// else
+			// {
+			// 	contact_transition_counter = 0;
+			// }
 
 
 
@@ -1277,14 +1341,21 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 			// 
 			prev_force_command_robot = force_command_robot;
 			prev_force_command_haptic = force_command_haptic;
+			// prev_force_command_haptic = teleop_task->_commanded_force_device;
 
 		}
 
 		// particle filter
-		motion_control_pfilter = pos_task->_sigma_motion * pos_task->_motion_control;
+		// motion_control_pfilter = pos_task->_sigma_motion * pos_task->_motion_control;
 		// motion_control_pfilter += pos_task->_sigma_motion * pos_task->_motion_control / control_loop_freq;
 		// motion_control_pfilter = pos_task->_sigma_motion * motion_control_pfilter;
-		force_control_pfilter = pos_task->_sigma_force * pos_task->_force_control;
+		// force_control_pfilter = pos_task->_sigma_force * pos_task->_force_control;
+
+
+		motion_control_pfilter = - pos_task->_sigma_motion * robot_pos_error;
+		force_control_pfilter = - pos_task->_sigma_force * robot_pos_error;
+
+
 		measured_velocity_pfilter = pos_task->_current_velocity;
 		measured_force_pfilter = sensed_force_moment.head(3);
 
@@ -1425,6 +1496,24 @@ void particle_filter()
 	auto pfilter = new ForceSpaceParticleFilter_weight_mem(n_particles);
 
 
+	pfilter->_mean_scatter = 0.0;
+	pfilter->_std_scatter = 0.01;
+
+	pfilter->_memory_coefficient = 0.0;
+
+	pfilter->_coeff_friction = 0.0;
+
+	pfilter->_F_low = 0.0;
+	pfilter->_F_high = 2.0;
+	pfilter->_v_low = 0.01;
+	pfilter->_v_high = 0.05;
+
+	pfilter->_F_low_add = 1.0;
+	pfilter->_F_high_add = 5.0;
+	pfilter->_v_low_add = 0.001;
+	pfilter->_v_high_add = 0.05;
+
+
 	// create a timer
 	double pfilter_freq = 100.0;
 	LoopTimer timer;
@@ -1470,9 +1559,67 @@ void particle_filter()
 
 		pfilter->update(motion_control_pfilter, force_control_pfilter, measured_velocity_pfilter, measured_force_pfilter);
 
+		// Get the eigenvectors and eigenvalues.
 		Matrix3d evecs = Matrix3d::Zero();
 		Vector3d evals = Vector3d::Zero();
 		pfilter->computePCA(evals, evecs);
+
+
+		Vector3d evals_no_scaling = evals;
+
+
+		// double threshold_up = 10.0;
+		// double threshold_down = 0.05;
+
+		// if(evals(2) > 10.0)
+		// {
+		// 	evals /= evals(2);
+		// 	threshold_up = 0.90;
+		// }
+
+
+		// if(force_space_dimension == 1)
+		// {
+		// 	threshold_up = 0.50;
+		// 	threshold_down = 0.1;
+		// }
+		// if(force_space_dimension == 2)
+		// {
+		// 	threshold_up = 0.50;
+		// 	threshold_down = 0.1;
+		// }
+		// if(force_space_dimension == 3)
+		// {
+		// 	threshold_up = 0.55;
+		// 	threshold_down = 0.15;
+		// }
+
+
+		// double force_space_dimension_up = 0;
+		// double force_space_dimension_down = 0;
+		// for(int i=0 ; i<3 ; i++)
+		// {
+		// 	if(evals(i) > threshold_up)
+		// 	{
+		// 		force_space_dimension_up++;
+		// 	}
+		// 	if(evals(i) > threshold_down)
+		// 	{
+		// 		force_space_dimension_down++;
+		// 	}
+		// }
+
+
+
+
+
+
+
+		if(evals.sum() > 1)
+		{
+			evals /= evals.sum();
+		}
+
 
 		double force_space_dimension_up = 0;
 		double force_space_dimension_down = 0;
@@ -1487,6 +1634,16 @@ void particle_filter()
 				force_space_dimension_down++;
 			}
 		}
+
+
+
+
+
+
+
+
+
+
 
 		if(force_space_dimension_up == force_space_dimension_down)
 		{
@@ -1556,37 +1713,87 @@ void particle_filter()
 		}
 
 
-		Vector3d robot_pos_in_world = robot_position_global + Vector3d(0, 0, 0.15);
-		Vector3d tentative_particle = Vector3d(0, 0, -0.5) - robot_pos_in_world;
-		tentative_particle.normalize();
+		Vector3d prospective_particle = Vector3d::Zero();
+		if(motion_control_pfilter.norm() > 0.001)
+		{
+			prospective_particle = motion_control_pfilter.normalized();
+		}
+		double for_weight_pp_add = pfilter->wf_pw(prospective_particle, measured_force_pfilter, pfilter->_F_low_add, pfilter->_F_high_add);
+		double vel_weight_pp_add = pfilter->wv_pw(prospective_particle, measured_velocity_pfilter, pfilter->_v_low_add, pfilter->_v_high_add);
+		double for_weight_pp = pfilter->wf_pw(prospective_particle, measured_force_pfilter, pfilter->_F_low, pfilter->_F_high);
+		double vel_weight_pp = pfilter->wv_pw(prospective_particle, measured_velocity_pfilter, pfilter->_v_low, pfilter->_v_high);
 
-		double weight_force_tentative_particle = 1.2 * tentative_particle.dot(measured_force_pfilter.normalized());
-		double weight_velocity_tetnative_particle = 1 - abs(measured_velocity_pfilter.normalized().dot(tentative_particle));
-		// double weight_velocity_tetnative_particle = 1 - abs(tanh(15.0*measured_velocity_pfilter.dot(tentative_particle)));
+		Vector3d center_particle = Vector3d::Zero();
+		double for_weight_cp_add = pfilter->wf_pw(center_particle, measured_force_pfilter, pfilter->_F_low_add, pfilter->_F_high_add);
+		double vel_weight_cp_add = pfilter->wv_pw(center_particle, measured_velocity_pfilter, pfilter->_v_low_add, pfilter->_v_high_add);
+		double for_weight_cp = pfilter->wf_pw(center_particle, measured_force_pfilter, pfilter->_F_low, pfilter->_F_high);
+		double vel_weight_cp = pfilter->wv_pw(center_particle, measured_velocity_pfilter, pfilter->_v_low, pfilter->_v_high);
+
+		Vector3d down_particle = Vector3d(0, 0, -1);
+		double for_weight_dp_add = pfilter->wf_pw(down_particle, measured_force_pfilter, pfilter->_F_low_add, pfilter->_F_high_add);
+		double vel_weight_dp_add = pfilter->wv_pw(down_particle, measured_velocity_pfilter, pfilter->_v_low_add, pfilter->_v_high_add);
+		double for_weight_dp = pfilter->wf_pw(down_particle, measured_force_pfilter, pfilter->_F_low, pfilter->_F_high);
+		double vel_weight_dp = pfilter->wv_pw(down_particle, measured_velocity_pfilter, pfilter->_v_low, pfilter->_v_high);
+
+		Vector3d right_particle = Vector3d(0, 1, 0);
+		double for_weight_rp_add = pfilter->wf_pw(right_particle, measured_force_pfilter, pfilter->_F_low_add, pfilter->_F_high_add);
+		double vel_weight_rp_add = pfilter->wv_pw(right_particle, measured_velocity_pfilter, pfilter->_v_low_add, pfilter->_v_high_add);
+		double for_weight_rp = pfilter->wf_pw(right_particle, measured_force_pfilter, pfilter->_F_low, pfilter->_F_high);
+		double vel_weight_rp = pfilter->wv_pw(right_particle, measured_velocity_pfilter, pfilter->_v_low, pfilter->_v_high);
 
 
+		if(previous_force_space_dimension != force_space_dimension)
+		{
+			cout << "********************************" << endl;
+			cout << "pf coutner : " << pf_counter << endl;
+			cout << "contact space dim : " << force_space_dimension << endl;
+			cout << "previous contact space dim : " << previous_force_space_dimension << endl;
+			cout << "eigenvectors :\n" << evecs << endl;
+			cout << "eigenvalues :\n" << evals.transpose() << endl;
+			cout << "eigenvalues before scaling :\n" << evals_no_scaling.transpose() << endl;
+			cout << "pfilter motion control : " << motion_control_pfilter.transpose() << endl;
+			cout << "pfilter force control : " << force_control_pfilter.transpose() << endl;
+			cout << "pfilter meas vel : " << measured_velocity_pfilter.transpose() << endl;
+			cout << "pfilter meas force : " << measured_force_pfilter.transpose() << endl;
+			cout << "prospective particle : " << prospective_particle.transpose() << endl; 
+			cout << "force weight pp add : " << for_weight_pp_add << endl; 
+			cout << "velocity weight pp_add : " << vel_weight_pp_add << endl;
+			cout << "prob add particle : " << vel_weight_pp_add*for_weight_pp_add << endl;
+			cout << "force weight cp : " << for_weight_cp << endl; 
+			cout << "velocity weight cp : " << vel_weight_cp << endl; 
+			cout << "force weight dp : " << for_weight_dp << endl; 
+			cout << "velocity weight dp : " << vel_weight_dp << endl; 
+			cout << "force weight rp : " << for_weight_rp << endl; 
+			cout << "velocity weight rp : " << vel_weight_rp << endl; 
+			cout << endl;
+		}
 
-		// if(pf_counter % 10 == 0)
-		// if(force_space_dimension != 1)
+		// if(pf_counter % 50 == 0)
 		// {
-		// 	cout << "********************************" << endl;
+		// 	cout << "-----------------------------------" << endl;
+		// 	cout << "-----------------------------------" << endl;
 		// 	cout << "pf coutner : " << pf_counter << endl;
 		// 	cout << "contact space dim : " << force_space_dimension << endl;
 		// 	cout << "previous contact space dim : " << previous_force_space_dimension << endl;
-		// 	cout << "force spce dimension up : " << force_space_dimension_up << endl;
-		// 	cout << "force spce dimension down : " << force_space_dimension_down << endl;
-		// 	cout << "eigenvalues :\n" << evals.transpose() << endl;
 		// 	cout << "eigenvectors :\n" << evecs << endl;
-		// 	cout << "tentative_particle :\n" << tentative_particle.transpose() << endl;
-		// 	cout << "weight force : " << weight_force_tentative_particle << endl;
-		// 	cout << "weight velocity : " << weight_velocity_tetnative_particle << endl;
-		// 	// cout << "cluster center size : " << cluster_centers.size() << endl;
-		// 	// cout << "n particles per cluster : " << num_particle_in_cluster.transpose() << endl;
-		// 	// cout << "eigenvectors rotation test :\n" << evecs*evecs.transpose() << endl;
-		// 	// cout << "force_axis :\n" << force_axis.transpose() << endl;
-		// 	// cout << "motion_axis :\n" << motion_axis.transpose() << endl;
-		// 	cout << endl;
+		// 	cout << "eigenvalues :\n" << evals.transpose() << endl;
+		// 	cout << "eigenvalues before scaling :\n" << evals_no_scaling.transpose() << endl;
+		// 	cout << "pfilter motion control : " << motion_control_pfilter.transpose() << endl;
+		// 	cout << "pfilter force control : " << force_control_pfilter.transpose() << endl;
+		// 	cout << "pfilter meas vel : " << measured_velocity_pfilter.transpose() << endl;
+		// 	cout << "pfilter meas force : " << measured_force_pfilter.transpose() << endl;
+		// 	cout << "force weight pp : " << for_weight_pp << endl; 
+		// 	cout << "velocity weight pp : " << vel_weight_pp << endl;
+		// 	cout << "prob add particle : " << vel_weight_pp*for_weight_pp << endl;
+		// 	cout << "force weight cp : " << for_weight_cp << endl; 
+		// 	cout << "velocity weight cp : " << vel_weight_cp << endl; 
+		// 	cout << "force weight dp : " << for_weight_dp << endl; 
+		// 	cout << "velocity weight dp : " << vel_weight_dp << endl; 
+		// 	cout << "force weight rp : " << for_weight_rp << endl; 
+		// 	cout << "velocity weight rp : " << vel_weight_rp << endl; 
+		// 	cout << endl;			
 		// }
+
 
 		// logger
 		log_eigenvalues = evals;
@@ -1598,18 +1805,6 @@ void particle_filter()
 		log_force_axis = force_axis;
 		log_motion_axis = motion_axis;
 
-		if(previous_force_space_dimension == 1 && force_space_dimension == 0)
-		{
-			cout << "********************************" << endl;
-			cout << "pf coutner : " << pf_counter << endl;
-			cout << "contact space dim : " << force_space_dimension << endl;
-			cout << "previous contact space dim : " << previous_force_space_dimension << endl;
-			cout << "force spce dimension up : " << force_space_dimension_up << endl;
-			cout << "force spce dimension down : " << force_space_dimension_down << endl;
-			cout << "eigenvalues :\n" << evals.transpose() << endl;
-			cout << "eigenvectors :\n" << evecs << endl;
-			// fSimulationRunning = false;
-		}
 
 		previous_force_space_dimension = force_space_dimension;
 		particles = new_particles;
