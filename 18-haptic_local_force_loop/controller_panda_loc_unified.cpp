@@ -136,7 +136,7 @@ Vector3d measured_velocity_pfilter;
 Vector3d measured_force_pfilter;
 
 // particle filter parameters
-const int n_particles = 70;
+const int n_particles = 1000;
 MatrixXd particle_positions_to_redis;
 
 // const double percent_chance_contact_appears = 0.01;
@@ -249,9 +249,10 @@ int main() {
 	VectorXd posori_task_torques = VectorXd::Zero(dof);
 	posori_task->_use_interpolation_flag = true;
 	posori_task->_use_velocity_saturation_flag = false;
-	// posori_task->_linear_saturation_velocity = 0.1;
-	posori_task->_otg->setMaxLinearVelocity(0.10);
-	posori_task->_otg->setMaxLinearAcceleration(5.0);
+	posori_task->_linear_saturation_velocity = 0.35;
+
+	posori_task->_otg->setMaxLinearVelocity(0.20);
+	posori_task->_otg->setMaxLinearAcceleration(10.0);
 	posori_task->_otg->setMaxLinearJerk(50.0);
 
 	Vector3d proxy_error_robot_pos = Vector3d::Zero();
@@ -269,16 +270,16 @@ int main() {
 	sensor_transform_in_link.translation() = sensor_pos_in_link;
 	posori_task->setForceSensorFrame(link_name, sensor_transform_in_link);
 
-	posori_task->setOpenLoopForceControl();
-	// posori_task->setClosedLoopForceControl();
+	// posori_task->setOpenLoopForceControl();
+	posori_task->setClosedLoopForceControl();
 	posori_task->_passivity_enabled = false;
 
-	posori_task->_kp_force = 1.5;
-	posori_task->_ki_force = 2.3;
-	posori_task->_kv_force = 15.0;
+	posori_task->_kp_force = 0.5;
+	posori_task->_ki_force = 1.7;
+	posori_task->_kv_force = 25.0;
 
 	double k_vir_robot = 500.0;
-	const double k_vir_haptic_goal = 200.0;
+	const double k_vir_haptic_goal = 500.0;
 	double k_vir_haptic = k_vir_haptic_goal;
 	// Matrix3d k_vir_haptic = k_vir_haptic_goal * Matrix3d::Ones();
 	Vector3d robot_proxy_diff = Vector3d::Zero();
@@ -294,6 +295,8 @@ int main() {
 	auto filter_force_command_robot = new ButterworthFilter(3,0.01);
 	auto filter_force_command_haptic = new ButterworthFilter(3,0.01);
 
+	// auto filter_sensed_force = new ButterworthFilter(6,0.1);
+
 	// auto filter_sensed_force = new ButterworthFilter(3, 0.45);
 	// Vector3d filtered_sensed_force = Vector3d::Zero();
 
@@ -301,6 +304,7 @@ int main() {
 	double ki_force = 0.0;
 	Vector3d integrated_force_error = Vector3d::Zero();
 
+	VectorXd sensed_force_moment_local_frame_raw = VectorXd::Zero(6);
 	VectorXd sensed_force_moment_local_frame = VectorXd::Zero(6);
 	VectorXd sensed_force_moment_world_frame = VectorXd::Zero(6);
 	VectorXd force_bias = VectorXd::Zero(6);
@@ -346,7 +350,7 @@ int main() {
 	int contact_transition_counter = 50;
 
 	// particle filter buffers
-	double freq_ratio_filter_control = 0.1;
+	double freq_ratio_filter_control = 15.0 / 1000.0;
 	queue<Vector3d> pfilter_motion_control_buffer;
 	queue<Vector3d> pfilter_force_control_buffer;
 	queue<Vector3d> pfilter_sensed_force_buffer;
@@ -395,7 +399,7 @@ int main() {
     redis_client.addEigenToReadCallback(0, JOINT_ANGLES_KEY, robot->_q);
     redis_client.addEigenToReadCallback(0, JOINT_VELOCITIES_KEY, robot->_dq);
 
-    redis_client.addEigenToReadCallback(0, ROBOT_SENSED_FORCE_KEY, sensed_force_moment_local_frame);
+    redis_client.addEigenToReadCallback(0, ROBOT_SENSED_FORCE_KEY, sensed_force_moment_local_frame_raw);
 
     MatrixXd mass_from_robot = MatrixXd::Identity(dof,dof);
     VectorXd coriolis_from_robot = VectorXd::Zero(dof);
@@ -481,7 +485,7 @@ int main() {
 		}
 
 		// compute tool inertial forces
-		tool_velocity = posori_task->_current_velocity + posori_task->_current_angular_velocity.cross(tool_com);
+
 		if(controller_counter > 100)
 		{
 			tool_acceleration = (tool_velocity - prev_tool_velocity) * control_loop_freq;
@@ -490,7 +494,8 @@ int main() {
 		tool_inertial_forces = tool_mass * tool_acceleration;
 
 
-		
+		sensed_force_moment_local_frame = sensed_force_moment_local_frame_raw;
+		// sensed_force_moment_local_frame = filter_sensed_force->update(sensed_force_moment_local_frame_raw);
 
 		// add bias and ee weight to sensed forces
 		sensed_force_moment_local_frame -= force_bias;
@@ -593,26 +598,49 @@ int main() {
 
 			if(force_space_dimension == 1)
 			{
-				posori_task->setForceAxis(force_axis);
+				if(previous_force_space_dimension == 1)
+				{
+					posori_task->updateForceAxis(force_axis);
+				}
+				else
+				{
+					posori_task->setForceAxis(force_axis);
+				}
 				sigma_force_global = force_axis * force_axis.transpose();
 			}
 			else if(force_space_dimension == 2)
 			{
-				posori_task->setLinearMotionAxis(motion_axis);
+				if(previous_force_space_dimension == 2)
+				{
+					posori_task->updateLinearMotionAxis(motion_axis);
+				}
+				else
+				{
+					posori_task->setLinearMotionAxis(motion_axis);
+				}
 				sigma_force_global = Matrix3d::Identity() - motion_axis * motion_axis.transpose();
 			}
 			else if(force_space_dimension == 3)
 			{
-				posori_task->setFullForceControl();
+				if(previous_force_space_dimension != 3)
+				{
+					posori_task->setFullForceControl();
+				}
 				sigma_force_global.setIdentity();
 			}
 			else
 			{
-				posori_task->setFullLinearMotionControl();
+				if(previous_force_space_dimension != 0)
+				{
+					posori_task->setFullLinearMotionControl();
+				}
 				sigma_force_global.setZero();
 			}
 
 
+			// cout << "Lambda :\n" << posori_task->_Lambda << endl;
+			// cout << "Lambda modified :\n" << posori_task->_Lambda_modified << endl;
+			// cout << endl;
 
 			Vector3d desired_position = Vector3d::Zero();
 			teleop_task->computeHapticCommands3d(desired_position);
@@ -658,6 +686,12 @@ int main() {
 
 			robot_proxy_diff = posori_task->_current_position - delayed_haptic_position;
 			Vector3d desired_force_robot = - k_vir_robot * sigma_force_global * robot_proxy_diff;
+
+			Vector3d projected_desired_force = sigma_force_global * robot_proxy_diff;
+			if(projected_desired_force.norm() > 1e-4)
+			{
+				desired_force_robot -= 0.0 * projected_desired_force / projected_desired_force.norm();
+			}
 
 			// cout << "desired force robot : " << desired_force_robot.transpose() << endl;
 
@@ -786,12 +820,12 @@ int main() {
 
 			// cout << "k virtual :\n" << k_vir_haptic << endl;
 
-			// previous_force_space_dimension = force_space_dimension;
 			// adding_contact = false;
 			// removing_contact = false;
 			// 
 			prev_desired_force_robot = desired_force_robot;
 			prev_desired_force_haptic = deisred_force_haptic;
+			previous_force_space_dimension = force_space_dimension;
 
 		}
 
@@ -888,7 +922,7 @@ int main() {
 
 void communication()
 {
-	const double communication_delay_ms = 0;
+	const double communication_delay_ms = 200;
 
 	queue<Vector3d> robot_position_buffer;
 	queue<Vector3d> haptic_position_buffer;
@@ -969,7 +1003,7 @@ void particle_filter()
 	auto pfilter = new ForceSpaceParticleFilter_weight_mem(n_particles);
 
 	pfilter->_mean_scatter = 0.0;
-	pfilter->_std_scatter = 0.01;
+	pfilter->_std_scatter = 0.025;
 
 	pfilter->_memory_coefficient = 0.0;
 
@@ -978,7 +1012,7 @@ void particle_filter()
 	pfilter->_F_low = 0.0;
 	pfilter->_F_high = 2.0;
 	pfilter->_v_low = 0.001;
-	pfilter->_v_high = 0.05;
+	pfilter->_v_high = 0.01;
 
 	pfilter->_F_low_add = 2.0;
 	pfilter->_F_high_add = 10.0;
@@ -990,7 +1024,7 @@ void particle_filter()
 	Matrix3d evecs = Matrix3d::Identity();
 
 	// create a timer
-	double pfilter_freq = 100.0;
+	double pfilter_freq = 15.0;
 	LoopTimer timer;
 	timer.initializeTimer();
 	timer.setLoopFrequency(pfilter_freq); //Compiler en mode release
@@ -1237,7 +1271,7 @@ void particle_filter()
 
 
 
-		previous_force_space_dimension = force_space_dimension;
+		// previous_force_space_dimension = force_space_dimension;
 
 		for(int i=0 ; i<n_particles ; i++)
 		{

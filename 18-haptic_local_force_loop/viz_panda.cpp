@@ -85,7 +85,7 @@ int main() {
 
 	// prepare particle filter visualization
 	// particle filter parameters
-	int n_particles = 70;
+	int n_particles = 1000;
 	MatrixXd particles_from_redis;
 	particles_from_redis.setZero(3,n_particles);
 	redis_client_particles.setEigenMatrixJSON(PARTICLE_POSITIONS_KEY, particles_from_redis);
