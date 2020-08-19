@@ -249,15 +249,15 @@ int main() {
 	VectorXd posori_task_torques = VectorXd::Zero(dof);
 	posori_task->_use_interpolation_flag = false;
 	posori_task->_use_velocity_saturation_flag = false;
-	posori_task->setDynamicDecouplingInertiaSaturation();
+	// posori_task->setDynamicDecouplingInertiaSaturation();
 
 	haptic_position_global = posori_task->_current_position;
 
 	posori_task->_kp_pos = 100.0;
-	posori_task->_kv_pos = 20.0;
+	posori_task->_kv_pos = 18.0;
 
-	posori_task->_kp_ori = 400.0;
-	posori_task->_kv_ori = 35.0;
+	posori_task->_kp_ori = 600.0;
+	posori_task->_kv_ori = 38.0;
 
 	sensor_transform_in_link.translation() = sensor_pos_in_link;
 	posori_task->setForceSensorFrame(link_name, sensor_transform_in_link);

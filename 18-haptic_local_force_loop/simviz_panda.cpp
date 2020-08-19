@@ -127,7 +127,7 @@ int main() {
 
 	// prepare particle filter visualization
 	// particle filter parameters
-	int n_particles = 70;
+	int n_particles = 500;
 	MatrixXd particles_from_redis;
 	particles_from_redis.setZero(3,n_particles);
 	redis_client_particles.setEigenMatrixJSON(PARTICLE_POSITIONS_KEY, particles_from_redis);
@@ -364,7 +364,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, Fo
 	redis_client.addEigenToWriteCallback(0, ROBOT_SENSED_FORCE_KEY, sensed_force_moment);
 
 	// create a timer
-	double sim_frequency = 3000.0;
+	double sim_frequency = 1000.0;
 	LoopTimer timer;
 	timer.initializeTimer();
 	timer.setLoopFrequency(sim_frequency);

@@ -69,8 +69,12 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter_weight_mem::motionUpdate
 
 	vector<Vector3d> augmented_particles = _particles;
 
-	// add a particle at the center in case of contact loss
-	augmented_particles.push_back(Vector3d::Zero());
+	// add particles at the center in case of contact loss
+	int n_added_particles_center = _n_particles * 0.01;
+	for(int i=0 ; i<n_added_particles_center ; i++)
+	{
+		augmented_particles.push_back(Vector3d::Zero());
+	}
 
 	// // add a particle in the force space is diemsion 2 or more
 	// // augmented_particles.push_back(force_control_normalized);
@@ -96,24 +100,24 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter_weight_mem::motionUpdate
 	// add particles in the direction of the motion control if there is no velocity in that direction
 	double prob_add_particle = 0;
 	// if(motion_control.norm() - _coeff_friction * force_control.norm() > 0)
-	if(_force_space_dimension < 2)
-	{
+	// if(_force_space_dimension < 2)
+	// {
 		// prob_add_particle = (1 - abs(tanh(5.0*velocity_measured.dot(motion_control_normalized)))) * (tanh(motion_control_normalized.dot(force_measured)));
 		// prob_add_particle = (1 - abs(tanh(100.0*velocity_measured.dot(motion_control_normalized)))) * (tanh(motion_control_normalized.dot(0.05*force_measured)));
 		// prob_add_particle = wf(motion_control_normalized, force_measured) * wv(motion_control_normalized, velocity_measured);
 		prob_add_particle = wf_pw(motion_control_normalized, force_measured, _F_low_add, _F_high_add) * wv_pw(motion_control_normalized, velocity_measured, _v_low_add, _v_high_add);
 		// prob_add_particle = (1 - abs(tanh(5.0*velocity_measured.dot(motion_control_normalized)))) * (tanh(motion_control_normalized.dot(force_measured)));
-	}
-	else
-	{
-		prob_add_particle = wf_pw(motion_control_normalized, force_measured, 3.0*_F_low_add, 3.0*_F_high_add) * wv_pw(motion_control_normalized, velocity_measured, _v_low_add, _v_high_add);
-	}
+	// }
+	// else
+	// {
+		// prob_add_particle = wf_pw(motion_control_normalized, force_measured, 3.0*_F_low_add, 3.0*_F_high_add) * wv_pw(motion_control_normalized, velocity_measured, _v_low_add, _v_high_add);
+	// }
 	if(prob_add_particle < 0)
 	{
 		prob_add_particle = 0;
 	}
 	// int n_added_particles = 0.5 * _n_particles;
-	int n_added_particles = prob_add_particle * _n_particles;
+	int n_added_particles = prob_add_particle * _n_particles * 1.0;
 	for(int i=0 ; i<n_added_particles ; i++)
 	{
 		double alpha = (double) (i + 0.5) / (double)n_added_particles; // add particles on the arc betwen the motion and force control
@@ -123,7 +127,7 @@ vector<pair<Vector3d, double>> ForceSpaceParticleFilter_weight_mem::motionUpdate
 	}
 
 
-	int n_new_particles = 1 + n_added_particles + n_added_particle_force_space;
+	int n_new_particles = n_added_particles_center + n_added_particles + n_added_particle_force_space;
 
 	// prepare weights
 	vector<pair<Vector3d, double>> augmented_weighted_particles;

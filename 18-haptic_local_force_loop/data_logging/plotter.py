@@ -36,6 +36,13 @@ force_axis[force_axis[:,2]<0] *= -1
 motion_axis[motion_axis[:,0]<0] *= -1
 
 
+sensed_force_projected = np.array(sensed_force)
+robot_force_projected = np.array(robot_force)
+for i in range(len(time)):
+	sensed_force_projected[i,:] = sensed_force[i,:].dot(force_axis[i,:])
+	robot_force_projected[i,:] = robot_force[i,:].dot(force_axis[i,:])
+
+
 plt.figure(1)
 plt.subplot(3,1,1)
 plt.plot(time,robot_position[:,0], 'r')
@@ -87,6 +94,10 @@ plt.subplot(3,1,3)
 plt.plot(time, motion_axis)
 plt.title("motion axis")
 plt.ylim([-1.1, 1.1])
+
+plt.figure(4)
+plt.plot(time, -robot_force_projected, 'r')
+plt.plot(time, sensed_force_projected, 'g')
 
 
 plt.show()

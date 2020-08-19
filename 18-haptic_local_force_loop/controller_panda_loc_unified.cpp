@@ -147,6 +147,7 @@ const double std_scatter = 0.01;
 const double coeff_friction = 0.0;
 
 int force_space_dimension = 0;
+int force_space_dimension_controller = 0;
 int previous_force_space_dimension = 0;
 Vector3d force_axis = Vector3d::Zero();
 Vector3d motion_axis = Vector3d::Zero();
@@ -261,7 +262,7 @@ int main() {
 	haptic_position_global = posori_task->_current_position;
 
 	posori_task->_kp_pos = 500.0;
-	posori_task->_kv_pos = 20.0;
+	posori_task->_kv_pos = 40.0;
 
 	// posori_task->_kp_ori = 10.0;
 	posori_task->_kp_ori = 600.0;
@@ -274,12 +275,12 @@ int main() {
 	posori_task->setClosedLoopForceControl();
 	posori_task->_passivity_enabled = false;
 
-	posori_task->_kp_force = 0.5;
-	posori_task->_ki_force = 1.7;
-	posori_task->_kv_force = 25.0;
+	posori_task->_kp_force = 2.5;
+	posori_task->_ki_force = 5.5;
+	posori_task->_kv_force = 20.0;
 
 	double k_vir_robot = 500.0;
-	const double k_vir_haptic_goal = 500.0;
+	const double k_vir_haptic_goal = 200.0;
 	double k_vir_haptic = k_vir_haptic_goal;
 	// Matrix3d k_vir_haptic = k_vir_haptic_goal * Matrix3d::Ones();
 	Vector3d robot_proxy_diff = Vector3d::Zero();
@@ -345,7 +346,7 @@ int main() {
 	double KsR = 1.0;
 	teleop_task->setScalingFactors(Ks, KsR);
 
-	double kv_haptic = 22.0;
+	double kv_haptic = 25.0;
 
 	int contact_transition_counter = 50;
 
@@ -596,7 +597,9 @@ int main() {
 			// sigma_force_global = Matrix3d::Zero();
 			// sigma_force_global(2,2) = 1;
 
-			if(force_space_dimension == 1)
+			force_space_dimension_controller = force_space_dimension;
+
+			if(force_space_dimension_controller == 1)
 			{
 				if(previous_force_space_dimension == 1)
 				{
@@ -608,7 +611,7 @@ int main() {
 				}
 				sigma_force_global = force_axis * force_axis.transpose();
 			}
-			else if(force_space_dimension == 2)
+			else if(force_space_dimension_controller == 2)
 			{
 				if(previous_force_space_dimension == 2)
 				{
@@ -620,7 +623,7 @@ int main() {
 				}
 				sigma_force_global = Matrix3d::Identity() - motion_axis * motion_axis.transpose();
 			}
-			else if(force_space_dimension == 3)
+			else if(force_space_dimension_controller == 3)
 			{
 				if(previous_force_space_dimension != 3)
 				{
@@ -722,7 +725,7 @@ int main() {
 			command_torques = posori_task_torques + joint_task_torques;
 			robot_position_global = posori_task->_current_position;
 
-			// if(force_space_dimension != previous_force_space_dimension && force_space_dimension != 0)
+			// if(force_space_dimension_controller != previous_force_space_dimension && force_space_dimension_controller != 0)
 			// {
 			// 	contact_transition_counter = 150;
 			// 	k_vir_haptic = 0;
@@ -748,10 +751,6 @@ int main() {
 			// haptic_proxy_diff = (desired_position - delayed_robot_position);
 			// Vector3d deisred_force_haptic = delayed_sigma_force * (-k_vir_haptic * haptic_proxy_diff - kv_haptic * teleop_task->_current_trans_velocity_device);
 			Vector3d deisred_force_haptic = - delayed_sigma_force * k_vir_haptic * haptic_proxy_diff;
-			if(deisred_force_haptic.norm() > 10.0)
-			{
-				deisred_force_haptic *= 10.0/deisred_force_haptic.norm();
-			}
 			Vector3d force_diff_haptic = deisred_force_haptic - prev_desired_force_haptic;
 			if( force_diff_haptic.norm() > max_force_diff_haptic )
 			{
@@ -759,6 +758,10 @@ int main() {
 			// 	// cout << "new force command :\n" << force_command.transpose() << endl;
 			// 	// cout << endl;
 				deisred_force_haptic = prev_desired_force_haptic + max_force_diff_haptic * force_diff_haptic/force_diff_haptic.norm();
+			}
+			if(deisred_force_haptic.norm() > 10.0)
+			{
+				deisred_force_haptic *= 10.0/deisred_force_haptic.norm();
 			}
 
 			// teleop_task->_commanded_force_device = filter_force_command_haptic->update(deisred_force_haptic) - delayed_sigma_force * kv_haptic * teleop_task->_current_trans_velocity_device;
@@ -790,7 +793,7 @@ int main() {
 			// haptic_PO -= alpha_pc * vh_square * 0.001;
 
 
-			// if(force_space_dimension > previous_force_space_dimension)
+			// if(force_space_dimension_controller > previous_force_space_dimension)
 			// {
 			// 	contact_transition_counter = 50;
 			// }
@@ -825,7 +828,7 @@ int main() {
 			// 
 			prev_desired_force_robot = desired_force_robot;
 			prev_desired_force_haptic = deisred_force_haptic;
-			previous_force_space_dimension = force_space_dimension;
+			previous_force_space_dimension = force_space_dimension_controller;
 
 		}
 
@@ -922,7 +925,7 @@ int main() {
 
 void communication()
 {
-	const double communication_delay_ms = 200;
+	const double communication_delay_ms = 0;
 
 	queue<Vector3d> robot_position_buffer;
 	queue<Vector3d> haptic_position_buffer;
@@ -1010,11 +1013,11 @@ void particle_filter()
 	pfilter->_coeff_friction = 0.0;
 
 	pfilter->_F_low = 0.0;
-	pfilter->_F_high = 2.0;
+	pfilter->_F_high = 3.0;
 	pfilter->_v_low = 0.001;
 	pfilter->_v_high = 0.01;
 
-	pfilter->_F_low_add = 2.0;
+	pfilter->_F_low_add = 3.0;
 	pfilter->_F_high_add = 10.0;
 	pfilter->_v_low_add = 0.001;
 	pfilter->_v_high_add = 0.005;
@@ -1051,7 +1054,7 @@ void particle_filter()
 
 
 		double threshold_up = 10.0;
-		double threshold_down = 0.05;
+		double threshold_down = 0.10;
 
 		if(evals(2) > 10.0)
 		{
@@ -1063,17 +1066,17 @@ void particle_filter()
 		if(force_space_dimension == 1)
 		{
 			threshold_up = 0.50;
-			threshold_down = 0.05;
+			threshold_down = 0.10;
 		}
 		if(force_space_dimension == 2)
 		{
 			threshold_up = 0.50;
-			threshold_down = 0.05;
+			threshold_down = 0.10;
 		}
 		if(force_space_dimension == 3)
 		{
 			threshold_up = 0.50;
-			threshold_down = 0.05;
+			threshold_down = 0.10;
 		}
 
 
