@@ -39,9 +39,10 @@ string CORIOLIS_KEY;
 
 RedisClient redis_client;
 
-#define FREE_SPACE 0
-#define CONTACT    1
-int state = FREE_SPACE;
+#define INIT       0
+#define FREE_SPACE 1
+#define CONTACT    2
+int state = INIT;
 
 // logger
 Vector3d log_robot_position = Vector3d::Zero();
@@ -66,19 +67,23 @@ const std::string currentDateTime() {
 	return buf;
 }
 
-// const bool flag_simulation = false;
-const bool flag_simulation = true;
+const bool flag_simulation = false;
+// const bool flag_simulation = true;
 
 int main(int argc, char *argv[]) {
 
 	double kp_f_arg = 0.7;
 	double ki_f_arg = 1.5;
-	if(argc == 3)
+	int passivity_arg = 1;
+	if(argc == 4)
 	{
 		kp_f_arg = stod(argv[1]);
-		kp_f_arg = stod(argv[2]);
+		ki_f_arg = stod(argv[2]);
+		passivity_arg = stoi(argv[3]);
 	}
 
+
+	cout << "kp : " << kp_f_arg << "  ki : " << ki_f_arg << "  passivity_arg : " << passivity_arg << endl;
 
 	if(!flag_simulation)
 	{
@@ -116,15 +121,24 @@ int main(int argc, char *argv[]) {
 	auto joint_task = new Sai2Primitives::JointTask(robot);
 	VectorXd joint_task_torques = VectorXd::Zero(dof);
 
+	VectorXd q_init = VectorXd::Zero(dof);
+	q_init << 1.20443,-0.924825,-0.981317,-2.08429,-0.200301,1.73099,0.244827;
+	joint_task->_desired_position = q_init;
+
+	joint_task->_kp = 400.0;
+	joint_task->_kv = 35.0;
+	joint_task->_ki = 150.0;
+
+	int wait_counter = 500;
+
 	// posori task
 	auto posori_task = new Sai2Primitives::PosOriTask(robot, link_name, pos_in_link);
 	Vector3d x_init = posori_task->_current_position;
-	posori_task->_desired_position(2) -= 0.1;
 
 	VectorXd posori_task_torques = VectorXd::Zero(dof);
 	posori_task->_use_interpolation_flag = true;
 
-	posori_task->_otg->setMaxLinearVelocity(0.10);
+	posori_task->_otg->setMaxLinearVelocity(0.03);
 	posori_task->_otg->setMaxLinearAcceleration(10.0);
 	posori_task->_otg->setMaxLinearJerk(50.0);
 
@@ -137,13 +151,19 @@ int main(int argc, char *argv[]) {
 	sensor_transform_in_link.translation() = sensor_pos_in_link;
 	posori_task->setForceSensorFrame(link_name, sensor_transform_in_link);
 
+	int cl_counter = 1500;
+	double cl_start_time = 0;
+
 	// posori_task->setOpenLoopForceControl();
-	posori_task->setClosedLoopForceControl();
+	// posori_task->setClosedLoopForceControl();
 	bool passivity = true;
-	// bool passivity = false;
+	if(passivity_arg != 1)
+	{
+		passivity = false;
+	}
 	
-	posori_task->_k_ff = 0.95;
-	// posori_task->_k_ff = 1.0;
+	// posori_task->_k_ff = 0.95;
+	posori_task->_k_ff = 1.0;
 
 	posori_task->_kp_force = kp_f_arg;
 	posori_task->_ki_force = ki_f_arg;
@@ -198,7 +218,7 @@ int main(int argc, char *argv[]) {
 	// logger
 	string folder = "../../21-passivity_new_experiments/data_logging/data/";
 	string timestamp = currentDateTime();
-	string prefix = "data";
+	string prefix = "passivity_" + to_string(passivity_arg) + "_kp_" + to_string(kp_f_arg) + "_ki_" + to_string(ki_f_arg);
 	string suffix = ".csv";
 	string filename = folder + prefix + "_" + timestamp + suffix;
 	auto logger = new Logging::Logger(1000, filename);
@@ -263,11 +283,11 @@ int main(int argc, char *argv[]) {
 		sensed_force_moment_local_frame.head(3) += p_tool_local_frame;
 		sensed_force_moment_local_frame.tail(3) += tool_com.cross(p_tool_local_frame);
 
-		if(first_loop)
-		{
-			init_force = sensed_force_moment_local_frame.head(3);
-			first_loop = false;
-		}
+		// if(first_loop)
+		// {
+		// 	init_force = sensed_force_moment_local_frame.head(3);
+		// 	first_loop = false;
+		// }
 		sensed_force_moment_local_frame.head(3) -= init_force;
 
 		// sensed_force_moment_local_frame.head(3) -= 0.7 * R_world_sensor.transpose() * tool_inertial_forces;
@@ -282,22 +302,54 @@ int main(int argc, char *argv[]) {
 
 		joint_task->updateTaskModel(N_prec);
 
-		if(state == FREE_SPACE)
+		if(state == INIT)
+		{
+			joint_task->updateTaskModel(MatrixXd::Identity(dof,dof));
+
+			joint_task->computeTorques(joint_task_torques);
+			command_torques = joint_task_torques + coriolis;
+
+
+			if((joint_task->_desired_position - joint_task->_current_position).norm() < 0.05)
+			{
+				wait_counter--;
+			}
+			if(wait_counter <= 0)
+			{
+				// Reinitialize controllers
+				posori_task->reInitializeTask();
+				joint_task->reInitializeTask();
+
+				joint_task->_kp = 0.0;
+				joint_task->_kv = 15.0;
+				joint_task->_ki = 0.0;
+
+				posori_task->_desired_position(2) -= 0.1;
+				init_force = sensed_force_moment_local_frame.head(3);
+
+
+				state = FREE_SPACE;
+			}
+		}
+
+		else if(state == FREE_SPACE)
 		{
 			posori_task->computeTorques(posori_task_torques);
 			joint_task->computeTorques(joint_task_torques);
 			command_torques = joint_task_torques + posori_task_torques + coriolis;
 
 			// if((posori_task->_desired_position - posori_task->_current_position).norm() < 0.2)
-			if(posori_task->_sensed_force(2) < -5)
+			if(posori_task->_sensed_force(2) < -8)
 			{
 				// Reinitialize controllers
 				posori_task->reInitializeTask();
 				joint_task->reInitializeTask();
+				posori_task->_otg->setMaxLinearVelocity(0.10);
 
 				posori_task->_desired_position = posori_task->_current_position;
 
-				posori_task->setClosedLoopForceControl();
+				// posori_task->setClosedLoopForceControl();
+				posori_task->setOpenLoopForceControl();
 				posori_task->_passivity_enabled = passivity;
 				posori_task->setForceAxis(Vector3d::UnitZ());
 				posori_task->_desired_force = Vector3d(0,0,-10);
@@ -313,16 +365,49 @@ int main(int argc, char *argv[]) {
 
 			command_torques = posori_task_torques + joint_task_torques + coriolis;
 
-			if(controller_counter % 5000 == 0)
+			if(cl_counter > 0)
 			{
-				posori_task->_desired_position(0) += 0.1;
-				posori_task->_desired_position(1) += 0.1;
+				cl_counter--;
 			}
-			if(controller_counter % 5000 == 2500)
+			else if(cl_counter == 0)
 			{
-				posori_task->_desired_position(0) -= 0.1;
-				posori_task->_desired_position(1) -= 0.1;
+				posori_task->setClosedLoopForceControl();
+				cl_counter = -1;
+				cl_start_time = current_time;
 			}
+
+			// if(cl_counter == -1)
+			// {
+			// 	if(controller_counter % 5000 == 0)
+			// 	{
+			// 		posori_task->_desired_position(0) -= 0.1;
+			// 		posori_task->_desired_position(1) -= 0.1;
+			// 	}
+			// 	if(controller_counter % 5000 == 2500)
+			// 	{
+			// 		posori_task->_desired_position(0) += 0.1;
+			// 		posori_task->_desired_position(1) += 0.1;
+			// 	}
+			// }
+
+			// if(cl_counter == -1)
+			// {
+			// 	double amplitude = 2.5;
+			// 	double frequency = 0.5;
+
+			// 	posori_task->_desired_force(2) = -10 + amplitude * sin(2*M_PI*frequency*(current_time - cl_start_time));
+
+
+			// 	// if(controller_counter % 2000 == 0)
+			// 	// {
+			// 	// 	posori_task->_desired_force(2) = -7.5;
+			// 	// }
+			// 	// if(controller_counter % 2000 == 1000)
+			// 	// {
+			// 	// 	posori_task->_desired_force(2) = -12.5;
+			// 	// }
+			// }
+
 		}
 
 		// write control torques
