@@ -82,7 +82,7 @@ set(PANDA_APPLICATIONS_COMMON_LIBRARIES
 # add apps
 set (PANDA_APPLICATIONS_BINARY_DIR                  ${PROJECT_SOURCE_DIR}/bin)
 
-add_subdirectory(00-thesis_image_generation)
+# add_subdirectory(00-thesis_image_generation)
 # add_subdirectory(00-calibration_for_camera)
 # add_subdirectory(00-float_robot_and_allegro)
 # add_subdirectory(00-experiment_joint_control)
@@ -113,7 +113,8 @@ add_subdirectory(00-thesis_image_generation)
 # add_subdirectory(15-power_line_haptic_experiment)
 # add_subdirectory(16-haptic_cleaning_demo)
 # add_subdirectory(17-autonomous_window_cleaning)
-add_subdirectory(18-haptic_local_force_loop)
+# add_subdirectory(18-haptic_local_force_loop)
 # add_subdirectory(19-bracing_one_arm)
 # add_subdirectory(20-bracing_one_arm_floating_base)
+add_subdirectory(21-passivity_new_experiments)
 # add_subdirectory(zz-two_arm_coordination_tests)
