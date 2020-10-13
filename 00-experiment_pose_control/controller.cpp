@@ -25,10 +25,10 @@ const string robot_file = "resources/panda_arm.urdf";
 const string robot_name = "PANDA";
 
 const vector<string> vec_controller_types = {
-	"fullDynDecoupling",
-	"partialDynDecoupling",
-	"noDynDecoupling",
 	"inertiaSaturation",
+	"noDynDecoupling",
+	"partialDynDecoupling",
+	"fullDynDecoupling",
 };
 
 const vector<string> vec_trajectory_types = {
@@ -65,8 +65,8 @@ const int number_gains_values = vec_gain_values.size();
 
 int state = GO_TO_INITIAL;
 int trajectory_type = 0;
-int speed = 0;
-int controller_type = 0;
+int speed = 2;
+int controller_type = 2;
 int gains_value = 0;
 
 int experiment_number = 1 + gains_value + number_gains_values * (controller_type + number_controller_types * (speed + number_speeds * trajectory_type));
@@ -96,8 +96,8 @@ const string CURRENT_POSITION_KEY = "sai2::PandaApplication::controller::current
 
 unsigned long long controller_counter = 0;
 
-// const bool flag_simulation = false;
-const bool flag_simulation = true;
+const bool flag_simulation = false;
+// const bool flag_simulation = true;
 
 const string prefix_path = "../../00-experiment_pose_control/data_files/data/exp_tracking_";
 string create_filename();
@@ -114,14 +114,14 @@ int main() {
 	}
 	else
 	{
-		JOINT_TORQUES_COMMANDED_KEY = "sai2::FrankaPanda::Clyde::actuators::fgc";
+		JOINT_TORQUES_COMMANDED_KEY = "sai2::FrankaPanda::Bonnie::actuators::fgc";
 
-		JOINT_ANGLES_KEY  = "sai2::FrankaPanda::Clyde::sensors::q";
-		JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::Clyde::sensors::dq";
-		JOINT_TORQUES_SENSED_KEY = "sai2::FrankaPanda::Clyde::sensors::torques";
-		MASSMATRIX_KEY = "sai2::FrankaPanda::Clyde::sensors::model::massmatrix";
-		CORIOLIS_KEY = "sai2::FrankaPanda::Clyde::sensors::model::coriolis";
-		ROBOT_GRAVITY_KEY = "sai2::FrankaPanda::Clyde::sensors::model::robot_gravity";		
+		JOINT_ANGLES_KEY  = "sai2::FrankaPanda::Bonnie::sensors::q";
+		JOINT_VELOCITIES_KEY = "sai2::FrankaPanda::Bonnie::sensors::dq";
+		JOINT_TORQUES_SENSED_KEY = "sai2::FrankaPanda::Bonnie::sensors::torques";
+		MASSMATRIX_KEY = "sai2::FrankaPanda::Bonnie::sensors::model::massmatrix";
+		CORIOLIS_KEY = "sai2::FrankaPanda::Bonnie::sensors::model::coriolis";
+		ROBOT_GRAVITY_KEY = "sai2::FrankaPanda::Bonnie::sensors::model::robot_gravity";		
 	}
 
 	// start redis client
@@ -223,6 +223,7 @@ int main() {
 
 	robot->updateModel();
 
+
 	// prepare controller	
 	int dof = robot->dof();
 	VectorXd command_torques = VectorXd::Zero(dof);
@@ -230,14 +231,19 @@ int main() {
 	MatrixXd N_prec = MatrixXd::Identity(dof, dof);
 
 	VectorXd initial_q = VectorXd::Zero(dof);
-	initial_q << 20.0, 25.0, 5.0, -110.0, 30.0, 125.0, 45.0;
-	// initial_q << 20.0, 45.0, 5.0, -90.0, 30.0, 125.0, 45.0;
-	initial_q *= M_PI/180.0;
+	// initial_q << 20.0, 25.0, 5.0, -110.0, 30.0, 125.0, 45.0;
+	// // initial_q << 20.0, 45.0, 5.0, -90.0, 30.0, 125.0, 45.0;
+	// initial_q *= M_PI/180.0;
+
+	initial_q << -0.453204,0.739596,0.94597,-1.55224,0.0779967,1.75418,0.685897;
 
 	// joint task
 	auto joint_task = new Sai2Primitives::JointTask(robot);
 	VectorXd joint_task_torques = VectorXd::Zero(dof);
 	joint_task->_use_interpolation_flag = true;
+
+	joint_task->_otg->setMaxVelocity(M_PI/4);
+
 	joint_task->_kp = 200.0;
 	joint_task->_kv = 15.0;
 	joint_task->_ki = 5.0;
@@ -348,15 +354,15 @@ int main() {
 			// set controller type
 			if(vec_controller_types[controller_type] == "noDynDecoupling")
 			{
-				// posori_task->_kp_pos = kp_experiments(gains_value) * 5;
-				// posori_task->_kv_pos = kv_experiments(gains_value) * 5;
-				// posori_task->_kp_ori = kp_experiments(gains_value) * 0.2;
-				// posori_task->_kv_ori = kv_experiments(gains_value) * 0.2;
+				posori_task->_kp_pos = kp_experiments(gains_value) * 5;
+				posori_task->_kv_pos = kv_experiments(gains_value) * 5;
+				posori_task->_kp_ori = kp_experiments(gains_value) * 0.2;
+				posori_task->_kv_ori = kv_experiments(gains_value) * 0.2;
 
-				posori_task->_kp_pos = kp_experiments(gains_value) * 7;
-				posori_task->_kv_pos = kv_experiments(gains_value) * 9;
-				posori_task->_kp_ori = kp_experiments(gains_value) * 0.10;
-				posori_task->_kv_ori = kv_experiments(gains_value) * 0.18;
+				// posori_task->_kp_pos = kp_experiments(gains_value) * 7;
+				// posori_task->_kv_pos = kv_experiments(gains_value) * 9;
+				// posori_task->_kp_ori = kp_experiments(gains_value) * 0.10;
+				// posori_task->_kv_ori = kv_experiments(gains_value) * 0.18;
 
 				posori_task->setDynamicDecouplingNone();
 			}
@@ -366,8 +372,8 @@ int main() {
 			}
 			else if(vec_controller_types[controller_type] == "partialDynDecoupling")
 			{
-				posori_task->_kp_ori = kp_experiments(gains_value) * 0.10;
-				posori_task->_kv_ori = kv_experiments(gains_value) * 0.18;
+				posori_task->_kp_ori = kp_experiments(gains_value) * 0.20;
+				posori_task->_kv_ori = kv_experiments(gains_value) * 0.20;
 
 				posori_task->setDynamicDecouplingPartial();
 			}
@@ -414,11 +420,25 @@ int main() {
 					newfile = false;
 				}
 
+				// cout << "mass matrix :\n" << robot->_M << endl;
+				// cout << "mass matrix :\n" << posori_task->_jacobian << endl;
+
+
 				data_file << robot->_q.transpose() << '\t' << robot->_dq.transpose() << '\t' << posori_task->_desired_position.transpose() << '\t' << posori_task->_current_position.transpose() << '\t' << 
 					posori_task->_desired_velocity.transpose() << '\t' << posori_task->_current_velocity.transpose() << '\t' <<
 					posori_task->_orientation_error.transpose() << '\t' << posori_task->_desired_angular_velocity.transpose() << '\t' <<
-					posori_task->_current_angular_velocity.transpose() << '\t' << posori_task->_task_force.transpose() << '\t' << posori_task_torques.transpose() << command_torques.transpose() <<
-					endl;
+					posori_task->_current_angular_velocity.transpose() << '\t' << posori_task->_task_force.transpose() << '\t' << posori_task_torques.transpose() << '\t' << command_torques.transpose() << '\t';
+
+					for(int k=0 ; k<dof ; k++)
+					{
+						data_file << robot->_M.col(k).transpose() << '\t';
+					}
+					for(int k=0 ; k<dof ; k++)
+					{
+						data_file << posori_task->_jacobian.col(k).transpose() << '\t';
+					}
+					data_file << endl;
+
 
 				if(vec_trajectory_types[trajectory_type] == "spiralZ")
 				{

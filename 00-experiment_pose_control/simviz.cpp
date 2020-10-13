@@ -327,7 +327,7 @@ void simulation(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim, Fo
 	redis_client.addEigenToWriteCallback(0, ROBOT_SENSED_FORCE_KEY, sensed_force_moment);
 
 	// create a timer
-	double sim_frequency = 5000.0;
+	double sim_frequency = 2000.0;
 	LoopTimer timer;
 	timer.initializeTimer();
 	timer.setLoopFrequency(sim_frequency);
