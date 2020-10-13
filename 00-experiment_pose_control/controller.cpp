@@ -24,67 +24,55 @@ using namespace Eigen;
 const string robot_file = "resources/panda_arm.urdf";
 const string robot_name = "PANDA";
 
-#define IMPEDANCE                           0
-#define INERTIA_SATURATION                  1
-#define INERTIA_REGULARIZATION              2
-#define INERTIA_REGULARIZATION_ORI_ONLY     3
-#define IMPEDANCE_ORI_POSORI_DECOUPLING     4
-#define IMPEDANCE_ORI_NO_POSORI_DECOUPLING  5
-#define DYNAMIC_DECOUPLING                  6
+const vector<string> vec_controller_types = {
+	"fullDynDecoupling",
+	"partialDynDecoupling",
+	"noDynDecoupling",
+	"inertiaSaturation",
+};
 
-#define SPIRAL_Z                        0
-#define SPIRAL_X                        1
-#define ORIENTATION_ONLY                2
-#define SPIRAL_Z_ORIENTATION            3
-#define SPIRAL_X_ORIENTATION            4
+const vector<string> vec_trajectory_types = {
+	// "spiralZ",
+	// "spiralX",
+	// "orientationOnly",
+	// "spiralZOrientation",
+	"spiralXOrientation",
+};
 
-#define SLOW_SPEED                      0
-#define MEDIUM_SPEED                    1
-#define HIGH_SPEED                      2
+const vector<string> vec_speeds = {
+	"slowSpeed",
+	"mediumSpeed",
+	"fastSpeed",
+};
 
-#define LOW_GAINS                       0
-#define MEDIUM_GAINS                    1
-#define HIGH_GAINS                      2
+const vector<string> vec_gain_values = {
+	"lowGains",
+	"mediumGains",
+	"highGains",
+};
+
+
 
 #define DEBUG                           0
-#define EXPERIMENT_TRACKING             1
-#define EXPERIMENT_REGULATION           2
-#define GO_TO_INITIAL                   3
+#define GO_TO_INITIAL                   1
+#define EXPERIMENT                      2
 
-const int number_motion_types = 5;
-const int number_speeds = 3;
-const int number_controller_types = 7;
-const int number_gains_values = 3;
+const int number_trajectory_types = vec_trajectory_types.size();
+const int number_speeds = vec_speeds.size();
+const int number_controller_types = vec_controller_types.size();
+const int number_gains_values = vec_gain_values.size();
 
 
 int state = GO_TO_INITIAL;
-int motion_type = 0;
+int trajectory_type = 0;
 int speed = 0;
 int controller_type = 0;
 int gains_value = 0;
 
-int experiment_number = 1 + gains_value + number_gains_values * (controller_type + number_controller_types * (speed + number_speeds * motion_type));
-const int number_experiments = number_gains_values * number_controller_types * number_speeds * number_motion_types;
-int number_of_oscillation_per_experiment = 2;
+int experiment_number = 1 + gains_value + number_gains_values * (controller_type + number_controller_types * (speed + number_speeds * trajectory_type));
+const int number_experiments = number_gains_values * number_controller_types * number_speeds * number_trajectory_types;
+const int number_of_oscillation_per_experiment = 2;
 
-// linear motion parameters
-Vector3d experiment_speed_circle_velocity = Vector3d(0.1, 0.25, 0.4);
-Vector3d experiment_speed_axis_max_velocity = Vector3d(0.1, 0.2, 0.3);
-double circle_radius = 0.06;
-double cylinder_length = 0.20;
-Vector3d experiment_speed_frequency_circle = experiment_speed_circle_velocity / circle_radius;
-Vector3d experiment_speed_frequency_axis_motion = experiment_speed_axis_max_velocity / cylinder_length;
-
-// orientation part parameters
-Vector3d experiment_speed_orientation_oscillation_frequency = 2 * M_PI * Vector3d(0.05, 0.15, 0.25);
-Vector3d orientation_rotation_axis = Vector3d::UnitX();
-double orientation_oscillation_amplitude = M_PI/4;
-
-int experiment_countdown = 1000 * number_of_oscillation_per_experiment * 2 * M_PI / experiment_speed_frequency_axis_motion(speed);
-
-// gains
-Vector3d kp_experiments = Vector3d(100.0, 200.0, 300.0);
-Vector3d kv_experiments = Vector3d(15.0, 20.0, 25.0);
 
 // redis keys:
 // - read:
@@ -108,10 +96,10 @@ const string CURRENT_POSITION_KEY = "sai2::PandaApplication::controller::current
 
 unsigned long long controller_counter = 0;
 
-const bool flag_simulation = false;
-// const bool flag_simulation = true;
+// const bool flag_simulation = false;
+const bool flag_simulation = true;
 
-const string prefix_path = "../../00-experiment_pose_control/data_files/";
+const string prefix_path = "../../00-experiment_pose_control/data_files/data/exp_tracking_";
 string create_filename();
 
 void write_first_line(ofstream& file_handler);
@@ -120,9 +108,9 @@ int main() {
 
 	if(flag_simulation)
 	{
-		JOINT_ANGLES_KEY  = "sai2::PandaApplication::sensors::q";
-		JOINT_VELOCITIES_KEY = "sai2::PandaApplication::sensors::dq";
-		JOINT_TORQUES_COMMANDED_KEY  = "sai2::PandaApplication::actuators::fgc";
+		JOINT_ANGLES_KEY  = "sai2::PandaApplications::simviz_panda::sensors::q";
+		JOINT_VELOCITIES_KEY = "sai2::PandaApplications::simviz_panda::sensors::dq";
+		JOINT_TORQUES_COMMANDED_KEY  = "sai2::PandaApplications::simviz_panda::actuators::fgc";
 	}
 	else
 	{
@@ -144,6 +132,90 @@ int main() {
 	signal(SIGABRT, &sighandler);
 	signal(SIGTERM, &sighandler);
 	signal(SIGINT, &sighandler);
+
+
+	// setup experiment parameters
+	// Vector3d experiment_speed_circle_velocity = Vector3d(0.1, 0.25, 0.4);
+	// Vector3d experiment_speed_axis_max_velocity = Vector3d(0.1, 0.2, 0.3);
+	VectorXd experiment_speed_circle_velocity = VectorXd::Zero(number_speeds);
+	VectorXd experiment_speed_axis_max_velocity = VectorXd::Zero(number_speeds);
+	VectorXd experiment_speed_orientation_oscillation_frequency = VectorXd::Zero(number_speeds);
+
+	for(int i=0 ; i<number_speeds ; i++)
+	{
+		if(vec_speeds[i] == "slowSpeed")
+		{
+			experiment_speed_circle_velocity(i) = 0.1;
+			experiment_speed_axis_max_velocity(i) = 0.1;
+			experiment_speed_orientation_oscillation_frequency(i) = 2 * M_PI * 0.05;
+		}
+		else if(vec_speeds[i] == "mediumSpeed")
+		{
+			experiment_speed_circle_velocity(i) = 0.25;
+			experiment_speed_axis_max_velocity(i) = 0.2;
+			experiment_speed_orientation_oscillation_frequency(i) = 2 * M_PI * 0.15;
+		}
+		else if(vec_speeds[i] == "fastSpeed")
+		{
+			experiment_speed_circle_velocity(i) = 0.3;
+			experiment_speed_axis_max_velocity(i) = 0.4;
+			experiment_speed_orientation_oscillation_frequency(i) = 2 * M_PI * 0.25;
+		}
+		else
+		{
+			throw "invalid speed";
+		}
+	}
+
+	double circle_radius = 0.06;
+	double cylinder_length = 0.20;
+	VectorXd experiment_speed_frequency_circle = experiment_speed_circle_velocity / circle_radius;
+	VectorXd experiment_speed_frequency_axis_motion = experiment_speed_axis_max_velocity / cylinder_length;
+
+	// orientation part parameters
+	// Vector3d experiment_speed_orientation_oscillation_frequency = 2 * M_PI * Vector3d(0.05, 0.15, 0.25);
+	Vector3d orientation_rotation_axis = Vector3d::UnitX();
+	double orientation_oscillation_amplitude = M_PI/4;
+
+	int experiment_countdown = 1000 * number_of_oscillation_per_experiment * 2 * M_PI / experiment_speed_frequency_axis_motion(speed);
+
+	// gains
+	// Vector3d kp_experiments = Vector3d(100.0, 200.0, 300.0);
+	// Vector3d kv_experiments = Vector3d(15.0, 20.0, 25.0);
+
+	VectorXd kp_experiments = VectorXd::Zero(number_gains_values);
+	VectorXd kv_experiments = VectorXd::Zero(number_gains_values);
+
+	for(int i=0 ; i<number_gains_values ; i++)
+	{
+		if(vec_gain_values[i] == "lowGains")
+		{
+			kp_experiments(i) = 100.0;
+			kv_experiments(i) = 15.0;
+		}
+		else if(vec_gain_values[i] == "mediumGains")
+		{
+			kp_experiments(i) = 200.0;
+			kv_experiments(i) = 20.0;
+		}
+		else if(vec_gain_values[i] == "highGains")
+		{
+			kp_experiments(i) = 300.0;
+			kv_experiments(i) = 25.0;
+		}
+		else
+		{
+			throw "invalid gains";
+		}
+	}
+
+
+	// cout << "speed circle : " << experiment_speed_circle_velocity.transpose() << endl;
+	// cout << "speed axis : " << experiment_speed_axis_max_velocity.transpose() << endl;
+	// cout << "speed orientation : " << experiment_speed_orientation_oscillation_frequency.transpose() << endl;
+	// cout << "kp : " << kp_experiments.transpose() << endl;
+	// cout << "kv : " << kv_experiments.transpose() << endl;
+	// cout << endl;
 
 	// load robots
 	auto robot = new Sai2Model::Sai2Model(robot_file, false);
@@ -181,7 +253,6 @@ int main() {
 
 	Vector3d x_init = Vector3d::Zero();
 	Matrix3d R_init = Matrix3d::Identity();
-
 
 	double initial_time = 0;
 
@@ -241,7 +312,7 @@ int main() {
 
 			if((joint_task->_desired_position - joint_task->_current_position).norm() < 1e-1)
 			{
-				if(motion_type < 5)
+				if(trajectory_type < number_trajectory_types)
 				{
 					posori_task->reInitializeTask();
 					x_init = posori_task->_current_position;
@@ -250,28 +321,19 @@ int main() {
 					joint_task->_ki = 0;
 					joint_task->_use_interpolation_flag = false;
 
-					state = EXPERIMENT_TRACKING;
+					state = EXPERIMENT;
 					initial_time = current_time;
 				}
-				else if(motion_type == 5)
+				else if(trajectory_type == number_trajectory_types)
 				{
 					cout << "\n\nALL EXPERIMENTS FINISHED\n\n" << endl;
-					motion_type = 100;
+					trajectory_type = number_trajectory_types + 1;
 				}
 			}
 		}
 
 		else
 		{
-			N_prec.setIdentity();
-			posori_task->updateTaskModel(N_prec);
-			N_prec = posori_task->_N;
-			joint_task->updateTaskModel(N_prec);
-
-			// if(controller_counter % 100 == 0)
-			// {
-			// 	cout << "Lambda : \n" << posori_task->_Lambda << endl << endl;
-			// }
 
 			// set gains
 			posori_task->_kp_pos = kp_experiments(gains_value);
@@ -281,6 +343,53 @@ int main() {
 		
 			redis_client.set(KP_JOINT_KEY, to_string(joint_task->_kp));
 			redis_client.set(KV_JOINT_KEY, to_string(joint_task->_kv));
+
+
+			// set controller type
+			if(vec_controller_types[controller_type] == "noDynDecoupling")
+			{
+				// posori_task->_kp_pos = kp_experiments(gains_value) * 5;
+				// posori_task->_kv_pos = kv_experiments(gains_value) * 5;
+				// posori_task->_kp_ori = kp_experiments(gains_value) * 0.2;
+				// posori_task->_kv_ori = kv_experiments(gains_value) * 0.2;
+
+				posori_task->_kp_pos = kp_experiments(gains_value) * 7;
+				posori_task->_kv_pos = kv_experiments(gains_value) * 9;
+				posori_task->_kp_ori = kp_experiments(gains_value) * 0.10;
+				posori_task->_kv_ori = kv_experiments(gains_value) * 0.18;
+
+				posori_task->setDynamicDecouplingNone();
+			}
+			else if(vec_controller_types[controller_type] == "fullDynDecoupling")
+			{
+				posori_task->setDynamicDecouplingFull();
+			}
+			else if(vec_controller_types[controller_type] == "partialDynDecoupling")
+			{
+				posori_task->_kp_ori = kp_experiments(gains_value) * 0.10;
+				posori_task->_kv_ori = kv_experiments(gains_value) * 0.18;
+
+				posori_task->setDynamicDecouplingPartial();
+			}
+			else if(vec_controller_types[controller_type] == "inertiaSaturation")
+			{
+				posori_task->setDynamicDecouplingInertiaSaturation();
+			}
+			else
+			{
+				throw "dynamic decoupling incompatible";
+			}
+
+
+			N_prec.setIdentity();
+			posori_task->updateTaskModel(N_prec);
+			N_prec = posori_task->_N;
+			joint_task->updateTaskModel(N_prec);
+
+			// if(controller_counter % 100 == 0)
+			// {
+			// 	cout << "Lambda : \n" << posori_task->_Lambda << endl << endl;
+			// }
 
 			// set experiment type
 			if(state == DEBUG)
@@ -295,11 +404,7 @@ int main() {
 				cout << posori_task->_current_position.transpose() << '\n' << posori_task->_current_orientation << endl << endl;
 
 			}
-			else if (state == EXPERIMENT_REGULATION)
-			{
-				// read force sensor
-			}
-			else if(state == EXPERIMENT_TRACKING)
+			else if(state == EXPERIMENT)
 			{
 
 				if(newfile)
@@ -315,58 +420,110 @@ int main() {
 					posori_task->_current_angular_velocity.transpose() << '\t' << posori_task->_task_force.transpose() << '\t' << posori_task_torques.transpose() << command_torques.transpose() <<
 					endl;
 
-				if(motion_type == SPIRAL_Z)
+				if(vec_trajectory_types[trajectory_type] == "spiralZ")
 				{
-					posori_task->_desired_position(0) = x_init(0) -
-						circle_radius * (1-cos(experiment_speed_frequency_circle(speed)*(current_time - initial_time)));
-					posori_task->_desired_position(1) = x_init(1) +
-						circle_radius * sin(experiment_speed_frequency_circle(speed)*(current_time - initial_time));
-					posori_task->_desired_position(2) = x_init(2) +
-						cylinder_length/2 *(1-cos(experiment_speed_frequency_axis_motion(speed)*(current_time - initial_time)));
+					double w_circle = experiment_speed_frequency_circle(speed);
+					double w_axis = experiment_speed_frequency_axis_motion(speed);
+					double time = current_time - initial_time;
+
+					posori_task->_desired_position(0) = x_init(0) -	circle_radius * (1-cos(w_circle * time));
+					posori_task->_desired_position(1) = x_init(1) +	circle_radius * sin(w_circle * time);
+					posori_task->_desired_position(2) = x_init(2) +	cylinder_length/2 *(1-cos(w_axis * time));
+
+					posori_task->_desired_velocity(0) = - circle_radius * w_circle * sin(w_circle * time);
+					posori_task->_desired_velocity(1) =   circle_radius * w_circle * cos(w_circle * time);
+					posori_task->_desired_velocity(2) =   cylinder_length/2 * w_axis * sin(w_axis * time);
+
+					posori_task->_desired_acceleration(0) = - circle_radius * w_circle * w_circle * cos(w_circle * time);
+					posori_task->_desired_acceleration(1) = - circle_radius * w_circle * w_circle * sin(w_circle * time);
+					posori_task->_desired_acceleration(2) =   cylinder_length/2 * w_axis * w_axis * cos(w_axis * time);
+
 				}
-				else if(motion_type == SPIRAL_X)
+				else if(vec_trajectory_types[trajectory_type] == "spiralX")
 				{
-					posori_task->_desired_position(0) = x_init(0) -
-						cylinder_length/2 *(1-cos(experiment_speed_frequency_axis_motion(speed)*(current_time - initial_time)));
-					posori_task->_desired_position(1) = x_init(1) -
-						circle_radius * sin(experiment_speed_frequency_circle(speed)*(current_time - initial_time));
-					posori_task->_desired_position(2) = x_init(2) +
-						circle_radius * (1-cos(experiment_speed_frequency_circle(speed)*(current_time - initial_time)));
+					double w_circle = experiment_speed_frequency_circle(speed);
+					double w_axis = experiment_speed_frequency_axis_motion(speed);
+					double time = current_time - initial_time;
+
+					posori_task->_desired_position(0) = x_init(0) - cylinder_length/2 * (1-cos(w_axis * time));
+					posori_task->_desired_position(1) = x_init(1) - circle_radius * sin(w_circle * time);
+					posori_task->_desired_position(2) = x_init(2) + circle_radius * (1-cos(w_circle * time));
+
+					posori_task->_desired_velocity(0) =  - cylinder_length/2 * w_axis * sin(w_axis * time);
+					posori_task->_desired_velocity(1) =  - circle_radius * w_circle * cos(w_circle * time);
+					posori_task->_desired_velocity(2) =    circle_radius * w_circle * sin(w_circle * time);
+
+					posori_task->_desired_acceleration(0) =  - cylinder_length/2 * w_axis *w_axis * cos(w_axis * time);
+					posori_task->_desired_acceleration(1) =    circle_radius * w_circle * w_circle * sin(w_circle * time);
+					posori_task->_desired_acceleration(2) =    circle_radius * w_circle * w_circle * cos(w_circle * time);
+
 				}
-				else if(motion_type == ORIENTATION_ONLY)
+				else if(vec_trajectory_types[trajectory_type] == "orientationOnly")
 				{
-					double angle = orientation_oscillation_amplitude * sin(experiment_speed_orientation_oscillation_frequency(speed)*(current_time - initial_time));
+					double w_ori = experiment_speed_orientation_oscillation_frequency(speed);
+					double time = current_time - initial_time;
+
+					double angle = orientation_oscillation_amplitude * sin(w_ori * time);
 					Matrix3d R_curr = AngleAxisd(angle, orientation_rotation_axis).toRotationMatrix();
 
 					posori_task->_desired_orientation = R_curr * R_init;
-				}
-				else if(motion_type == SPIRAL_Z_ORIENTATION)
-				{
-					posori_task->_desired_position(0) = x_init(0) -
-						circle_radius * (1-cos(experiment_speed_frequency_circle(speed)*(current_time - initial_time)));
-					posori_task->_desired_position(1) = x_init(1) +
-						circle_radius * sin(experiment_speed_frequency_circle(speed)*(current_time - initial_time));
-					posori_task->_desired_position(2) = x_init(2) +
-						cylinder_length/2 *(1-cos(experiment_speed_frequency_axis_motion(speed)*(current_time - initial_time)));
+					posori_task->_desired_angular_velocity = orientation_oscillation_amplitude * w_ori * cos(w_ori * time) * orientation_rotation_axis;
+					posori_task->_desired_angular_acceleration = - orientation_oscillation_amplitude * w_ori * w_ori * sin(w_ori * time) * orientation_rotation_axis;
 				
-					double angle = orientation_oscillation_amplitude * sin(experiment_speed_orientation_oscillation_frequency(speed)*(current_time - initial_time));
-					Matrix3d R_curr = AngleAxisd(angle, orientation_rotation_axis).toRotationMatrix();
-
-					posori_task->_desired_orientation = R_curr * R_init;
 				}
-				else if(motion_type == SPIRAL_X_ORIENTATION)
+				else if(vec_trajectory_types[trajectory_type] == "spiralZOrientation")
 				{
-					posori_task->_desired_position(0) = x_init(0) -
-						cylinder_length/2 *(1-cos(experiment_speed_frequency_axis_motion(speed)*(current_time - initial_time)));
-					posori_task->_desired_position(1) = x_init(1) -
-						circle_radius * sin(experiment_speed_frequency_circle(speed)*(current_time - initial_time));
-					posori_task->_desired_position(2) = x_init(2) +
-						circle_radius * (1-cos(experiment_speed_frequency_circle(speed)*(current_time - initial_time)));
-				
-					double angle = orientation_oscillation_amplitude * sin(experiment_speed_orientation_oscillation_frequency(speed)*(current_time - initial_time));
+					double w_circle = experiment_speed_frequency_circle(speed);
+					double w_axis = experiment_speed_frequency_axis_motion(speed);
+					double w_ori = experiment_speed_orientation_oscillation_frequency(speed);
+					double time = current_time - initial_time;
+
+					posori_task->_desired_position(0) = x_init(0) -	circle_radius * (1-cos(w_circle * time));
+					posori_task->_desired_position(1) = x_init(1) +	circle_radius * sin(w_circle * time);
+					posori_task->_desired_position(2) = x_init(2) +	cylinder_length/2 *(1-cos(w_axis * time));
+
+					posori_task->_desired_velocity(0) = - circle_radius * w_circle * sin(w_circle * time);
+					posori_task->_desired_velocity(1) =   circle_radius * w_circle * cos(w_circle * time);
+					posori_task->_desired_velocity(2) =   cylinder_length/2 * w_axis * sin(w_axis * time);
+
+					posori_task->_desired_acceleration(0) = - circle_radius * w_circle * w_circle * cos(w_circle * time);
+					posori_task->_desired_acceleration(1) = - circle_radius * w_circle * w_circle * sin(w_circle * time);
+					posori_task->_desired_acceleration(2) =   cylinder_length/2 * w_axis * w_axis * cos(w_axis * time);
+
+					double angle = orientation_oscillation_amplitude * sin(w_ori * time);
 					Matrix3d R_curr = AngleAxisd(angle, orientation_rotation_axis).toRotationMatrix();
 
 					posori_task->_desired_orientation = R_curr * R_init;
+					posori_task->_desired_angular_velocity = orientation_oscillation_amplitude * w_ori * cos(w_ori * time) * orientation_rotation_axis;
+					posori_task->_desired_angular_acceleration = - orientation_oscillation_amplitude * w_ori * w_ori * sin(w_ori * time) * orientation_rotation_axis;
+				
+				}
+				else if(vec_trajectory_types[trajectory_type] == "spiralXOrientation")
+				{
+					double w_circle = experiment_speed_frequency_circle(speed);
+					double w_axis = experiment_speed_frequency_axis_motion(speed);
+					double w_ori = experiment_speed_orientation_oscillation_frequency(speed);
+					double time = current_time - initial_time;
+
+					posori_task->_desired_position(0) = x_init(0) - cylinder_length/2 * (1-cos(w_axis * time));
+					posori_task->_desired_position(1) = x_init(1) - circle_radius * sin(w_circle * time);
+					posori_task->_desired_position(2) = x_init(2) + circle_radius * (1-cos(w_circle * time));
+
+					posori_task->_desired_velocity(0) =  - cylinder_length/2 * w_axis * sin(w_axis * time);
+					posori_task->_desired_velocity(1) =  - circle_radius * w_circle * cos(w_circle * time);
+					posori_task->_desired_velocity(2) =    circle_radius * w_circle * sin(w_circle * time);
+
+					posori_task->_desired_acceleration(0) =  - cylinder_length/2 * w_axis *w_axis * cos(w_axis * time);
+					posori_task->_desired_acceleration(1) =    circle_radius * w_circle * w_circle * sin(w_circle * time);
+					posori_task->_desired_acceleration(2) =    circle_radius * w_circle * w_circle * cos(w_circle * time);
+
+					double angle = orientation_oscillation_amplitude * sin(w_ori * time);
+					Matrix3d R_curr = AngleAxisd(angle, orientation_rotation_axis).toRotationMatrix();
+
+					posori_task->_desired_orientation = R_curr * R_init;
+					posori_task->_desired_angular_velocity = orientation_oscillation_amplitude * w_ori * cos(w_ori * time) * orientation_rotation_axis;
+					posori_task->_desired_angular_acceleration = - orientation_oscillation_amplitude * w_ori * w_ori * sin(w_ori * time) * orientation_rotation_axis;
+
 				}
 
 				// switch scenario
@@ -376,17 +533,19 @@ int main() {
 					data_file.close();
 
 					cout << "finished experiment : " << experiment_number << "/" << number_experiments << endl;
-					cout << "motion type : " << motion_type << "\tspeed : " << speed << "\tcontroller type : " << controller_type << "\tgains : " << gains_value << endl;
+					cout << "motion type : " << vec_trajectory_types[trajectory_type];
+					cout << "\tspeed : " << vec_speeds[speed];
+					cout << "\tcontroller type : " << vec_controller_types[controller_type];
+					cout << "\tgains : " << vec_gain_values[gains_value] << endl;
 					cout << endl;
 					newfile = true;
 					experiment_number++;
 					gains_value++;
-					if(gains_value == 3)
+					if(gains_value == number_gains_values)
 					{
 						gains_value = 0;
 						controller_type++;
-						if(controller_type == 7)
-						// if(controller_type == 1)
+						if(controller_type == number_controller_types)
 						{
 							controller_type = 0;
 							speed++;
@@ -396,93 +555,34 @@ int main() {
 							joint_task->_use_interpolation_flag = true;
 							state = GO_TO_INITIAL;
 
-							if(speed == 3)
+							if(speed == number_speeds)
 							{
 								speed = 0;
-								motion_type++;
+								trajectory_type++;
 							}
 
 						}
 					}
-					if(motion_type == ORIENTATION_ONLY)
+					if(trajectory_type < number_trajectory_types)
 					{
-						experiment_countdown = 1000 * number_of_oscillation_per_experiment * 2 * M_PI / experiment_speed_orientation_oscillation_frequency(speed);
-					}
-					else
-					{
-						experiment_countdown = 1000 * number_of_oscillation_per_experiment * 2 * M_PI / experiment_speed_frequency_axis_motion(speed);
+						if(vec_trajectory_types[trajectory_type] == "orientationOnly")
+						{
+							experiment_countdown = 1000 * number_of_oscillation_per_experiment * 2 * M_PI / experiment_speed_orientation_oscillation_frequency(speed);
+						}
+						else
+						{
+							experiment_countdown = 1000 * number_of_oscillation_per_experiment * 2 * M_PI / experiment_speed_frequency_axis_motion(speed);
+						}
 					}
 
 				}
 				experiment_countdown--;
 			}
 		
-			// set controller type
-			if(controller_type == IMPEDANCE)
-			{
-				posori_task->_kp_pos = kp_experiments(gains_value) * 7;
-				posori_task->_kv_pos = kv_experiments(gains_value) * 7;
-				posori_task->_kp_ori = kp_experiments(gains_value) * 0.3;
-				posori_task->_kv_ori = kv_experiments(gains_value) * 0.3;
+			
 
-				posori_task->_Lambda.setIdentity();
-				posori_task->computeTorques(posori_task_torques);
-			}
-			else if(controller_type == DYNAMIC_DECOUPLING)
-			{
-				posori_task->computeTorques(posori_task_torques);
-			}
-			else if(controller_type == INERTIA_SATURATION)
-			{
-				for(int i=0 ; i<6 ; i++)
-				{
-					if(posori_task->_Lambda(i,i) < 0.1)
-					{
-						posori_task->_Lambda(i,i) = 0.1;
-					}
-				}
-				posori_task->computeTorques(posori_task_torques);
-			}
-			else if(controller_type == INERTIA_REGULARIZATION)
-			{
-				for(int i=0 ; i<6 ; i++)
-				{
-					posori_task->_Lambda(i,i) += 0.1;
-				}
-				posori_task->computeTorques(posori_task_torques);
-			}
-			else if(controller_type == INERTIA_REGULARIZATION_ORI_ONLY)
-			{
-				for(int i=3 ; i<6 ; i++)
-				{
-					posori_task->_Lambda(i,i) += 0.1;
-				}
-				posori_task->computeTorques(posori_task_torques);
-			}
-			else if(controller_type == IMPEDANCE_ORI_POSORI_DECOUPLING)
-			{
-				posori_task->_kp_ori = kp_experiments(gains_value) * 0.3;
-				posori_task->_kv_ori = kv_experiments(gains_value) * 0.3;
-
-				posori_task->_Lambda.block<3,3>(3,3) = Matrix3d::Identity();
-				posori_task->computeTorques(posori_task_torques);
-			}
-			else if(controller_type == IMPEDANCE_ORI_NO_POSORI_DECOUPLING)
-			{
-				posori_task->_kp_ori = kp_experiments(gains_value) * 0.3;
-				posori_task->_kv_ori = kv_experiments(gains_value) * 0.3;
-
-				posori_task->_Lambda.block<3,3>(3,3) = Matrix3d::Identity();
-				posori_task->_Lambda.block<3,3>(0,3) = Matrix3d::Zero();
-				posori_task->_Lambda.block<3,3>(3,0) = Matrix3d::Zero();
-				posori_task->computeTorques(posori_task_torques);
-			}
-			else
-			{
-				command_torques.setZero(dof);
-			}
-
-			// send to redis
+			// compute torques
+			posori_task->computeTorques(posori_task_torques);
 			joint_task->computeTorques(joint_task_torques);
 			command_torques = posori_task_torques + joint_task_torques + coriolis;
 		}
@@ -502,7 +602,7 @@ int main() {
 	command_torques.setZero(dof);
 	redis_client.setEigenMatrixJSON(JOINT_TORQUES_COMMANDED_KEY, command_torques);
 
-	data_file.close();
+	// data_file.close();
 
 	double end_time = timer.elapsedTime();
 	std::cout << "\n";
@@ -517,91 +617,10 @@ string create_filename()
 {
 	string return_filename = prefix_path;
 
-	switch(state)
-	{
-		case EXPERIMENT_REGULATION :
-			return_filename += "regulation_";
-			break;
-		case EXPERIMENT_TRACKING :
-			return_filename += "tracking_";
-			break;
-		case DEBUG :
-			return_filename += "debug_";
-			break;
-		default :
-			return_filename += "should_not_happen_";
-			break;
-	}
-
-	switch(motion_type)
-	{
-		case SPIRAL_Z :
-			return_filename += "spiralZ_";
-			break;
-		case SPIRAL_X :
-			return_filename += "spiralX_";
-			break;
-		case ORIENTATION_ONLY :
-			return_filename += "orientationOnly_";
-			break;		
-		case SPIRAL_Z_ORIENTATION :
-			return_filename += "spiralZOrientation_";
-			break;
-		case SPIRAL_X_ORIENTATION :
-			return_filename += "spiralXOrientation_";
-			break;
-	}
-
-	switch(speed)
-	{
-		case SLOW_SPEED :
-			return_filename += "slow_";
-			break;
-		case MEDIUM_SPEED :
-			return_filename += "medium_";
-			break;
-		case HIGH_SPEED :
-			return_filename += "fast_";
-			break;
-	}
-
-	switch(controller_type)
-	{
-		case IMPEDANCE :
-			return_filename += "impedance_";
-			break;
-		case DYNAMIC_DECOUPLING :
-			return_filename += "dynamicDecoupling_";
-			break;
-		case INERTIA_SATURATION :
-			return_filename += "inertiaSaturation_";
-			break;
-		case INERTIA_REGULARIZATION :
-			return_filename += "inertiaRegularization_";
-			break;
-		case INERTIA_REGULARIZATION_ORI_ONLY :
-			return_filename += "inertiaRegularizationOriOnly_";
-			break;
-		case IMPEDANCE_ORI_POSORI_DECOUPLING :
-			return_filename += "impedanceOriDecouplingPosori_";
-			break;
-		case IMPEDANCE_ORI_NO_POSORI_DECOUPLING :
-			return_filename += "impedanceOriNoDecouplingPosori_";
-			break;
-	}
-
-	switch(gains_value)
-	{
-		case LOW_GAINS :
-			return_filename += "lowGains";
-			break;
-		case MEDIUM_GAINS :
-			return_filename += "mediumGains";
-			break;
-		case HIGH_SPEED :
-			return_filename += "highGains";
-			break;
-	}
+	return_filename += vec_trajectory_types[trajectory_type] + "_";
+	return_filename += vec_speeds[speed] + "_";
+	return_filename += vec_controller_types[controller_type] + "_";
+	return_filename += vec_gain_values[gains_value];
 
 	return_filename += ".txt";
 
@@ -613,12 +632,7 @@ void write_first_line(ofstream& file_handler)
 {
 	switch(state)
 	{
-		case EXPERIMENT_REGULATION :
-			file_handler << "joint positions[7]\tjoint velocities[7]\tdesired_position[3]\tcurrent_position[3]\tdesired_velocity[3]\tcurrent_velocity[3]\t" <<
-				"orientation_error[3]\tdesired_angular_velocity[3]\tcurrent_angular_velocity[3]\t" <<
-				"posori_task_force[6]\tposori_task_torques[7]\tcommand_torques[7]\tsensed_force[6]\n";
-			break;
-		case EXPERIMENT_TRACKING :
+		case EXPERIMENT :
 			file_handler << "joint positions[7]\tjoint velocities[7]\tdesired_position[3]\tcurrent_position[3]\tdesired_velocity[3]\tcurrent_velocity[3]\t" <<
 				"orientation_error[3]\tdesired_angular_velocity[3]\tcurrent_angular_velocity[3]\t" <<
 				"posori_task_force[6]\tposori_task_torques[7]\tcommand_torques[7]\n";
