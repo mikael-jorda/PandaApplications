@@ -12,8 +12,8 @@ if len(sys.argv) < 2:
 	print("Give the name of the file to read as an argument\n")
 	exit()
 
-# file = np.loadtxt(sys.argv[1], skiprows=1, usecols=range(47))
-file = np.loadtxt(sys.argv[1], skiprows=1)
+file = np.loadtxt(sys.argv[1], skiprows=1, usecols=range(47))
+# file = np.loadtxt(sys.argv[1], skiprows=1)
 
 robot_q = file[:, 0:7]
 robot_dq = file[:, 7:14]
@@ -32,8 +32,8 @@ mass_matrix = file[:, 55:104]
 task_jacobian = file[:, 104:146]
 
 
-m_init = np.reshape(mass_matrix[0,:],(7,7))
-J_init = np.reshape(task_jacobian[0,:],(7,6)).T
+# m_init = np.reshape(mass_matrix[0,:],(7,7))
+# J_init = np.reshape(task_jacobian[0,:],(7,6)).T
 
 # print(m_init)
 # print()
@@ -46,14 +46,14 @@ J_init = np.reshape(task_jacobian[0,:],(7,6)).T
 plt.figure(1)
 plt.plot(ori_error)
 plt.title("orientation error")
-# plt.ylim(-0.08, 0.08)
+plt.ylim(-0.08, 0.08)
 
 plt.figure(2)
 plt.plot(x_current - x_desired)
 # plt.plot(x_desired, '--')
 plt.title("robot position error")
 plt.legend(['x','y','z'])
-# plt.ylim(-0.1, 0.1)
+plt.ylim(-0.1, 0.1)
 
 # plt.figure(3)
 # plt.plot(posori_task_force[:,0:3])

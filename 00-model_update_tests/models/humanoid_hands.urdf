@@ -1,0 +1,1576 @@
+<?xml version='1.0' encoding='utf-8'?>
+<robot name="panda">
+
+
+
+
+
+
+
+
+<!-- base -->
+
+    <link name="base">
+      <inertial>
+        <origin xyz="0 0 0.05" rpy="0 0 0" />
+        <mass value="4" />
+        <inertia ixx="0.4" iyy="0.4" izz="0.4" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
+    <link name="virtual1">
+      <inertial>
+        <origin xyz="0 0 0.05" rpy="0 0 0" />
+        <mass value="4" />
+        <inertia ixx="0.4" iyy="0.4" izz="0.4" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
+    <link name="virtual2">
+      <inertial>
+        <origin xyz="0 0 0.05" rpy="0 0 0" />
+        <mass value="4" />
+        <inertia ixx="0.4" iyy="0.4" izz="0.4" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
+    <link name="virtual3">
+      <inertial>
+        <origin xyz="0 0 0.05" rpy="0 0 0" />
+        <mass value="4" />
+        <inertia ixx="0.4" iyy="0.4" izz="0.4" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
+    <link name="virtual4">
+      <inertial>
+        <origin xyz="0 0 0.05" rpy="0 0 0" />
+        <mass value="4" />
+        <inertia ixx="0.4" iyy="0.4" izz="0.4" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
+    <link name="virtual5">
+      <inertial>
+        <origin xyz="0 0 0.05" rpy="0 0 0" />
+        <mass value="4" />
+        <inertia ixx="0.4" iyy="0.4" izz="0.4" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
+    <link name="hip">
+      <inertial>
+        <origin xyz="0 0 0.05" rpy="0 0 0" />
+        <mass value="4" />
+        <inertia ixx="0.4" iyy="0.4" izz="0.4" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
+    <link name="torso">
+      <inertial>
+        <origin xyz="0 0 0.05" rpy="0 0 0" />
+        <mass value="4" />
+        <inertia ixx="0.4" iyy="0.4" izz="0.4" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
+
+    <joint name="joint1_base" type="prismatic">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <parent link="base"/>
+      <child link="virtual1"/>
+      <axis xyz="1 0 0"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+
+    <joint name="joint2_base" type="prismatic">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <parent link="virtual1"/>
+      <child link="virtual2"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+
+    <joint name="joint3_base" type="prismatic">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="0 0 0" xyz="0 0 1.2"/>
+      <parent link="virtual2"/>
+      <child link="virtual3"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+
+    <joint name="joint4_base" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <parent link="virtual3"/>
+      <child link="virtual4"/>
+      <axis xyz="1 0 0"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+
+    <joint name="joint5_base" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <parent link="virtual4"/>
+      <child link="virtual5"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+
+    <joint name="joint6_base" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <parent link="virtual5"/>
+      <child link="hip"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+
+    <joint name="joint7_base" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="0 0 0" xyz="0 0 0.2"/>
+      <parent link="hip"/>
+      <child link="torso"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- head -->
+
+
+
+    <link name="head1">
+      <inertial>
+        <origin xyz="0 0 0.05" rpy="0 0 0" />
+        <mass value="4" />
+        <inertia ixx="0.4" iyy="0.4" izz="0.4" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
+    <link name="head2">
+      <inertial>
+        <origin xyz="0 0 0.05" rpy="0 0 0" />
+        <mass value="4" />
+        <inertia ixx="0.4" iyy="0.4" izz="0.4" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
+    <link name="head3">
+      <inertial>
+        <origin xyz="0 0 0.05" rpy="0 0 0" />
+        <mass value="4" />
+        <inertia ixx="0.4" iyy="0.4" izz="0.4" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
+
+    <joint name="joint1_head" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="0 0 0" xyz="0 0 0.8"/>
+      <parent link="torso"/>
+      <child link="head1"/>
+      <axis xyz="1 0 0"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+
+    <joint name="joint2_head" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <parent link="head1"/>
+      <child link="head2"/>
+      <axis xyz="0 1 0"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+
+    <joint name="joint3_head" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <parent link="head2"/>
+      <child link="head3"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- arm 1 -->
+
+    <link name="link1_arm1">
+      <inertial>
+        <origin xyz="0 0 -0.07" rpy="0 -0 0" />
+        <mass value="3" />
+        <inertia ixx="0.3" iyy="0.3" izz="0.3" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link2_arm1">
+      <inertial>
+        <origin xyz="0 -0.1 0" rpy="0 -0 0" />
+        <mass value="3" />
+        <inertia ixx="0.3" iyy="0.3" izz="0.3" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link3_arm1">
+      <inertial>
+        <origin xyz="0.04 0 -0.05" rpy="0 -0 0" />
+        <mass value="2" />
+        <inertia ixx="0.2" iyy="0.2" izz="0.2" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link4_arm1">
+      <inertial>
+        <origin xyz="-0.04 0.05 0" rpy="0 -0 0" />
+        <mass value="2" />
+        <inertia ixx="0.2" iyy="0.2" izz="0.2" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link5_arm1">
+      <inertial>
+        <origin xyz="0 0 -0.15" rpy="0 -0 0" />
+        <mass value="2" />
+        <inertia ixx="0.2" iyy="0.2" izz="0.2" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link6_arm1">
+      <inertial>
+        <origin xyz="0.06 0 0" rpy="0 -0 0" />
+        <mass value="1.5" />
+        <inertia ixx="0.1" iyy="0.1" izz="0.1" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link7_arm1">
+      <inertial>
+        <origin xyz="0 0 0.17" rpy="0 -0 0" />
+        <mass value="1.8" />
+        <inertia ixx="0.09" iyy="0.05" izz="0.07" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
+    <joint name="joint1_arm1" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="0.75 0 0" xyz="0 0.3 0.8"/>
+      <parent link="torso"/>
+      <child link="link1_arm1"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="87" lower="-2.8973" upper="2.8973" velocity="2.1750"/>
+    </joint>
+    <joint name="joint2_arm1" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-1.7628" soft_upper_limit="1.7628"/>
+      <origin rpy="-1.57079632679 0 0" xyz="0 0 0"/>
+      <parent link="link1_arm1"/>
+      <child link="link2_arm1"/>
+      <axis xyz="0 0 1"/>
+      <calibration falling="-45.0" />
+      <limit effort="87" lower="-1.7628" upper="1.7628" velocity="2.1750"/>
+    </joint>
+    <joint name="joint3_arm1" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="1.57079632679 0 0" xyz="0 -0.316 0"/>
+      <parent link="link2_arm1"/>
+      <child link="link3_arm1"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="87" lower="-2.8973" upper="2.8973" velocity="2.1750"/>
+    </joint>
+    <joint name="joint4_arm1" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3.0718" soft_upper_limit="-0.0698"/>
+      <origin rpy="1.57079632679 0 0" xyz="0.0825 0 0"/>
+      <parent link="link3_arm1"/>
+      <child link="link4_arm1"/>
+      <axis xyz="0 0 1"/>
+      <calibration falling="-125.0" />
+      <limit effort="87" lower="-3.0718" upper="-0.0698" velocity="2.1750"/>
+    </joint>
+    <joint name="joint5_arm1" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="-1.57079632679 0 0" xyz="-0.0825 0.384 0"/>
+      <parent link="link4_arm1"/>
+      <child link="link5_arm1"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+    <joint name="joint6_arm1" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-0.0175" soft_upper_limit="3.7525"/>
+      <origin rpy="1.57079632679 0 0" xyz="0 0 0"/>
+      <parent link="link5_arm1"/>
+      <child link="link6_arm1"/>
+      <axis xyz="0 0 1"/>
+      <calibration falling="80.0" />
+      <limit effort="12" lower="-0.0175" upper="3.7525" velocity="2.6100"/>
+    </joint>
+    <joint name="joint7_arm1" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="1.57079632679 0 0" xyz="0.088 0 0"/>
+      <parent link="link6_arm1"/>
+      <child link="link7_arm1"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+
+
+
+
+
+
+
+
+    <link name="palm_link_arm1">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0475" rpy="0 0 0" />
+            <mass value="0.4154" />
+            <inertia ixx="1e-4" iyy="1e-4" izz="1e-4" ixy="0" ixz="0" iyz="0" />
+        </inertial>
+    </link>
+
+    <joint name="joint_hand_arm1" type="fixed">
+        <axis xyz="0 0 1"/>
+        <limit effort="0" lower="-0.47" upper="0.47" velocity="0"/>
+        <parent link="link7_arm1"/>
+        <child link="palm_link_arm1"/>
+        <origin rpy="0 -1.5707963267 3.1415926535" xyz="0.131 0 0.2032"/>
+    </joint>
+
+
+    <link name="link_0.0_arm1">
+        <inertial>
+            <mass value="0.0119" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="1.01666658333e-06" ixy="0.0" ixz="0.0" iyy="6.47677333333e-07" iyz="0.0" izz=" 1.01666658333e-06" />
+        </inertial>
+    </link>  
+
+    <joint name="joint_0.0_arm1" type="revolute">
+        <axis xyz="0 0 1"/>
+        <limit effort="0" lower="-0.47" upper="0.47" velocity="0"/>
+        <parent link="palm_link_arm1"/>
+        <child link="link_0.0_arm1"/>
+        <origin rpy="-0.08726646255 0 0" xyz="0 0.0436512 -0.0022438"/>
+    </joint>
+
+    <link name="link_1.0_arm1">
+        <inertial>
+            <mass value="0.065" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="7.95654166667e-05" ixy="1.7199e-05" ixz="8.75875e-06" iyy="2.47088833333e-05" iyz="2.413125e-05" izz="7.95654166667e-05" />
+        </inertial>
+    </link>
+
+    <joint name="joint_1.0_arm1" type="revolute">
+        <limit effort="0" lower="-0.196" upper="1.61" velocity="0"/>
+        <axis xyz="0 1 0"/>
+        <parent link="link_0.0_arm1"/>
+        <child link="link_1.0_arm1"/>
+        <origin xyz="0 0 0.0166"/>
+    </joint>
+    
+    <link name="link_2.0_arm1">
+        <inertial>
+            <mass value="0.0355" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="2.63979183333e-05" ixy="6.67968e-06" ixz="4.783625e-06"
+                       iyy="1.34948516667e-05" iyz="9.372e-06"
+                       izz="2.63979183333e-05" />
+        </inertial>
+    </link>
+
+    <joint name="joint_2.0_arm1" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.174" upper="1.709" velocity="0"/>
+        <parent link="link_1.0_arm1"/>
+        <child link="link_2.0_arm1"/>
+        <origin xyz="0 0 0.054"/>
+    </joint>    
+
+    <link name="link_3.0_arm1">
+        <inertial>
+            <mass value="0.0096" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="4.701248e-06" ixy="1.255968e-06" ixz="1.2936e-06"
+                       iyy="3.649312e-06" iyz="1.7622e-06"
+                       izz="4.701248e-06" />
+        </inertial>
+    </link>
+
+    <joint name="joint_3.0_arm1" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.227" upper="1.618" velocity="0"/>
+        <parent link="link_2.0_arm1"/>
+        <child link="link_3.0_arm1"/>
+        <origin xyz="0 0 0.0384"/>
+    </joint>
+
+
+    <link name="link_3.0_tip_arm1">
+        <inertial>
+            <mass value="0.0096" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="4.701248e-06" ixy="1.255968e-06" ixz="1.2936e-06"
+                       iyy="3.649312e-06" iyz="1.7622e-06"
+                       izz="4.701248e-06" />
+        </inertial>
+    </link>
+
+    <joint name="joint_3.0_tip_arm1" type="fixed">
+        <parent link="link_3.0_arm1"/>
+        <child link="link_3.0_tip_arm1"/>
+        <origin rpy="0 0 0" xyz="0 0 0.0297"/>
+    </joint> 
+
+    <link name="link_4.0_arm1">
+        <inertial>
+            <mass value="0.0119" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="1.01666658333e-06" ixy="0.0" ixz="0.0" iyy="6.47677333333e-07" iyz="0.0" izz=" 1.01666658333e-06" />
+        </inertial>
+    </link> 
+
+    <joint name="joint_4.0_arm1" type="revolute">
+        <axis xyz="0 0 1"/>
+        <limit effort="0" lower="-0.47" upper="0.47" velocity="0"/>
+        <parent link="palm_link_arm1"/>
+        <child link="link_4.0_arm1"/>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    </joint>
+
+    <link name="link_5.0_arm1">
+        <inertial>
+            <mass value="0.065" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="7.95654166667e-05" ixy="1.7199e-05" ixz="8.75875e-06" iyy="2.47088833333e-05" iyz="2.413125e-05" izz="7.95654166667e-05" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_5.0_arm1" type="revolute">
+        <limit effort="0" lower="-0.196" upper="1.61" velocity="0"/>
+        <axis xyz="0 1 0"/>
+        <parent link="link_4.0_arm1"/>
+        <child link="link_5.0_arm1"/>
+        <origin xyz="0 0 0.0166"/>
+    </joint>
+    
+    <link name="link_6.0_arm1">
+        <inertial>
+            <mass value="0.0355" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="2.63979183333e-05" ixy="6.67968e-06" ixz="4.783625e-06"
+                       iyy="1.34948516667e-05" iyz="9.372e-06"
+                       izz="2.63979183333e-05" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_6.0_arm1" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.174" upper="1.709" velocity="0"/>
+        <parent link="link_5.0_arm1"/>
+        <child link="link_6.0_arm1"/>
+        <origin xyz="0 0 0.054"/>
+    </joint>
+
+
+
+
+    <link name="link_7.0_arm1">
+        <inertial>
+            <mass value="0.0096" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="4.701248e-06" ixy="1.255968e-06" ixz="1.2936e-06"
+                       iyy="3.649312e-06" iyz="1.7622e-06"
+                       izz="4.701248e-06" />
+        </inertial>
+    </link>
+
+    <joint name="joint_7.0_arm1" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.227" upper="1.618" velocity="0"/>
+        <parent link="link_6.0_arm1"/>
+        <child link="link_7.0_arm1"/>
+        <origin xyz="0 0 0.0384"/>
+    </joint>
+
+
+    <link name="link_7.0_tip_arm1">
+        <inertial>
+            <mass value="0.0096" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="4.701248e-06" ixy="1.255968e-06" ixz="1.2936e-06"
+                       iyy="3.649312e-06" iyz="1.7622e-06"
+                       izz="4.701248e-06" />
+        </inertial>
+    </link>
+
+    <joint name="joint_7.0_tip_arm1" type="fixed">
+        <parent link="link_7.0_arm1"/>
+        <child link="link_7.0_tip_arm1"/>
+        <origin rpy="0 0 0" xyz="0 0 0.0297"/> 
+    </joint> 
+
+
+    <link name="link_8.0_arm1">
+        <inertial>
+            <mass value="0.0119" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="1.01666658333e-06" ixy="0.0" ixz="0.0" iyy="6.47677333333e-07" iyz="0.0" izz=" 1.01666658333e-06" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_8.0_arm1" type="revolute">
+        <axis xyz="0 0 1"/>
+        <limit effort="0" lower="-0.47" upper="0.47" velocity="0"/>
+        <parent link="palm_link_arm1"/>
+        <child link="link_8.0_arm1"/>
+        <origin rpy="0.08726646255 0 0" xyz="0 -0.0436512 -0.0022438"/>
+    </joint>
+    
+    <link name="link_9.0_arm1">
+        <inertial>
+            <mass value="0.065" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="7.95654166667e-05" ixy="1.7199e-05" ixz="8.75875e-06" iyy="2.47088833333e-05" iyz="2.413125e-05" izz="7.95654166667e-05" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_9.0_arm1" type="revolute">
+        <limit effort="0" lower="-0.196" upper="1.61" velocity="0"/>
+        <axis xyz="0 1 0"/>
+        <parent link="link_8.0_arm1"/>
+        <child link="link_9.0_arm1"/>
+        <origin xyz="0 0 0.0166"/>
+    </joint>
+    
+    <link name="link_10.0_arm1">
+        <inertial>
+            <mass value="0.0355" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="2.63979183333e-05" ixy="6.67968e-06" ixz="4.783625e-06"
+                       iyy="1.34948516667e-05" iyz="9.372e-06"
+                       izz="2.63979183333e-05" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_10.0_arm1" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.174" upper="1.709" velocity="0"/>
+        <parent link="link_9.0_arm1"/>
+        <child link="link_10.0_arm1"/>
+        <origin xyz="0 0 0.054"/>
+    </joint>
+    
+   <link name="link_11.0_arm1">
+        <inertial>
+            <mass value="0.0096" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="4.701248e-06" ixy="1.255968e-06" ixz="1.2936e-06"
+                       iyy="3.649312e-06" iyz="1.7622e-06"
+                       izz="4.701248e-06" />
+        </inertial>
+    </link>
+
+    <joint name="joint_11.0_arm1" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.227" upper="1.618" velocity="0"/>
+        <parent link="link_10.0_arm1"/>
+        <child link="link_11.0_arm1"/>
+        <origin xyz="0 0 0.0384"/>
+    </joint>
+
+
+    <link name="link_11.0_tip_arm1">
+        <inertial>
+            <mass value="0.0096" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="4.701248e-06" ixy="1.255968e-06" ixz="1.2936e-06"
+                       iyy="3.649312e-06" iyz="1.7622e-06"
+                       izz="4.701248e-06" />
+        </inertial>
+    </link>
+
+    <joint name="joint_11.0_tip_arm1" type="fixed">
+        <parent link="link_11.0_arm1"/>
+        <child link="link_11.0_tip_arm1"/>
+        <origin rpy="0 0 0" xyz="0 0 0.0297"/> 
+    </joint> 
+    
+    <link name="link_12.0_arm1">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+            <mass value="0.0176" />
+            <inertia ixx="1.89273333333e-5" iyy="1.43008213333e-05" izz="1.89273333333e-05" ixy="7.16716e-06" ixz="5.35568e-06" iyz="6.8068e-06" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_912.0_arm1" type="revolute">
+        <axis xyz="1 0 0"/>
+        <limit effort="0" lower="0.263" upper="1.396" velocity="0"/>
+        <parent link="palm_link_arm1"/>
+        <child link="link_12.0_arm1"/>
+        <origin rpy="0 -1.65806278845 -1.5707963259" xyz="-0.0182 0.0193112 -0.046391"/> 
+    </joint> 
+    
+    <link name="link_13.0_arm1">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+            <mass value="0.0119" />
+            <inertia ixx="4.24250866667e-06" iyy="4.52362633333e-06" izz="4.24250866667e-06" ixy="1.032087e-06" ixz="1.603525e-06" iyz="1.44808125e-06" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_913.0_arm1" type="revolute">
+        <axis xyz="0 0 1"/>
+        <limit effort="0" lower="-0.105" upper="1.163" velocity="0"/>
+        <parent link="link_12.0_arm1"/>
+        <child link="link_13.0_arm1"/>
+        <origin xyz="-0.027 0.005 0.0388"/>
+    </joint>
+    
+    <link name="link_14.0_arm1">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+            <mass value="0.038" />
+            <inertia ixx="4.30439933333e-05" iyy="1.44451933333e-05" izz="4.30439933333e-05" ixy="9.57068e-06" ixz="5.1205e-06" iyz="1.342825e-05" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_914.0_arm1" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.189" upper="1.644" velocity="0"/>
+        <parent link="link_13.0_arm1"/>
+        <child link="link_14.0_arm1"/>
+        <origin xyz="0 0 0.0166"/>
+    </joint>
+
+
+    
+    <link name="link_15.0_arm1">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+            <mass value="0.0388" />
+            <inertia ixx="3.29223173333e-05" iyy="1.47493026667e-5" izz="3.29223173333e-05" ixy="8.042076e-06" ixz="5.2283e-06" iyz="1.1283525e-5" />
+        </inertial>
+    </link>
+
+    <joint name="joint_915.0_arm1" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.162" upper="1.719" velocity="0"/>
+        <parent link="link_14.0_arm1"/>
+        <child link="link_15.0_arm1"/>
+        <origin xyz="0 0 0.0514"/>
+    </joint>
+
+    <link name="link_15.0_tip_arm1">
+        <inertial>
+          <mass value="0.0168"/>
+          <origin rpy="0 0 0" xyz="0 0 0"/>
+          <inertia ixx="9.68e-07" ixy="0" ixz="0" iyy="9.68e-07" iyz="0" izz="9.68e-07"/>
+        </inertial>
+    </link>
+
+    <joint name="joint_15.0_tip_arm1" type="fixed">
+        <parent link="link_15.0_arm1"/>
+        <child link="link_15.0_tip_arm1"/>
+        <origin rpy="0 0 0" xyz="0 0 0.0453"/> 
+    </joint>   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- arm 2 -->
+
+    <link name="link1_arm2">
+      <inertial>
+        <origin xyz="0 0 -0.07" rpy="0 -0 0" />
+        <mass value="3" />
+        <inertia ixx="0.3" iyy="0.3" izz="0.3" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+      <visual>
+        <geometry>
+          <mesh filename="../../../Model/meshes/visual/link1.obj"/>
+        </geometry>
+      </visual>
+      <!-- <collision>
+        <geometry>
+          <mesh filename="../../../Model/meshes/collision/link1.obj"/>
+        </geometry>
+      </collision> -->
+    </link>
+    <link name="link2_arm2">
+      <inertial>
+        <origin xyz="0 -0.1 0" rpy="0 -0 0" />
+        <mass value="3" />
+        <inertia ixx="0.3" iyy="0.3" izz="0.3" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+      <visual>
+        <geometry>
+          <mesh filename="../../../Model/meshes/visual/link2.obj"/>
+        </geometry>
+      </visual>
+      <!-- <collision>
+        <geometry>
+          <mesh filename="../../../Model/meshes/collision/link2.obj"/>
+        </geometry>
+      </collision> -->
+    </link>
+    <link name="link3_arm2">
+      <inertial>
+        <origin xyz="0.04 0 -0.05" rpy="0 -0 0" />
+        <mass value="2" />
+        <inertia ixx="0.2" iyy="0.2" izz="0.2" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+      <visual>
+        <geometry>
+          <mesh filename="../../../Model/meshes/visual/link3.obj"/>
+        </geometry>
+      </visual>
+      <!-- <collision>
+        <geometry>
+          <mesh filename="../../../Model/meshes/collision/link3.obj"/>
+        </geometry>
+      </collision> -->
+    </link>
+    <link name="link4_arm2">
+      <inertial>
+        <origin xyz="-0.04 0.05 0" rpy="0 -0 0" />
+        <mass value="2" />
+        <inertia ixx="0.2" iyy="0.2" izz="0.2" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+      <visual>
+        <geometry>
+          <mesh filename="../../../Model/meshes/visual/link4.obj"/>
+        </geometry>
+      </visual>
+<!--       <collision>
+        <geometry>
+          <mesh filename="../../../Model/meshes/collision/link4.obj"/>
+        </geometry>
+      </collision> -->
+    </link>
+    <link name="link5_arm2">
+      <inertial>
+        <origin xyz="0 0 -0.15" rpy="0 -0 0" />
+        <mass value="2" />
+        <inertia ixx="0.2" iyy="0.2" izz="0.2" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+      <visual>
+        <geometry>
+          <mesh filename="../../../Model/meshes/visual/link5.obj"/>
+        </geometry>
+      </visual>
+<!--       <collision>
+        <geometry>
+          <mesh filename="../../../Model/meshes/collision/link5.obj"/>
+        </geometry>
+      </collision> -->
+    </link>
+    <link name="link6_arm2">
+      <inertial>
+        <origin xyz="0.06 0 0" rpy="0 -0 0" />
+        <mass value="1.5" />
+        <inertia ixx="0.1" iyy="0.1" izz="0.1" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+      <visual>
+        <geometry>
+          <mesh filename="../../../Model/meshes/visual/link6.obj"/>
+        </geometry>
+      </visual>
+      <!-- <collision>
+        <geometry>
+          <mesh filename="../../../Model/meshes/collision/link6.obj"/>
+        </geometry>
+      </collision> -->
+    </link>
+    <link name="link7_arm2">
+      <inertial>
+        <origin xyz="0 0 0.17" rpy="0 -0 0" />
+        <mass value="1.8" />
+        <inertia ixx="0.09" iyy="0.05" izz="0.07" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+      <visual>
+        <geometry>
+          <mesh filename="../../../Model/meshes/visual/link7.obj"/>
+        </geometry>
+      </visual>
+      <!-- <collision>
+        <geometry>
+          <mesh filename="../../../Model/meshes/collision/link7.obj"/>
+        </geometry>
+      </collision> -->
+    </link>
+    <joint name="joint1_arm2" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="-0.75 0 0" xyz="0 -0.3 0.8"/>
+      <parent link="torso"/>
+      <child link="link1_arm2"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="87" lower="-2.8973" upper="2.8973" velocity="2.1750"/>
+    </joint>
+    <joint name="joint2_arm2" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-1.7628" soft_upper_limit="1.7628"/>
+      <origin rpy="-1.57079632679 0 0" xyz="0 0 0"/>
+      <parent link="link1_arm2"/>
+      <child link="link2_arm2"/>
+      <axis xyz="0 0 1"/>
+      <calibration falling="-45.0" />
+      <limit effort="87" lower="-1.7628" upper="1.7628" velocity="2.1750"/>
+    </joint>
+    <joint name="joint3_arm2" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="1.57079632679 0 0" xyz="0 -0.316 0"/>
+      <parent link="link2_arm2"/>
+      <child link="link3_arm2"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="87" lower="-2.8973" upper="2.8973" velocity="2.1750"/>
+    </joint>
+    <joint name="joint4_arm2" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3.0718" soft_upper_limit="-0.0698"/>
+      <origin rpy="1.57079632679 0 0" xyz="0.0825 0 0"/>
+      <parent link="link3_arm2"/>
+      <child link="link4_arm2"/>
+      <axis xyz="0 0 1"/>
+      <calibration falling="-125.0" />
+      <limit effort="87" lower="-3.0718" upper="-0.0698" velocity="2.1750"/>
+    </joint>
+    <joint name="joint5_arm2" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="-1.57079632679 0 0" xyz="-0.0825 0.384 0"/>
+      <parent link="link4_arm2"/>
+      <child link="link5_arm2"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+    <joint name="joint6_arm2" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-0.0175" soft_upper_limit="3.7525"/>
+      <origin rpy="1.57079632679 0 0" xyz="0 0 0"/>
+      <parent link="link5_arm2"/>
+      <child link="link6_arm2"/>
+      <axis xyz="0 0 1"/>
+      <calibration falling="80.0" />
+      <limit effort="12" lower="-0.0175" upper="3.7525" velocity="2.6100"/>
+    </joint>
+    <joint name="joint7_arm2" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="1.57079632679 0 0" xyz="0.088 0 0"/>
+      <parent link="link6_arm2"/>
+      <child link="link7_arm2"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+
+
+
+
+    <link name="palm_link_arm2">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0475" rpy="0 0 0" />
+            <mass value="0.4154" />
+            <inertia ixx="1e-4" iyy="1e-4" izz="1e-4" ixy="0" ixz="0" iyz="0" />
+        </inertial>
+    </link>
+
+    <joint name="joint_hand_arm2" type="fixed">
+        <axis xyz="0 0 1"/>
+        <limit effort="0" lower="-0.47" upper="0.47" velocity="0"/>
+        <parent link="link7_arm2"/>
+        <child link="palm_link_arm2"/>
+        <origin rpy="0 -1.5707963267 3.1415926535" xyz="0.131 0 0.2032"/>
+    </joint>
+
+
+    <link name="link_0.0_arm2">
+        <inertial>
+            <mass value="0.0119" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="1.01666658333e-06" ixy="0.0" ixz="0.0" iyy="6.47677333333e-07" iyz="0.0" izz=" 1.01666658333e-06" />
+        </inertial>
+    </link>  
+
+    <joint name="joint_0.0_arm2" type="revolute">
+        <axis xyz="0 0 1"/>
+        <limit effort="0" lower="-0.47" upper="0.47" velocity="0"/>
+        <parent link="palm_link_arm2"/>
+        <child link="link_0.0_arm2"/>
+        <origin rpy="-0.08726646255 0 0" xyz="0 0.0436512 -0.0022438"/>
+    </joint>
+
+    <link name="link_1.0_arm2">
+        <inertial>
+            <mass value="0.065" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="7.95654166667e-05" ixy="1.7199e-05" ixz="8.75875e-06" iyy="2.47088833333e-05" iyz="2.413125e-05" izz="7.95654166667e-05" />
+        </inertial>
+    </link>
+
+    <joint name="joint_1.0_arm2" type="revolute">
+        <limit effort="0" lower="-0.196" upper="1.61" velocity="0"/>
+        <axis xyz="0 1 0"/>
+        <parent link="link_0.0_arm2"/>
+        <child link="link_1.0_arm2"/>
+        <origin xyz="0 0 0.0166"/>
+    </joint>
+    
+    <link name="link_2.0_arm2">
+        <inertial>
+            <mass value="0.0355" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="2.63979183333e-05" ixy="6.67968e-06" ixz="4.783625e-06"
+                       iyy="1.34948516667e-05" iyz="9.372e-06"
+                       izz="2.63979183333e-05" />
+        </inertial>
+    </link>
+
+    <joint name="joint_2.0_arm2" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.174" upper="1.709" velocity="0"/>
+        <parent link="link_1.0_arm2"/>
+        <child link="link_2.0_arm2"/>
+        <origin xyz="0 0 0.054"/>
+    </joint>    
+
+    <link name="link_3.0_arm2">
+        <inertial>
+            <mass value="0.0096" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="4.701248e-06" ixy="1.255968e-06" ixz="1.2936e-06"
+                       iyy="3.649312e-06" iyz="1.7622e-06"
+                       izz="4.701248e-06" />
+        </inertial>
+    </link>
+
+    <joint name="joint_3.0_arm2" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.227" upper="1.618" velocity="0"/>
+        <parent link="link_2.0_arm2"/>
+        <child link="link_3.0_arm2"/>
+        <origin xyz="0 0 0.0384"/>
+    </joint>
+
+
+    <link name="link_3.0_tip_arm2">
+        <inertial>
+            <mass value="0.0096" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="4.701248e-06" ixy="1.255968e-06" ixz="1.2936e-06"
+                       iyy="3.649312e-06" iyz="1.7622e-06"
+                       izz="4.701248e-06" />
+        </inertial>
+    </link>
+
+    <joint name="joint_3.0_tip_arm2" type="fixed">
+        <parent link="link_3.0_arm2"/>
+        <child link="link_3.0_tip_arm2"/>
+        <origin rpy="0 0 0" xyz="0 0 0.0297"/>
+    </joint> 
+
+    <link name="link_4.0_arm2">
+        <inertial>
+            <mass value="0.0119" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="1.01666658333e-06" ixy="0.0" ixz="0.0" iyy="6.47677333333e-07" iyz="0.0" izz=" 1.01666658333e-06" />
+        </inertial>
+    </link> 
+
+    <joint name="joint_4.0_arm2" type="revolute">
+        <axis xyz="0 0 1"/>
+        <limit effort="0" lower="-0.47" upper="0.47" velocity="0"/>
+        <parent link="palm_link_arm2"/>
+        <child link="link_4.0_arm2"/>
+        <origin xyz="0.0 0.0 0.0" rpy="0.0 0.0 0.0"/>
+    </joint>
+
+    <link name="link_5.0_arm2">
+        <inertial>
+            <mass value="0.065" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="7.95654166667e-05" ixy="1.7199e-05" ixz="8.75875e-06" iyy="2.47088833333e-05" iyz="2.413125e-05" izz="7.95654166667e-05" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_5.0_arm2" type="revolute">
+        <limit effort="0" lower="-0.196" upper="1.61" velocity="0"/>
+        <axis xyz="0 1 0"/>
+        <parent link="link_4.0_arm2"/>
+        <child link="link_5.0_arm2"/>
+        <origin xyz="0 0 0.0166"/>
+    </joint>
+    
+    <link name="link_6.0_arm2">
+        <inertial>
+            <mass value="0.0355" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="2.63979183333e-05" ixy="6.67968e-06" ixz="4.783625e-06"
+                       iyy="1.34948516667e-05" iyz="9.372e-06"
+                       izz="2.63979183333e-05" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_6.0_arm2" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.174" upper="1.709" velocity="0"/>
+        <parent link="link_5.0_arm2"/>
+        <child link="link_6.0_arm2"/>
+        <origin xyz="0 0 0.054"/>
+    </joint>
+
+
+
+
+    <link name="link_7.0_arm2">
+        <inertial>
+            <mass value="0.0096" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="4.701248e-06" ixy="1.255968e-06" ixz="1.2936e-06"
+                       iyy="3.649312e-06" iyz="1.7622e-06"
+                       izz="4.701248e-06" />
+        </inertial>
+    </link>
+
+    <joint name="joint_7.0_arm2" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.227" upper="1.618" velocity="0"/>
+        <parent link="link_6.0_arm2"/>
+        <child link="link_7.0_arm2"/>
+        <origin xyz="0 0 0.0384"/>
+    </joint>
+
+
+    <link name="link_7.0_tip_arm2">
+        <inertial>
+            <mass value="0.0096" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="4.701248e-06" ixy="1.255968e-06" ixz="1.2936e-06"
+                       iyy="3.649312e-06" iyz="1.7622e-06"
+                       izz="4.701248e-06" />
+        </inertial>
+    </link>
+
+    <joint name="joint_7.0_tip_arm2" type="fixed">
+        <parent link="link_7.0_arm2"/>
+        <child link="link_7.0_tip_arm2"/>
+        <origin rpy="0 0 0" xyz="0 0 0.0297"/> 
+    </joint> 
+
+
+    <link name="link_8.0_arm2">
+        <inertial>
+            <mass value="0.0119" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="1.01666658333e-06" ixy="0.0" ixz="0.0" iyy="6.47677333333e-07" iyz="0.0" izz=" 1.01666658333e-06" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_8.0_arm2" type="revolute">
+        <axis xyz="0 0 1"/>
+        <limit effort="0" lower="-0.47" upper="0.47" velocity="0"/>
+        <parent link="palm_link_arm2"/>
+        <child link="link_8.0_arm2"/>
+        <origin rpy="0.08726646255 0 0" xyz="0 -0.0436512 -0.0022438"/>
+    </joint>
+    
+    <link name="link_9.0_arm2">
+        <inertial>
+            <mass value="0.065" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="7.95654166667e-05" ixy="1.7199e-05" ixz="8.75875e-06" iyy="2.47088833333e-05" iyz="2.413125e-05" izz="7.95654166667e-05" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_9.0_arm2" type="revolute">
+        <limit effort="0" lower="-0.196" upper="1.61" velocity="0"/>
+        <axis xyz="0 1 0"/>
+        <parent link="link_8.0_arm2"/>
+        <child link="link_9.0_arm2"/>
+        <origin xyz="0 0 0.0166"/>
+    </joint>
+    
+    <link name="link_10.0_arm2">
+        <inertial>
+            <mass value="0.0355" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="2.63979183333e-05" ixy="6.67968e-06" ixz="4.783625e-06"
+                       iyy="1.34948516667e-05" iyz="9.372e-06"
+                       izz="2.63979183333e-05" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_10.0_arm2" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.174" upper="1.709" velocity="0"/>
+        <parent link="link_9.0_arm2"/>
+        <child link="link_10.0_arm2"/>
+        <origin xyz="0 0 0.054"/>
+    </joint>
+    
+   <link name="link_11.0_arm2">
+        <inertial>
+            <mass value="0.0096" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="4.701248e-06" ixy="1.255968e-06" ixz="1.2936e-06"
+                       iyy="3.649312e-06" iyz="1.7622e-06"
+                       izz="4.701248e-06" />
+        </inertial>
+    </link>
+
+    <joint name="joint_11.0_arm2" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.227" upper="1.618" velocity="0"/>
+        <parent link="link_10.0_arm2"/>
+        <child link="link_11.0_arm2"/>
+        <origin xyz="0 0 0.0384"/>
+    </joint>
+
+
+    <link name="link_11.0_tip_arm2">
+        <inertial>
+            <mass value="0.0096" />
+            <origin xyz="0 0 0" rpy="0 0 0"/>
+            <inertia ixx="4.701248e-06" ixy="1.255968e-06" ixz="1.2936e-06"
+                       iyy="3.649312e-06" iyz="1.7622e-06"
+                       izz="4.701248e-06" />
+        </inertial>
+    </link>
+
+    <joint name="joint_11.0_tip_arm2" type="fixed">
+        <parent link="link_11.0_arm2"/>
+        <child link="link_11.0_tip_arm2"/>
+        <origin rpy="0 0 0" xyz="0 0 0.0297"/> 
+    </joint> 
+    
+    <link name="link_12.0_arm2">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+            <mass value="0.0176" />
+            <inertia ixx="1.89273333333e-5" iyy="1.43008213333e-05" izz="1.89273333333e-05" ixy="7.16716e-06" ixz="5.35568e-06" iyz="6.8068e-06" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_912.0_arm2" type="revolute">
+        <axis xyz="1 0 0"/>
+        <limit effort="0" lower="0.263" upper="1.396" velocity="0"/>
+        <parent link="palm_link_arm2"/>
+        <child link="link_12.0_arm2"/>
+        <origin rpy="0 -1.65806278845 -1.5707963259" xyz="-0.0182 0.0193112 -0.046391"/> 
+    </joint> 
+    
+    <link name="link_13.0_arm2">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+            <mass value="0.0119" />
+            <inertia ixx="4.24250866667e-06" iyy="4.52362633333e-06" izz="4.24250866667e-06" ixy="1.032087e-06" ixz="1.603525e-06" iyz="1.44808125e-06" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_913.0_arm2" type="revolute">
+        <axis xyz="0 0 1"/>
+        <limit effort="0" lower="-0.105" upper="1.163" velocity="0"/>
+        <parent link="link_12.0_arm2"/>
+        <child link="link_13.0_arm2"/>
+        <origin xyz="-0.027 0.005 0.0388"/>
+    </joint>
+    
+    <link name="link_14.0_arm2">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+            <mass value="0.038" />
+            <inertia ixx="4.30439933333e-05" iyy="1.44451933333e-05" izz="4.30439933333e-05" ixy="9.57068e-06" ixz="5.1205e-06" iyz="1.342825e-05" />
+        </inertial>
+    </link>
+    
+    <joint name="joint_914.0_arm2" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.189" upper="1.644" velocity="0"/>
+        <parent link="link_13.0_arm2"/>
+        <child link="link_14.0_arm2"/>
+        <origin xyz="0 0 0.0166"/>
+    </joint>
+
+
+    
+    <link name="link_15.0_arm2">
+        <inertial>
+            <origin xyz="0.0 0.0 0.0" rpy="0 0 0" />
+            <mass value="0.0388" />
+            <inertia ixx="3.29223173333e-05" iyy="1.47493026667e-5" izz="3.29223173333e-05" ixy="8.042076e-06" ixz="5.2283e-06" iyz="1.1283525e-5" />
+        </inertial>
+    </link>
+
+    <joint name="joint_915.0_arm2" type="revolute">
+        <axis xyz="0 1 0"/>
+        <limit effort="0" lower="-0.162" upper="1.719" velocity="0"/>
+        <parent link="link_14.0_arm2"/>
+        <child link="link_15.0_arm2"/>
+        <origin xyz="0 0 0.0514"/>
+    </joint>
+
+    <link name="link_15.0_tip_arm2">
+        <inertial>
+          <mass value="0.0168"/>
+          <origin rpy="0 0 0" xyz="0 0 0"/>
+          <inertia ixx="9.68e-07" ixy="0" ixz="0" iyy="9.68e-07" iyz="0" izz="9.68e-07"/>
+        </inertial>
+    </link>
+
+    <joint name="joint_15.0_tip_arm2" type="fixed">
+        <parent link="link_15.0_arm2"/>
+        <child link="link_15.0_tip_arm2"/>
+        <origin rpy="0 0 0" xyz="0 0 0.0453"/> 
+    </joint>   
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+<!-- leg 1 -->
+
+    <link name="link1_leg1">
+      <inertial>
+        <origin xyz="0 0 -0.07" rpy="0 -0 0" />
+        <mass value="3" />
+        <inertia ixx="0.3" iyy="0.3" izz="0.3" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link2_leg1">
+      <inertial>
+        <origin xyz="0 -0.1 0" rpy="0 -0 0" />
+        <mass value="3" />
+        <inertia ixx="0.3" iyy="0.3" izz="0.3" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link3_leg1">
+      <inertial>
+        <origin xyz="0.04 0 -0.05" rpy="0 -0 0" />
+        <mass value="2" />
+        <inertia ixx="0.2" iyy="0.2" izz="0.2" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link4_leg1">
+      <inertial>
+        <origin xyz="-0.04 0.05 0" rpy="0 -0 0" />
+        <mass value="2" />
+        <inertia ixx="0.2" iyy="0.2" izz="0.2" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link5_leg1">
+      <inertial>
+        <origin xyz="0 0 -0.15" rpy="0 -0 0" />
+        <mass value="2" />
+        <inertia ixx="0.2" iyy="0.2" izz="0.2" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link6_leg1">
+      <inertial>
+        <origin xyz="0.06 0 0" rpy="0 -0 0" />
+        <mass value="1.5" />
+        <inertia ixx="0.1" iyy="0.1" izz="0.1" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link7_leg1">
+      <inertial>
+        <origin xyz="0 0 0.17" rpy="0 -0 0" />
+        <mass value="1.8" />
+        <inertia ixx="0.09" iyy="0.05" izz="0.07" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
+    <joint name="joint1_leg1" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="1.75 0 0" xyz="0 0.3 -0.3"/>
+      <parent link="hip"/>
+      <child link="link1_leg1"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="87" lower="-2.8973" upper="2.8973" velocity="2.1750"/>
+    </joint>
+    <joint name="joint2_leg1" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-1.7628" soft_upper_limit="1.7628"/>
+      <origin rpy="-1.57079632679 0 0" xyz="0 0 0"/>
+      <parent link="link1_leg1"/>
+      <child link="link2_leg1"/>
+      <axis xyz="0 0 1"/>
+      <calibration falling="-45.0" />
+      <limit effort="87" lower="-1.7628" upper="1.7628" velocity="2.1750"/>
+    </joint>
+    <joint name="joint3_leg1" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="1.57079632679 0 0" xyz="0 -0.316 0"/>
+      <parent link="link2_leg1"/>
+      <child link="link3_leg1"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="87" lower="-2.8973" upper="2.8973" velocity="2.1750"/>
+    </joint>
+    <joint name="joint4_leg1" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3.0718" soft_upper_limit="-0.0698"/>
+      <origin rpy="1.57079632679 0 0" xyz="0.0825 0 0"/>
+      <parent link="link3_leg1"/>
+      <child link="link4_leg1"/>
+      <axis xyz="0 0 1"/>
+      <calibration falling="-125.0" />
+      <limit effort="87" lower="-3.0718" upper="-0.0698" velocity="2.1750"/>
+    </joint>
+    <joint name="joint5_leg1" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="-1.57079632679 0 0" xyz="-0.0825 0.384 0"/>
+      <parent link="link4_leg1"/>
+      <child link="link5_leg1"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+    <joint name="joint6_leg1" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-0.0175" soft_upper_limit="3.7525"/>
+      <origin rpy="1.57079632679 0 0" xyz="0 0 0"/>
+      <parent link="link5_leg1"/>
+      <child link="link6_leg1"/>
+      <axis xyz="0 0 1"/>
+      <calibration falling="80.0" />
+      <limit effort="12" lower="-0.0175" upper="3.7525" velocity="2.6100"/>
+    </joint>
+    <joint name="joint7_leg1" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="1.57079632679 0 0" xyz="0.088 0 0"/>
+      <parent link="link6_leg1"/>
+      <child link="link7_leg1"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+    <!-- leg 2 -->
+
+    <link name="link1_leg2">
+      <inertial>
+        <origin xyz="0 0 -0.07" rpy="0 -0 0" />
+        <mass value="3" />
+        <inertia ixx="0.3" iyy="0.3" izz="0.3" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link2_leg2">
+      <inertial>
+        <origin xyz="0 -0.1 0" rpy="0 -0 0" />
+        <mass value="3" />
+        <inertia ixx="0.3" iyy="0.3" izz="0.3" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link3_leg2">
+      <inertial>
+        <origin xyz="0.04 0 -0.05" rpy="0 -0 0" />
+        <mass value="2" />
+        <inertia ixx="0.2" iyy="0.2" izz="0.2" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link4_leg2">
+      <inertial>
+        <origin xyz="-0.04 0.05 0" rpy="0 -0 0" />
+        <mass value="2" />
+        <inertia ixx="0.2" iyy="0.2" izz="0.2" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link5_leg2">
+      <inertial>
+        <origin xyz="0 0 -0.15" rpy="0 -0 0" />
+        <mass value="2" />
+        <inertia ixx="0.2" iyy="0.2" izz="0.2" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link6_leg2">
+      <inertial>
+        <origin xyz="0.06 0 0" rpy="0 -0 0" />
+        <mass value="1.5" />
+        <inertia ixx="0.1" iyy="0.1" izz="0.1" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+    <link name="link7_leg2">
+      <inertial>
+        <origin xyz="0 0 0.17" rpy="0 -0 0" />
+        <mass value="1.8" />
+        <inertia ixx="0.09" iyy="0.05" izz="0.07" ixy="0" ixz="0" iyz="0" />
+      </inertial>
+    </link>
+
+    <joint name="joint1_leg2" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="-1.75 0 0" xyz="0 -0.3 -0.3"/>
+      <parent link="hip"/>
+      <child link="link1_leg2"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="87" lower="-2.8973" upper="2.8973" velocity="2.1750"/>
+    </joint>
+    <joint name="joint2_leg2" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-1.7628" soft_upper_limit="1.7628"/>
+      <origin rpy="-1.57079632679 0 0" xyz="0 0 0"/>
+      <parent link="link1_leg2"/>
+      <child link="link2_leg2"/>
+      <axis xyz="0 0 1"/>
+      <calibration falling="-45.0" />
+      <limit effort="87" lower="-1.7628" upper="1.7628" velocity="2.1750"/>
+    </joint>
+    <joint name="joint3_leg2" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="1.57079632679 0 0" xyz="0 -0.316 0"/>
+      <parent link="link2_leg2"/>
+      <child link="link3_leg2"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="87" lower="-2.8973" upper="2.8973" velocity="2.1750"/>
+    </joint>
+    <joint name="joint4_leg2" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-3.0718" soft_upper_limit="-0.0698"/>
+      <origin rpy="1.57079632679 0 0" xyz="0.0825 0 0"/>
+      <parent link="link3_leg2"/>
+      <child link="link4_leg2"/>
+      <axis xyz="0 0 1"/>
+      <calibration falling="-125.0" />
+      <limit effort="87" lower="-3.0718" upper="-0.0698" velocity="2.1750"/>
+    </joint>
+    <joint name="joint5_leg2" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="-1.57079632679 0 0" xyz="-0.0825 0.384 0"/>
+      <parent link="link4_leg2"/>
+      <child link="link5_leg2"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+    <joint name="joint6_leg2" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-0.0175" soft_upper_limit="3.7525"/>
+      <origin rpy="1.57079632679 0 0" xyz="0 0 0"/>
+      <parent link="link5_leg2"/>
+      <child link="link6_leg2"/>
+      <axis xyz="0 0 1"/>
+      <calibration falling="80.0" />
+      <limit effort="12" lower="-0.0175" upper="3.7525" velocity="2.6100"/>
+    </joint>
+    <joint name="joint7_leg2" type="revolute">
+      <safety_controller k_position="100.0" k_velocity="40.0" soft_lower_limit="-2.8973" soft_upper_limit="2.8973"/>
+      <origin rpy="1.57079632679 0 0" xyz="0.088 0 0"/>
+      <parent link="link6_leg2"/>
+      <child link="link7_leg2"/>
+      <axis xyz="0 0 1"/>
+      <limit effort="12" lower="-2.8973" upper="2.8973" velocity="2.6100"/>
+    </joint>
+
+
+
+
+
+
+    
+</robot>
+

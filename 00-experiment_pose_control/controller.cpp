@@ -66,7 +66,7 @@ const int number_gains_values = vec_gain_values.size();
 int state = GO_TO_INITIAL;
 int trajectory_type = 0;
 int speed = 2;
-int controller_type = 2;
+int controller_type = 0;
 int gains_value = 0;
 
 int experiment_number = 1 + gains_value + number_gains_values * (controller_type + number_controller_types * (speed + number_speeds * trajectory_type));
@@ -96,8 +96,8 @@ const string CURRENT_POSITION_KEY = "sai2::PandaApplication::controller::current
 
 unsigned long long controller_counter = 0;
 
-const bool flag_simulation = false;
-// const bool flag_simulation = true;
+// const bool flag_simulation = false;
+const bool flag_simulation = true;
 
 const string prefix_path = "../../00-experiment_pose_control/data_files/data/exp_tracking_";
 string create_filename();
@@ -232,10 +232,10 @@ int main() {
 
 	VectorXd initial_q = VectorXd::Zero(dof);
 	// initial_q << 20.0, 25.0, 5.0, -110.0, 30.0, 125.0, 45.0;
-	// // initial_q << 20.0, 45.0, 5.0, -90.0, 30.0, 125.0, 45.0;
-	// initial_q *= M_PI/180.0;
+	initial_q << 20.0, 45.0, 5.0, -90.0, 30.0, 125.0, 45.0;
+	initial_q *= M_PI/180.0;
 
-	initial_q << -0.453204,0.739596,0.94597,-1.55224,0.0779967,1.75418,0.685897;
+	// initial_q << -0.453204,0.739596,0.94597,-1.55224,0.0779967,1.75418,0.685897;
 
 	// joint task
 	auto joint_task = new Sai2Primitives::JointTask(robot);
