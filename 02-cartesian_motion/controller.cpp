@@ -121,6 +121,7 @@ int main() {
 	const string link_name = "link7";
 	const Eigen::Vector3d pos_in_link = Vector3d(0.0,0.0,0.107);
 	auto posori_task = new Sai2Primitives::PosOriTask(robot, link_name, pos_in_link);
+	Vector3d init_position = posori_task->_current_position;
 
 	redis_client.setEigenMatrixJSON(DESIRED_POS_KEY, posori_task->_current_position);
 
@@ -177,7 +178,9 @@ int main() {
 		joint_task->updateTaskModel(N_prec);
 
 		//update desired position
-		posori_task->_desired_position = redis_client.getEigenMatrixJSON(DESIRED_POS_KEY);
+		// posori_task->_desired_position = redis_client.getEigenMatrixJSON(DESIRED_POS_KEY);
+		posori_task->_desired_position(0) = init_position(0) + 0.1*(1-cos(3.0 * current_time));
+		posori_task->_desired_position(2) = init_position(2) + 0.1*(sin(3.0 * current_time));
 
 		// compute torques
 		posori_task->computeTorques(posori_task_torques);

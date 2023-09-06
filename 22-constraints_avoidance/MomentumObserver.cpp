@@ -64,5 +64,5 @@ void MomentumObserver::update(VectorXd& command_torques, VectorXd& known_contact
 
 VectorXd MomentumObserver::getDisturbanceTorqueEstimate()
 {
-	return _r;
+	return -_r;
 }

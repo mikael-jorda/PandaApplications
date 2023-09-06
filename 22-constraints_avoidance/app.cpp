@@ -439,7 +439,7 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 		// task_contact_torques = posori_task->_jacobian.block(0,0,3,dof).transpose() * posori_task->_desired_force;
 		momentum_observer->update(command_torques, task_contact_torques);
 		gamma_raw = momentum_observer->getDisturbanceTorqueEstimate();
-		// gamma_raw.tail(3) = VectorXd::Zero(3);
+		gamma_raw.tail(3) = VectorXd::Zero(3);
 		// gamma = filter_gamma.update(gamma_raw);
 		gamma = (gamma_raw);
 
@@ -501,6 +501,7 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 			posori_task->_desired_force(2) = -10.0;
 		}
 
+
 		// motion
 		if(contact_made)
 		// if(controller_counter > 0)
@@ -518,6 +519,9 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 		// {
 		// 	posori_task->_desired_position(1) -= 0.4;
 		// }
+
+
+
 
 		posori_task->computeTorques(posori_task_torques);
 
@@ -672,16 +676,14 @@ void control(Sai2Model::Sai2Model* robot, Simulation::Sai2Simulation* sim)
 		posori_task->computeTorques(posori_task_torques);
 		joint_task->computeTorques(joint_task_torques);
 
-
 		// final torques
-		command_torques = posori_task_torques + joint_task_torques + constraint_task_torques + contact_driven_torques + coriolis_plus_gravity - posori_task->_Jbar.transpose() * gamma;
+		command_torques = posori_task_torques + joint_task_torques + constraint_task_torques + contact_driven_torques + coriolis_plus_gravity - posori_task->_projected_jacobian.transpose() * posori_task->_URange * posori_task->_Jbar.transpose() * gamma;
 		// command_torques = posori_task_torques + joint_task_torques + constraint_task_torques + contact_driven_torques + coriolis_plus_gravity - gamma;
 
 		// send to redis
 		// command_torques = coriolis_plus_gravity;
 		// command_torques.setZero();
 		sim->setJointTorques(robot_name, command_torques + ui_force_command_torques);
-
 
 		// logger
 		log_desired_position = posori_task->_desired_position;

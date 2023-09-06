@@ -1,0 +1,302 @@
+# Blender MTL File: 'None'
+# Material Count: 29
+
+newmtl Color_000
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl Color_006
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.337255 0.337255 0.337255
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl Color_007
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.227451 0.227451 0.227451
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl Color_008
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.117647 0.117647 0.117647
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl Color_009
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.000000 0.000000 0.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl Color_A01
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 1.000000 0.000000 0.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl Color_A06
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.800000 0.000000 0.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl Color_D01
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 1.000000 0.749020 0.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl Color_E03
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 1.000000 1.000000 0.396078
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl Metal_Aluminum_Anodized_0
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd /media/mika/Data/AcademicsStanford/Electric_Cables_Project/assets/truck/Cherry+Picker/model/Metal_Aluminum_Anodized_0.jpg
+
+newmtl Metal_Rough
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd /media/mika/Data/AcademicsStanford/Electric_Cables_Project/assets/truck/Cherry+Picker/model/Metal_Rough.jpg
+
+newmtl Metal_Steel_Textured_White
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd /media/mika/Data/AcademicsStanford/Electric_Cables_Project/assets/truck/Cherry+Picker/model/Metal_Steel_Textured_White.jpg
+
+newmtl Translucent_Glass_Gold
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd /media/mika/Data/AcademicsStanford/Electric_Cables_Project/assets/truck/Cherry+Picker/model/Translucent_Glass_Gold.jpg
+
+newmtl _0133_Gray
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.501961 0.501961 0.501961
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl _0135_DarkGray
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.317647 0.317647 0.317647
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl _0136_Charcoal
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.137255 0.137255 0.137255
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl _515151ff
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.317647 0.317647 0.317647
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl _87878750ff
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.529412 0.529412 0.529412
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 0.498039
+illum 6
+
+newmtl __Charcoal_
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.137255 0.137255 0.137255
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl __Color_003_1
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.666667 0.666667 0.666667
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl __Metal_Corrogated_Shiny_1
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd /media/mika/Data/AcademicsStanford/Electric_Cables_Project/assets/truck/Cherry+Picker/model/__Metal_Corrogated_Shiny_1.jpg
+
+newmtl __Metal_Panel_
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd /media/mika/Data/AcademicsStanford/Electric_Cables_Project/assets/truck/Cherry+Picker/model/__Metal_Panel_.jpg
+
+newmtl __Metal_Steel_Textured_White_1
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd /media/mika/Data/AcademicsStanford/Electric_Cables_Project/assets/truck/Cherry+Picker/model/__Metal_Steel_Textured_White_1.jpg
+
+newmtl __Orange_1
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.839216 0.541176 0.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl download
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd /media/mika/Data/AcademicsStanford/Electric_Cables_Project/assets/truck/Cherry+Picker/model/download.jpg
+
+newmtl material
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl material_11
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.298039 0.298039 0.298039
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+
+newmtl mud_splat_2
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd /media/mika/Data/AcademicsStanford/Electric_Cables_Project/assets/truck/Cherry+Picker/model/mud_splat_2.jpg
+
+newmtl rust_
+Ns 3600.000000
+Ka -1.000000 -1.000000 -1.000000
+Kd 0.800000 0.800000 0.800000
+Ks 0.500000 0.500000 0.500000
+Ke 0.0 0.0 0.0
+Ni 1.450000
+d 1.000000
+illum 3
+map_Kd /media/mika/Data/AcademicsStanford/Electric_Cables_Project/assets/truck/Cherry+Picker/model/rust_.jpg
